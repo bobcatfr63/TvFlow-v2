@@ -24,8 +24,8 @@ function Replace-Text([string]$Path, [string]$Old, [string]$New) {
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 Push-Location $repoRoot
 try {
-    if (Test-Path "app\build.gradle.kts") {
-        Log "Le code Android est déjà présent. Bootstrap ignoré."
+    if (Test-Path ".tvflow-v2-consolidated") {
+        Log "La consolidation complète est déjà marquée comme terminée."
         exit 0
     }
 
@@ -141,6 +141,12 @@ Chemin projet Windows canonique : `G:\DevServer\repos\TvFlow-v2`.
         gh repo clone $TargetRepository $targetDir
     }
 
+    Set-Content -Encoding UTF8 ".tvflow-v2-consolidated" "Consolidation terminée $(Get-Date -Format o)"
+    git add .tvflow-v2-consolidated
+    git commit -m "chore: mark TvFlow-v2 consolidation complete"
+    if ($LASTEXITCODE -eq 0) {
+        git push origin main
+    }
     Log "Consolidation terminée."
 }
 finally {
