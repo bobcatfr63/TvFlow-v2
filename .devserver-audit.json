@@ -1,0 +1,4 @@
+{
+  "allowCleartextTraffic": true,
+  "cleartextReason": "TVFlow doit accepter des serveurs Xtream en HTTP lorsque l'utilisateur fournit explicitement une URL HTTP."
+}

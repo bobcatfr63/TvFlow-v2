@@ -1,0 +1,4 @@
+-keepattributes Signature
+-keepattributes *Annotation*
+-dontwarn javax.annotation.**
+-keep class com.tvflow.app.data.remote.** { *; }
