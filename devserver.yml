@@ -1,0 +1,34 @@
+schema: 1
+project:
+  name: TVFlow
+  type: android-tv
+  status: dev
+source:
+  provider: github
+  repository: bobcatfr63/TVFlow
+  default_branch: main
+  poll_seconds: 120
+  github_actions: false
+local:
+  root: G:\DevServer
+  repository_dir: G:\DevServer\repos\TVFlow
+build:
+  local_only: true
+  runner_label: windows-native
+  build_only_on_sha_change: true
+versioning:
+  scheme: semver
+  current: 1.0.25
+  artifact_pattern: "{project}-v{version}-build{build}-{sha}.apk"
+author_branding:
+  enabled: true
+  text: "by bobcatfr63"
+updates:
+  enabled: true
+  channel: stable
+release:
+  github_release: tvflow-latest
+  keep_versions: 5
+archive:
+  freebox_enabled: true
+  required_for_build: false
