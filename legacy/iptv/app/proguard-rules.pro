@@ -1,0 +1,4 @@
+-keepattributes *Annotation*
+-keepclassmembers class **$$serializer { *; }
+-keep,includedescriptorclasses class com.bobcatfr63.iptv.**$$serializer { *; }
+-dontwarn org.conscrypt.**

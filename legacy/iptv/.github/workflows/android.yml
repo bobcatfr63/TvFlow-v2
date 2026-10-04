@@ -1,0 +1,116 @@
+name: Android APK
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: ${{ github.event_name == 'pull_request' }}
+
+      - name: Build pull request APK
+        if: github.event_name == 'pull_request'
+        run: ./gradlew --no-daemon --stacktrace assembleDebug
+
+      - name: Prepare release signing
+        id: signing
+        if: github.event_name != 'pull_request'
+        shell: bash
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          test -n "$ANDROID_KEYSTORE_BASE64"
+          test -n "$ANDROID_KEYSTORE_PASSWORD"
+          test -n "$ANDROID_KEY_ALIAS"
+          test -n "$ANDROID_KEY_PASSWORD"
+          KEYSTORE_PATH="$RUNNER_TEMP/bobcat-iptv-release.keystore"
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE_PATH"
+          keytool -list \
+            -keystore "$KEYSTORE_PATH" \
+            -storepass "$ANDROID_KEYSTORE_PASSWORD" \
+            -alias "$ANDROID_KEY_ALIAS" >/dev/null
+          echo "keystore_path=$KEYSTORE_PATH" >> "$GITHUB_OUTPUT"
+
+      - name: Build stable APK
+        if: github.event_name != 'pull_request'
+        env:
+          RELEASE_STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: >-
+          ./gradlew --no-daemon --stacktrace assembleRelease
+          -PRELEASE_STORE_FILE="${{ steps.signing.outputs.keystore_path }}"
+          -PRELEASE_STORE_PASSWORD="$RELEASE_STORE_PASSWORD"
+          -PRELEASE_KEY_ALIAS="$RELEASE_KEY_ALIAS"
+          -PRELEASE_KEY_PASSWORD="$RELEASE_KEY_PASSWORD"
+
+      - name: Rename APK
+        if: github.event_name != 'pull_request'
+        shell: bash
+        run: cp "app/build/outputs/apk/release/app-release.apk" "app/build/outputs/apk/release/Bobcat IPTV.apk"
+
+      - name: Publish in-app update channel
+        if: github.event_name != 'pull_request'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "RELEASES_TOKEN absent: publication automatique ignorée."
+            exit 0
+          fi
+          VERSION_CODE=$((GITHUB_RUN_NUMBER + 100))
+          VERSION_NAME="1.1.${VERSION_CODE}"
+          cat > /tmp/bobcat-update-notes.txt <<EOF
+          versionCode=${VERSION_CODE}
+          versionName=${VERSION_NAME}
+          notes=Connexion Xtream : les erreurs HTTP sont maintenant affichées précisément pour chaque serveur essayé. Les refus d’authentification indiquent de vérifier les identifiants, l’abonnement et le port du serveur.
+          EOF
+          if gh release view bobcat-iptv-latest --repo bobcatfr63/IPTV-Releases >/dev/null 2>&1; then
+            gh release upload bobcat-iptv-latest \
+              "app/build/outputs/apk/release/Bobcat IPTV.apk#Bobcat IPTV.apk" \
+              --repo bobcatfr63/IPTV-Releases \
+              --clobber
+            gh release edit bobcat-iptv-latest \
+              --repo bobcatfr63/IPTV-Releases \
+              --title "Bobcat IPTV ${VERSION_NAME}" \
+              --notes-file /tmp/bobcat-update-notes.txt \
+              --latest
+          else
+            gh release create bobcat-iptv-latest \
+              "app/build/outputs/apk/release/Bobcat IPTV.apk#Bobcat IPTV.apk" \
+              --repo bobcatfr63/IPTV-Releases \
+              --target main \
+              --title "Bobcat IPTV ${VERSION_NAME}" \
+              --notes-file /tmp/bobcat-update-notes.txt \
+              --latest
+          fi

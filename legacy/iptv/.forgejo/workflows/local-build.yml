@@ -1,0 +1,26 @@
+name: Build local PC
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  android:
+    runs-on: windows-native
+    env:
+      JAVA_HOME: C:\Program Files\Microsoft\jdk-17.0.20.101-hotspot
+      ANDROID_HOME: D:\DevServer\android-sdk
+      ANDROID_SDK_ROOT: D:\DevServer\android-sdk
+      GRADLE_USER_HOME: D:\DevServer\gradle-cache
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tests et APK
+        shell: powershell
+        run: .\gradlew.bat --no-daemon --stacktrace test assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: IPTV-debug
+          path: app/build/outputs/apk/**/*.apk
+      - name: Stockage GitHub
+        shell: powershell
+        run: D:\DevServer\builder\publish-github-assets.ps1 -Repository bobcatfr63/IPTV-Releases -Project IPTV -Assets 'app/build/outputs/apk/**/*.apk'
+
