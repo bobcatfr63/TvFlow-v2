@@ -1,6 +1,6 @@
 schema: 1
 project:
-  name: TVFlow
+  name: TvFlow-v2
   type: android-tv
   status: dev
 source:
