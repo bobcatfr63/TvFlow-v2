@@ -83,7 +83,7 @@ class AppUpdateChecker @Inject constructor(
 
     companion object {
         private const val RELEASE_MANIFEST_URL =
-            "https://github.com/bobcatfr63/IPTV-Releases/releases/download/tvflow-latest/release.json"
+            "https://github.com/bobcatfr63/TvFlow-v2/releases/download/tvflow-latest/release.json"
     }
 }
 
