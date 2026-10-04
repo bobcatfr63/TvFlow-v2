@@ -1,0 +1,36 @@
+package com.tvflow.app.ui.startup
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.tvflow.app.data.repository.XtreamRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+sealed interface StartupState {
+    data object Loading : StartupState
+    data object LoggedOut : StartupState
+    data object LoggedIn : StartupState
+}
+
+@HiltViewModel
+class StartupViewModel @Inject constructor(
+    repository: XtreamRepository
+) : ViewModel() {
+    private val _state = MutableStateFlow<StartupState>(StartupState.Loading)
+    val state: StateFlow<StartupState> = _state.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            _state.value = if (repository.savedCredentials.first() == null) {
+                StartupState.LoggedOut
+            } else {
+                StartupState.LoggedIn
+            }
+        }
+    }
+}

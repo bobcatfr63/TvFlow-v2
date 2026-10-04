@@ -1,0 +1,276 @@
+package com.tvflow.app.ui.settings
+
+import android.app.Application
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.tvflow.app.data.local.PlayerPreferences
+import com.tvflow.app.data.local.SettingsStore
+import com.tvflow.app.data.metadata.TmdbMetadataClient
+import com.tvflow.app.data.refresh.CatalogRefreshWorker
+import com.tvflow.app.data.repository.XtreamRepository
+import com.tvflow.app.domain.ConnectionDiagnostics
+import com.tvflow.app.domain.LiveCategory
+import com.tvflow.app.domain.LiveChannel
+import com.tvflow.app.domain.ServerProfile
+import com.tvflow.app.launcher.TvLauncherMode
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+data class RefreshProgress(
+    val percent: Int,
+    val step: String
+)
+
+data class SettingsUiState(
+    val profiles: List<ServerProfile> = emptyList(),
+    val activeProfileId: String? = null,
+    val player: PlayerPreferences = PlayerPreferences(),
+    val pinConfigured: Boolean = false,
+    val tmdbConfigured: Boolean = false,
+    val categories: List<LiveCategory> = emptyList(),
+    val selectedCategoryId: String? = null,
+    val channels: List<LiveChannel> = emptyList(),
+    val busy: Boolean = false,
+    val message: String? = null,
+    val diagnostics: ConnectionDiagnostics? = null
+)
+
+private data class AccountSettings(
+    val profiles: List<ServerProfile>,
+    val activeProfileId: String?,
+    val player: PlayerPreferences,
+    val pinConfigured: Boolean,
+    val tmdbConfigured: Boolean
+)
+
+private data class CatalogSettings(
+    val categories: List<LiveCategory>,
+    val selectedCategoryId: String?,
+    val channels: List<LiveChannel>
+)
+
+@OptIn(ExperimentalCoroutinesApi::class)
+@HiltViewModel
+class SettingsViewModel @Inject constructor(
+    private val repository: XtreamRepository,
+    private val settingsStore: SettingsStore,
+    private val tmdbMetadataClient: TmdbMetadataClient,
+    private val application: Application
+) : ViewModel() {
+    private val selectedCategoryId = MutableStateFlow<String?>(null)
+    private val busy = MutableStateFlow(false)
+    private val message = MutableStateFlow<String?>(null)
+    private val diagnostics = MutableStateFlow<ConnectionDiagnostics?>(null)
+    private val tmdbValid = MutableStateFlow<Boolean?>(null)
+    private val _refreshProgress = MutableStateFlow<RefreshProgress?>(null)
+    val refreshProgress: StateFlow<RefreshProgress?> = _refreshProgress
+
+    private val channels = selectedCategoryId.flatMapLatest { id ->
+        if (id == null) flowOf(emptyList()) else repository.observeManageChannels(id)
+    }
+
+    private val validatedTmdbConfigured = combine(settingsStore.tmdbToken, tmdbValid) { token, valid ->
+        !token.isNullOrBlank() && valid != false
+    }
+
+    private val account = combine(
+        repository.profiles,
+        repository.activeProfileId,
+        settingsStore.playerPreferences,
+        settingsStore.parentalPinConfigured,
+        validatedTmdbConfigured
+    ) { profiles, activeId, player, pinConfigured, tmdbConfigured ->
+        AccountSettings(profiles, activeId, player, pinConfigured, tmdbConfigured)
+    }
+
+    private val catalog = combine(
+        repository.observeManageCategories(),
+        selectedCategoryId,
+        channels
+    ) { categories, selectedId, channelList ->
+        CatalogSettings(categories, selectedId, channelList)
+    }
+
+    init {
+        viewModelScope.launch {
+            val current = settingsStore.currentTmdbToken()
+            if (current.isNullOrBlank()) {
+                tmdbValid.value = null
+            } else {
+                val status = tmdbMetadataClient.validateCredential(current)
+                tmdbValid.value = status in 200..299
+                if (status == 401 || status == 403) {
+                    message.value = "Le token TMDb enregistré est refusé (HTTP $status). Remplace-le dans Métadonnées films & séries."
+                }
+            }
+        }
+    }
+
+    val state: StateFlow<SettingsUiState> = combine(
+        account,
+        catalog,
+        busy,
+        message,
+        diagnostics
+    ) { accountState, catalogState, isBusy, info, networkDiagnostics ->
+        SettingsUiState(
+            profiles = accountState.profiles,
+            activeProfileId = accountState.activeProfileId,
+            player = accountState.player,
+            pinConfigured = accountState.pinConfigured,
+            tmdbConfigured = accountState.tmdbConfigured,
+            categories = catalogState.categories,
+            selectedCategoryId = catalogState.selectedCategoryId,
+            channels = catalogState.channels,
+            busy = isBusy,
+            message = info,
+            diagnostics = networkDiagnostics
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SettingsUiState())
+
+    fun selectCategory(id: String) { selectedCategoryId.value = id }
+
+    fun switchProfile(id: String) = launchBusy("Profil activé") { repository.switchProfile(id); selectedCategoryId.value = null }
+    fun deleteProfile(id: String) = launchBusy("Profil supprimé") { repository.deleteProfile(id); selectedCategoryId.value = null }
+    fun refresh() {
+        if (busy.value) return
+        viewModelScope.launch {
+            busy.value = true
+            message.value = null
+            _refreshProgress.value = RefreshProgress(0, "Préparation")
+            val result = runCatching {
+                repository.refreshAllWithProgress { percent, step ->
+                    _refreshProgress.value = RefreshProgress(percent.coerceIn(0, 100), step)
+                }
+            }
+            if (result.isSuccess) {
+                _refreshProgress.value = RefreshProgress(100, "Actualisation terminée")
+                delay(500)
+                message.value = "Catalogues actualisés"
+            } else {
+                message.value = result.exceptionOrNull()?.message ?: "Échec de l’actualisation"
+            }
+            _refreshProgress.value = null
+            busy.value = false
+        }
+    }
+
+    fun runConnectionDiagnostics() {
+        viewModelScope.launch {
+            busy.value = true
+            diagnostics.value = null
+            val result = runCatching { repository.diagnoseConnection() }
+            diagnostics.value = result.getOrNull()
+            message.value = result.exceptionOrNull()?.message
+            busy.value = false
+        }
+    }
+
+    fun setBuffer(value: String) { viewModelScope.launch { settingsStore.setBufferPreset(value) } }
+    fun setScale(value: String) { viewModelScope.launch { settingsStore.setVideoScale(value) } }
+    fun setSubtitles(value: Boolean) { viewModelScope.launch { settingsStore.setSubtitlesEnabled(value) } }
+    fun setAccent(value: String) { viewModelScope.launch { settingsStore.setAccent(value) } }
+    fun setHideOfflineStreams(value: Boolean) { viewModelScope.launch { settingsStore.setHideOfflineStreams(value) } }
+    fun setAutoStartOnTvBoot(value: Boolean) { viewModelScope.launch { settingsStore.setAutoStartOnTvBoot(value) } }
+    fun setResumeLastLiveOnTvBoot(value: Boolean) { viewModelScope.launch { settingsStore.setResumeLastLiveOnTvBoot(value) } }
+    fun setTmdbToken(value: String) {
+        viewModelScope.launch {
+            if (value.isBlank()) {
+                settingsStore.setTmdbToken("")
+                tmdbValid.value = null
+                message.value = "TMDb désactivé"
+                return@launch
+            }
+            busy.value = true
+            val status = tmdbMetadataClient.validateCredential(value)
+            if (status in 200..299) {
+                settingsStore.setTmdbToken(value)
+                tmdbValid.value = true
+                message.value = "TMDb validé et enregistré localement"
+            } else {
+                tmdbValid.value = false
+                message.value = if (status != null) {
+                    "TMDb refuse ce token (HTTP $status). Génère un nouveau token/API Key puis réessaie."
+                } else {
+                    "Impossible de valider TMDb pour le moment. Vérifie la connexion et réessaie."
+                }
+            }
+            busy.value = false
+        }
+    }
+
+    fun setTvLauncherEnabled(value: Boolean) {
+        viewModelScope.launch {
+            val result = TvLauncherMode.setEnabled(application, value)
+            if (result.isSuccess) {
+                settingsStore.setTvLauncherEnabled(value)
+                val status = TvLauncherMode.getStatus(application)
+                message.value = if (value && status.tvFlowAvailable) {
+                    "TVFlow est disponible comme écran d’accueil sur cet appareil"
+                } else if (value) {
+                    "Le système n’expose pas TVFlow comme écran d’accueil"
+                } else {
+                    "Mode écran d’accueil TVFlow désactivé"
+                }
+            } else {
+                message.value = result.exceptionOrNull()?.message
+                    ?: "Cet appareil ne permet pas d’activer TVFlow comme écran d’accueil"
+            }
+        }
+    }
+
+    fun openHomeChooser() {
+        val result = TvLauncherMode.openHomeChooser(application)
+        message.value = result.getOrElse {
+            it.message ?: "Impossible d’ouvrir le sélecteur d’écran d’accueil sur cet appareil"
+        }
+    }
+    fun setRefreshIntervalDays(days: Int) {
+        viewModelScope.launch {
+            settingsStore.setRefreshIntervalDays(days)
+            CatalogRefreshWorker.schedule(application, days)
+            message.value = if (days <= 0) "Actualisation automatique désactivée" else "Actualisation automatique : tous les $days jour${if (days > 1) "s" else ""}"
+        }
+    }
+
+    fun setPin(pin: String) = launchBusy("PIN parental enregistré") { settingsStore.setParentalPin(pin) }
+    fun clearPin() = launchBusy("PIN parental supprimé") {
+        repository.observeManageCategories().first().filter { it.isLocked }.forEach { repository.setCategoryLocked(it.id, false) }
+        settingsStore.clearParentalPin()
+    }
+
+    fun toggleCategoryHidden(category: LiveCategory) = launchBusy(null) { repository.setCategoryHidden(category.id, !category.isHidden) }
+    fun toggleCategoryLocked(category: LiveCategory) {
+        if (!category.isLocked && !state.value.pinConfigured) {
+            message.value = "Configure d’abord un PIN parental"
+            return
+        }
+        launchBusy(null) { repository.setCategoryLocked(category.id, !category.isLocked) }
+    }
+    fun moveCategory(category: LiveCategory, delta: Int) = launchBusy(null) { repository.moveCategory(category.id, delta) }
+    fun toggleChannelHidden(channel: LiveChannel) = launchBusy(null) { repository.setChannelHidden(channel.streamId, !channel.isHidden) }
+    fun moveChannel(channel: LiveChannel, delta: Int) {
+        val category = selectedCategoryId.value ?: return
+        launchBusy(null) { repository.moveChannel(category, channel.streamId, delta) }
+    }
+
+    private fun launchBusy(successMessage: String?, block: suspend () -> Unit) {
+        viewModelScope.launch {
+            busy.value = true
+            val result = runCatching { block() }
+            message.value = result.exceptionOrNull()?.message ?: successMessage
+            busy.value = false
+        }
+    }
+}

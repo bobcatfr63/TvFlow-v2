@@ -1,0 +1,325 @@
+package com.tvflow.app.ui.vod
+
+import android.app.Activity
+import android.content.Context
+import android.media.AudioManager
+import android.content.pm.ActivityInfo
+import android.util.Log
+import android.view.ViewGroup
+import android.widget.FrameLayout
+import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
+import androidx.media3.common.Player
+import androidx.media3.datasource.HttpDataSource
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.PlayerView
+import com.tvflow.app.cast.CastPlaybackEffect
+import com.tvflow.app.cast.CastRouteButton
+import com.tvflow.app.connect.PlaybackTransfer
+import com.tvflow.app.connect.TvFlowSendButton
+import com.tvflow.app.domain.Episode
+import com.tvflow.app.ui.common.PlayerLifecycleEffect
+import com.tvflow.app.ui.common.VlcFallbackPlayer
+import com.tvflow.app.ui.common.iptvMediaSourceFactory
+import com.tvflow.app.ui.common.shouldUseVlcFallback
+import kotlinx.coroutines.delay
+
+private const val VOD_PLAYER_TAG = "TVFlowVodPlayer"
+
+@Composable
+fun VodPlayerScreen(
+    onPlayNextEpisode: (Episode, Int) -> Unit = { _, _ -> },
+    viewModel: VodPlayerViewModel = hiltViewModel()
+) {
+    val state by viewModel.state.collectAsState()
+    val context = LocalContext.current
+    val activity = context as? Activity
+    val player = remember {
+        ExoPlayer.Builder(context)
+            .setMediaSourceFactory(iptvMediaSourceFactory(context))
+            .build()
+    }
+    val audioManager = remember { context.getSystemService(Context.AUDIO_SERVICE) as AudioManager }
+    var infoVisible by remember { mutableStateOf(false) }
+    var gestureLabel by remember { mutableStateOf<String?>(null) }
+    var useVlcFallback by remember { mutableStateOf(false) }
+    var castActive by remember { mutableStateOf(false) }
+    val vlcFallbackActive by rememberUpdatedState(useVlcFallback)
+
+    CastPlaybackEffect(
+        url = state.streamUrl,
+        title = state.title.ifBlank { "TVFlow" },
+        subtitle = state.containerExtension?.uppercase(),
+        isLive = false,
+        startPositionMs = { player.currentPosition.coerceAtLeast(state.resumePositionMs) },
+        onCastActiveChanged = { castActive = it }
+    )
+
+    LaunchedEffect(castActive, player) {
+        if (castActive) player.pause()
+    }
+
+    DisposableEffect(activity) {
+        val previousOrientation = activity?.requestedOrientation
+        activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+        onDispose {
+            if (previousOrientation != null) activity.requestedOrientation = previousOrientation
+        }
+    }
+
+    PlayerLifecycleEffect(player)
+
+    DisposableEffect(player) {
+        val listener = object : Player.Listener {
+            override fun onPlayerError(error: PlaybackException) {
+                Log.e(
+                    VOD_PLAYER_TAG,
+                    "Media3 playback failed: code=${error.errorCode}, name=${error.errorCodeName}, cause=${error.cause?.javaClass?.simpleName ?: "unknown"}, media=${state.mediaKey.ifBlank { "unknown" }}",
+                    error
+                )
+                var cause: Throwable? = error
+                var httpCode: Int? = null
+                while (cause != null) {
+                    if (cause is HttpDataSource.InvalidResponseCodeException) {
+                        httpCode = cause.responseCode
+                        break
+                    }
+                    cause = cause.cause
+                }
+                if (shouldUseVlcFallback(httpCode, error.errorCodeName)) {
+                    player.pause()
+                    useVlcFallback = true
+                } else {
+                    viewModel.onPlaybackError(httpCode?.let { "HTTP $it" } ?: error.errorCodeName)
+                }
+            }
+
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                if (playbackState == Player.STATE_ENDED) viewModel.onPlaybackEnded()
+            }
+        }
+        player.addListener(listener)
+        onDispose { player.removeListener(listener) }
+    }
+
+    LaunchedEffect(state.streamUrl) {
+        useVlcFallback = false
+        val url = state.streamUrl ?: return@LaunchedEffect
+        Log.i(VOD_PLAYER_TAG, "Preparing Media3: media=${state.mediaKey}, extension=${state.containerExtension ?: "unknown"}, resumeMs=${state.resumePositionMs}")
+        player.setMediaItem(MediaItem.fromUri(url))
+        player.prepare()
+        if (state.resumePositionMs > 0L) player.seekTo(state.resumePositionMs)
+        player.playWhenReady = true
+    }
+
+    LaunchedEffect(player, state.mediaKey, useVlcFallback) {
+        if (state.mediaKey.isBlank() || useVlcFallback) return@LaunchedEffect
+        while (true) {
+            delay(5_000L)
+            val position = player.currentPosition.coerceAtLeast(0L)
+            val duration = player.duration.coerceAtLeast(0L)
+            viewModel.updatePlaybackProgress(position, duration)
+            if (position % 15_000L < 5_000L) viewModel.saveProgress(position, duration)
+        }
+    }
+
+    DisposableEffect(player) {
+        onDispose {
+            if (!vlcFallbackActive) {
+                viewModel.saveProgress(
+                    player.currentPosition.coerceAtLeast(0L),
+                    player.duration.coerceAtLeast(0L)
+                )
+            }
+            player.release()
+        }
+    }
+
+    Box(
+        Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
+            .pointerInput(Unit) { detectTapGestures(onTap = { infoVisible = !infoVisible }) }
+            .pointerInput(Unit) {
+                var startX = 0f
+                var vertical = 0f
+                detectDragGestures(
+                    onDragStart = { startX = it.x; vertical = 0f },
+                    onDrag = { change, amount ->
+                        change.consume()
+                        vertical += amount.y
+                        if (kotlin.math.abs(vertical) > 22f && kotlin.math.abs(amount.y) >= kotlin.math.abs(amount.x)) {
+                            val up = vertical < 0
+                            if (startX >= size.width / 2f) {
+                                val max = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+                                val current = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+                                audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, (current + if (up) 1 else -1).coerceIn(0, max), 0)
+                                gestureLabel = "Volume " + (audioManager.getStreamVolume(AudioManager.STREAM_MUSIC) * 100 / max.coerceAtLeast(1)) + "%"
+                            } else {
+                                activity?.let { host ->
+                                    val lp = host.window.attributes
+                                    val current = if (lp.screenBrightness < 0f) 0.5f else lp.screenBrightness
+                                    lp.screenBrightness = (current + if (up) 0.04f else -0.04f).coerceIn(0.05f, 1f)
+                                    host.window.attributes = lp
+                                    gestureLabel = "Luminosité " + (lp.screenBrightness * 100).toInt() + "%"
+                                }
+                            }
+                            vertical = 0f
+                        }
+                    },
+                    onDragEnd = { gestureLabel = null },
+                    onDragCancel = { gestureLabel = null }
+                )
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        when {
+            castActive -> Text(
+                "Lecture sur Chromecast",
+                color = MaterialTheme.colorScheme.onBackground,
+                style = MaterialTheme.typography.headlineSmall
+            )
+            state.error != null && !useVlcFallback -> Text(state.error ?: "Erreur", color = MaterialTheme.colorScheme.onBackground)
+            state.streamUrl == null -> CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+            useVlcFallback -> VlcFallbackPlayer(
+                url = state.streamUrl.orEmpty(),
+                modifier = Modifier.fillMaxSize(),
+                startPositionMs = state.resumePositionMs,
+                onPlaybackEnded = viewModel::onPlaybackEnded,
+                onProgress = { position, duration ->
+                    viewModel.updatePlaybackProgress(position, duration)
+                    viewModel.saveProgress(position, duration)
+                },
+                onError = { error ->
+                    useVlcFallback = false
+                    viewModel.onPlaybackError(error)
+                }
+            )
+            else -> AndroidView(
+                factory = {
+                    PlayerView(it).apply {
+                        this.player = player
+                        useController = true
+                        keepScreenOn = true
+                        layoutParams = FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+                    }
+                },
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+
+        CastRouteButton(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(16.dp)
+                .size(48.dp)
+        )
+        TvFlowSendButton(
+            transfer = {
+                val key = state.mediaKey
+                val kind = key.substringBefore(':').takeIf { it == "vod" || it == "episode" }
+                val id = key.substringAfter(':', "").takeIf { it.isNotBlank() }
+                if (kind != null && id != null) {
+                    PlaybackTransfer(
+                        kind = kind,
+                        mediaId = id,
+                        title = state.title,
+                        extension = state.containerExtension,
+                        seriesId = state.seriesId,
+                        positionMs = player.currentPosition.coerceAtLeast(state.resumePositionMs)
+                    )
+                } else null
+            },
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(top = 16.dp, end = 80.dp)
+                .size(48.dp),
+            onSent = { player.pause() }
+        )
+
+        if (useVlcFallback && !castActive) {
+            Text(
+                "Secours VLC",
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(16.dp),
+                color = MaterialTheme.colorScheme.primary,
+                style = MaterialTheme.typography.labelLarge
+            )
+        }
+
+        if (infoVisible) {
+            Card(
+                modifier = Modifier.align(Alignment.BottomStart).padding(24.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f))
+            ) {
+                Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(state.title, style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurface)
+                    state.containerExtension?.let { Text(it.uppercase(), color = MaterialTheme.colorScheme.primary) }
+                    state.nextEpisode?.let { Text("À suivre : S${it.season} • E${it.episodeNumber}  ${it.title}", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                    Text("Touchez la vidéo pour masquer", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
+        gestureLabel?.let { label ->
+            Card(modifier = Modifier.align(Alignment.Center), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f))) {
+                Text(label, modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp), color = MaterialTheme.colorScheme.onSurface)
+            }
+        }
+
+        val nextEpisode = state.nextEpisode
+        val seriesId = state.seriesId
+        if (state.offerNextEpisode && nextEpisode != null && seriesId != null) {
+            Card(
+                modifier = Modifier.align(Alignment.BottomEnd).padding(24.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f),
+                    contentColor = MaterialTheme.colorScheme.onSurface
+                )
+            ) {
+                Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Épisode suivant", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                    Text(
+                        "S${nextEpisode.season} • E${nextEpisode.episodeNumber}  ${nextEpisode.title}",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(onClick = { onPlayNextEpisode(nextEpisode, seriesId) }) { Text("Lire maintenant") }
+                        TextButton(onClick = viewModel::dismissNextEpisode) { Text("Plus tard") }
+                    }
+                }
+            }
+        }
+    }
+}
