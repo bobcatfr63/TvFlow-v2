@@ -1,0 +1,216 @@
+package com.tvflow.app.ui.player
+
+import androidx.lifecycle.SavedStateHandle
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.tvflow.app.data.repository.XtreamRepository
+import com.tvflow.app.data.local.SettingsStore
+import com.tvflow.app.domain.EpgProgram
+import com.tvflow.app.domain.LiveChannel
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+data class PlayerUiState(
+    val channel: LiveChannel? = null,
+    val streamUrl: String? = null,
+    val restartUrl: String? = null,
+    val channelIndex: Int = -1,
+    val channelCount: Int = 0,
+    val channels: List<LiveChannel> = emptyList(),
+    val nowProgram: EpgProgram? = null,
+    val nextProgram: EpgProgram? = null,
+    val epg: List<EpgProgram> = emptyList(),
+    val epgLoading: Boolean = false,
+    val playerError: String? = null,
+    val previousStreamId: Int? = null,
+    val bufferPreset: String = "FAST",
+    val videoScale: String = "FIT",
+    val subtitlesEnabled: Boolean = true
+)
+
+private data class PlayerStatus(
+    val epgLoading: Boolean,
+    val error: String?,
+    val previousStreamId: Int?,
+    val restartUrl: String?,
+    val bufferPreset: String,
+    val videoScale: String,
+    val subtitlesEnabled: Boolean
+)
+
+@OptIn(ExperimentalCoroutinesApi::class)
+@HiltViewModel
+class PlayerViewModel @Inject constructor(
+    private val repository: XtreamRepository,
+    private val settingsStore: SettingsStore,
+    savedStateHandle: SavedStateHandle
+) : ViewModel() {
+    private val initialStreamId: Int = checkNotNull(savedStateHandle["streamId"])
+    private val categoryId: String = savedStateHandle["categoryId"] ?: ""
+    private val selectedStreamId = MutableStateFlow(initialStreamId)
+    private val previousStreamId = MutableStateFlow<Int?>(null)
+    private val epgLoading = MutableStateFlow(false)
+    private val playerError = MutableStateFlow<String?>(null)
+    private val restartUrl = MutableStateFlow<String?>(null)
+
+    private val channelList: StateFlow<List<LiveChannel>> = repository.observeChannels(categoryId)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    private val epgFlow = selectedStreamId.flatMapLatest { streamId ->
+        if (streamId > 0) repository.observeEpg(streamId) else flowOf(emptyList())
+    }
+
+    private val statusFlow = combine(
+        epgLoading,
+        playerError,
+        previousStreamId,
+        restartUrl,
+        settingsStore.playerPreferences
+    ) { loading, error, previous, restart, prefs ->
+        PlayerStatus(loading, error, previous, restart, prefs.bufferPreset, prefs.videoScale, prefs.subtitlesEnabled)
+    }
+
+    val uiState: StateFlow<PlayerUiState> = combine(
+        repository.savedCredentials,
+        channelList,
+        selectedStreamId,
+        epgFlow,
+        statusFlow
+    ) { credentials, list, streamId, epg, status ->
+        val isEpgLoading = status.epgLoading
+        val error = status.error
+        val previous = status.previousStreamId
+        val index = list.indexOfFirst { it.streamId == streamId }
+        val channel = list.getOrNull(index)
+        val now = System.currentTimeMillis() / 1000L
+        val nowProgram = epg.firstOrNull { it.isLiveAt(now) }
+        val nextProgram = epg.firstOrNull { it.startTimestamp >= (nowProgram?.stopTimestamp ?: now) }
+        PlayerUiState(
+            channel = channel,
+            streamUrl = if (credentials != null && channel != null) repository.streamUrl(credentials, channel) else null,
+            restartUrl = status.restartUrl,
+            channelIndex = index,
+            channelCount = list.size,
+            channels = list,
+            nowProgram = nowProgram,
+            nextProgram = nextProgram,
+            epg = epg,
+            epgLoading = isEpgLoading,
+            playerError = error,
+            previousStreamId = previous,
+            bufferPreset = status.bufferPreset,
+            videoScale = status.videoScale,
+            subtitlesEnabled = status.subtitlesEnabled
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), PlayerUiState())
+
+    init {
+        onChannelSelected(initialStreamId)
+    }
+
+    fun nextChannel() = move(+1)
+
+    fun previousChannel() = move(-1)
+
+    fun selectChannel(streamId: Int) {
+        if (streamId == selectedStreamId.value) return
+        previousStreamId.value = selectedStreamId.value
+        selectedStreamId.value = streamId
+        onChannelSelected(streamId)
+    }
+
+    fun returnToPreviousChannel() {
+        val previous = previousStreamId.value ?: return
+        val current = selectedStreamId.value
+        previousStreamId.value = current
+        selectedStreamId.value = previous
+        onChannelSelected(previous)
+    }
+
+    fun toggleFavorite() {
+        val streamId = uiState.value.channel?.streamId ?: return
+        viewModelScope.launch { repository.toggleFavorite(streamId) }
+    }
+
+    fun saveVideoScale(value: String) { viewModelScope.launch { settingsStore.setVideoScale(value) } }
+    fun saveSubtitlesEnabled(value: Boolean) { viewModelScope.launch { settingsStore.setSubtitlesEnabled(value) } }
+
+    fun reportPlayerError(message: String?) {
+        playerError.value = message
+    }
+
+    fun reportPlaybackReady() {
+        val streamId = selectedStreamId.value
+        if (streamId > 0) {
+            viewModelScope.launch {
+                repository.reportPlaybackReady(streamId)
+                val channel = channelList.value.firstOrNull { it.streamId == streamId }
+                if (channel != null) {
+                    settingsStore.setLastLiveChannel(channel.streamId, channel.name, channel.categoryId)
+                }
+            }
+        }
+    }
+
+    fun reportPlaybackFailure(httpCode: Int?, error: String?) {
+        val streamId = selectedStreamId.value
+        if (streamId > 0) viewModelScope.launch { repository.reportPlaybackFailure(streamId, httpCode, error) }
+    }
+
+    fun retryEpg() {
+        val streamId = selectedStreamId.value
+        if (streamId > 0) refreshEpg(streamId)
+    }
+
+    private fun move(delta: Int) {
+        val state = uiState.value
+        if (state.channelCount <= 1 || state.channelIndex < 0) return
+        val nextIndex = (state.channelIndex + delta + state.channelCount) % state.channelCount
+        val next = channelList.value.getOrNull(nextIndex) ?: return
+        selectChannel(next.streamId)
+    }
+
+    private fun onChannelSelected(streamId: Int) {
+        playerError.value = null
+        viewModelScope.launch {
+            repository.markWatched(streamId)
+            val channel = repository.observeChannels(categoryId)
+                .first { channels -> channels.any { it.streamId == streamId } }
+                .firstOrNull { it.streamId == streamId }
+            if (channel != null) {
+                settingsStore.setLastLiveChannel(
+                    streamId = channel.streamId,
+                    name = channel.name,
+                    categoryId = channel.categoryId
+                )
+            }
+        }
+        refreshEpg(streamId)
+    }
+
+    private fun refreshEpg(streamId: Int) {
+        restartUrl.value = null
+        viewModelScope.launch {
+            epgLoading.value = true
+            runCatching { repository.refreshEpg(streamId) }
+            epgLoading.value = false
+
+            val credentials = repository.savedCredentials.first() ?: return@launch
+            val channel = channelList.value.firstOrNull { it.streamId == streamId } ?: return@launch
+            val now = System.currentTimeMillis() / 1000L
+            val program = repository.observeEpg(streamId).first().firstOrNull { it.isLiveAt(now) } ?: return@launch
+            val resolved = repository.resolveCatchupUrl(credentials, channel, program)
+            if (selectedStreamId.value == streamId) restartUrl.value = resolved
+        }
+    }
+}
