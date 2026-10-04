@@ -1,0 +1,606 @@
+{
+  "source": "bobcatfr63/IPTV-Releases",
+  "captured_at": "2026-10-04",
+  "releases": [
+    {
+      "tag_name": "v1.0.50",
+      "name": "TVFlow 1.0.50",
+      "published_at": "2026-10-03T21:19:34Z",
+      "updated_at": "2026-10-03T21:24:18Z",
+      "assets": [
+        {
+          "id": 608559825,
+          "name": "release.json",
+          "size": 2798,
+          "digest": "sha256:4990a3ef0e3b3d1dcb070e190df2c51d6c4caff0bacba0ca257ec00d22304b80",
+          "created_at": "2026-10-03T21:24:15Z",
+          "browser_download_url": "https://github.com/bobcatfr63/IPTV-Releases/releases/download/v1.0.50/release.json"
+        },
+        {
+          "id": 608559826,
+          "name": "sha256.txt",
+          "size": 242,
+          "digest": "sha256:84a77976fd21f20485568052911dbd6b493b780aedaaa677905615df5c1df22f",
+          "created_at": "2026-10-03T21:24:15Z",
+          "browser_download_url": "https://github.com/bobcatfr63/IPTV-Releases/releases/download/v1.0.50/sha256.txt"
+        },
+        {
+          "id": 608559824,
+          "name": "TVFlow-v1.0.50-build2013126948-0006055-arm64-v8a-debug.apk",
+          "size": 78235052,
+          "digest": "sha256:c3e39718f4d7ce2dd5546e261a037e733fc384f797e23b7a7366bacb09ca0587",
+          "created_at": "2026-10-03T21:24:15Z",
+          "browser_download_url": "https://github.com/bobcatfr63/IPTV-Releases/releases/download/v1.0.50/TVFlow-v1.0.50-build2013126948-0006055-arm64-v8a-debug.apk"
+        },
+        {
+          "id": 608559827,
+          "name": "TVFlow-v1.0.50-build2013126948-0006055-debug.apk",
+          "size": 63380214,
+          "digest": "sha256:797553be88d6fc37267ba499a7781a83c195584adfc19664147f1ee9c64f97fc",
+          "created_at": "2026-10-03T21:24:15Z",
+          "browser_download_url": "https://github.com/bobcatfr63/IPTV-Releases/releases/download/v1.0.50/TVFlow-v1.0.50-build2013126948-0006055-debug.apk"
+        }
+      ]
+    },
+    {
+      "tag_name": "v1.0.49",
+      "name": "TVFlow 1.0.49",
+      "published_at": "2026-10-03T19:56:24Z",
+      "updated_at": "2026-10-03T20:00:13Z",
+      "assets": [
+        {
+          "id": 608440108,
+          "name": "release.json",
+          "size": 2798,
+          "digest": "sha256:7aac6f64f0572972b643f226e887fc107db30e9f79d567a9d9d0ef740061bee8",
+          "created_at": "2026-10-03T20:00:09Z",
+          "browser_download_url": "https://github.com/bobcatfr63/IPTV-Releases/releases/download/v1.0.49/release.json"
+        },
+        {
+          "id": 608440111,
+          "name": "sha256.txt",
+          "size": 242,
+          "digest": "sha256:26562f3f88af763fe97ae59aa97fd71163fa1cf5faae3272b037ac876d7d0806",
+          "created_at": "2026-10-03T20:00:09Z",
+          "browser_download_url": "https://github.com/bobcatfr63/IPTV-Releases/releases/download/v1.0.49/sha256.txt"
+        },
+        {
+          "id": 608440109,
+          "name": "TVFlow-v1.0.49-build2013126947-649a089-arm64-v8a-debug.apk",
+          "size": 78235052,
+          "digest": "sha256:ce9005fd494305a14fc29772df100f3aa9e5a6aa412c99b81aeab1602a3d16d2",
+          "created_at": "2026-10-03T20:00:09Z",
+          "browser_download_url": "https://github.com/bobcatfr63/IPTV-Releases/releases/download/v1.0.49/TVFlow-v1.0.49-build2013126947-649a089-arm64-v8a-debug.apk"
+        },
+        {
+          "id": 608440110,
+          "name": "TVFlow-v1.0.49-build2013126947-649a089-debug.apk",
+          "size": 63380214,
+          "digest": "sha256:5ffae6f5763f7b65277f3f0fb3fb43a3ca0c4f040a2202bcabc326cecc514b64",
+          "created_at": "2026-10-03T20:00:09Z",
+          "browser_download_url": "https://github.com/bobcatfr63/IPTV-Releases/releases/download/v1.0.49/TVFlow-v1.0.49-build2013126947-649a089-debug.apk"
+        }
+      ]
+    },
+    {
+      "tag_name": "tvflow-latest",
+      "name": "Dernier build local validÃ©",
+      "published_at": "2026-10-02T09:14:23Z",
+      "updated_at": "2026-10-04T19:44:32Z",
+      "assets": [
+        {
+          "id": 610518023,
+          "name": "release.json",
+          "size": 8869,
+          "digest": "sha256:1ca91d902118f9a5d39cc3fb5b74695950d5af8deed1beca4e902a20f2009c4d",
+          "created_at": "2026-10-04T19:44:23Z",
+          "browser_download_url": "https://github.com/bobcatfr63/IPTV-Releases/releases/download/tvflow-latest/release.json"
+        },
+        {
+          "id": 610518022,
+          "name": "sha256.txt",
+          "size": 116,
+          "digest": "sha256:741bc77460e9e666be56107d5b4d46d65b65188c01b97534ffed1d047a606f52",
+          "created_at": "2026-10-04T19:44:23Z",
+          "browser_download_url": "https://github.com/bobcatfr63/IPTV-Releases/releases/download/tvflow-latest/sha256.txt"
+        },
+        {
+          "id": 605236630,
+          "name": "TVFlow-v1.0.25-build213095587-40036b7-debug.apk",
+          "size": 233452867,
+          "digest": "sha256:48e75ecb4387da9f81f483a277b45b07a0b2d7219cf05c4ca4c182630a3121bb",
+          "created_at": "2026-10-02T09:14:13Z",
+          "browser_download_url": "https://github.com/bobcatfr63/IPTV-Releases/releases/download/tvflow-latest/TVFlow-v1.0.25-build213095587-40036b7-debug.apk"
+        },
+        {
+          "id": 605554736,
+          "name": "TVFlow-v1.0.25-build213095665-40036b7-debug.apk",
+          "size": 233452867,
+          "digest": "sha256:2debd6638d007b1a9727b181c360c1462d301c5b802e6a3c92bcd02fd1ba3fb3",
+          "created_at": "2026-10-02T12:22:54Z",
+          "browser_download_url": "https://github.com/bobcatfr63/IPTV-Releases/releases/download/tvflow-latest/TVFlow-v1.0.25-build213095665-40036b7-debug.apk"
+        },
+        {
+          "id": 605554022,
+          "name": "TVFlow-v1.0.25-build262751220-40036b7-debug.apk",
+          "size": 233452867,
+          "digest": "sha256:6c738289c23f4ae17b8aab4aaf7e94ca1aa95a3764c71f05bc27b39065c85265",
+          "created_at": "2026-10-02T12:22:27Z",
+          "browser_download_url": "https://github.com/bobcatfr63/IPTV-Releases/releases/download/tvflow-latest/TVFlow-v1.0.25-build262751220-40036b7-debug.apk"
+        },
+        {
+          "id": 605549463,
+          "name": "TVFlow-v1.0.25-build74-40036b7-debug.apk",
+          "size": 233452859,
+          "digest": "sha256:061c9ea678b4af2abe33a82bad123231c7c5479739518ded2f696a22cf40bedb",
+          "created_at": "2026-10-02T12:19:35Z",
+          "browser_download_url": "https://github.com/bobcatfr63/IPTV-Releases/releases/download/tvflow-latest/TVFlow-v1.0.25-build74-40036b7-debug.apk"
+        },
+        {
+          "id": 606129891,
+          "name": "TVFlow-v1.0.26-build213125511-d2949ad-debug.apk",
+          "size": 233485635,
+          "digest": "sha256:8fcf047069832dec87f150ccbd4c80aea78fd585aeffa19f9ce9710891997e24",
+          "created_at": "2026-10-02T17:34:54Z",
+          "browser_download_url": "https://github.com/bobcatfr63/IPTV-Releases/releases/download/tvflow-latest/TVFlow-v1.0.26-build213125511-d2949ad-debug.apk"
+        },
+        {
+          "id": 606135033,
+          "name": "TVFlow-v1.0.26-build213125755-3498817-debug.apk",
+          "size": 233485635,
+          "digest": "sha256:01b83444e75f116b498c67e5118059568816fe2d1e5d8544cb78d306f4da4fcf",
+          "created_at": "2026-10-02T17:37:46Z",
+          "browser_download_url": "https://github.com/bobcatfr63/IPTV-Releases/releases/download/tvflow-latest/TVFlow-v1.0.26-build213125755-3498817-debug.apk"
+        },
+        {
+          "id": 607670632,
+          "name": "TVFlow-v1.0.26-build300000035-27d16b4-debug.apk",
+          "size": 233535083,
+          "digest": "sha256:b0c37d3b24b34ff0e579ec4fd2b89248a0cff9ba056aba661303bedb6d60b204",
+          "created_at": "2026-10-03T11:08:36Z",
+          "browser_download_url": "https://github.com/bobcatfr63/IPTV-Releases/releases/download/tvflow-latest/TVFlow-v1.0.26-build300000035-27d16b4-debug.apk"
+        },
+        {
+          "id": 606140789,
+          "name": "TVFlow-v1.0.26-build513125936-70dd111-debug.apk",
+          "size": 233485635,
+          "digest": "sha256:71c54cbbff11bb2c110ae47fa3c0d6a806d01e7317bed407e6cc729429d3da89",
+          "created_at": "2026-10-02T17:40:29Z",
+          "browser_download_url": "https://github.com/bobcatfr63/IPTV-Releases/releases/download/tvflow-latest/TVFlow-v1.0.26-build513125936-70dd111-debug.apk"
+        },
+        {
+          "id": 606145226,
+          "name": "TVFlow-v1.0.26-build513126046-70dd111-debug.apk",
+          "size": 233485635,
+          "digest": "sha256:7bb144053d5177de92648f7276c866047e921fa34e06087478b6bf5a554c9ab1",
+          "created_at": "2026-10-02T17:42:28Z",
+          "browser_download_url": "https://github.com/bobcatfr63/IPTV-Releases/releases/download/tvflow-latest/TVFlow-v1.0.26-build513126046-70dd111-debug.apk"
+        },
+        {
+          "id": 606164416,
+          "name": "TVFlow-v1.0.26-build513126708-931de7d-debug.apk",
+          "size": 233485671,
+          "digest": "sha256:c5c50489cfc6689da037f9f0562ef3bd8c9ad6074d27697308911cf4ee243d29",
+          "created_at": "2026-10-02T17:53:10Z",
+          "browser_download_url": "https://github.com/bobcatfr63/IPTV-Releases/releases/download/tvflow-latest/TVFlow-v1.0.26-build513126708-931de7d-debug.apk"
+        },
+        {
+          "id": 606167767,
+          "name": "TVFlow-v1.0.26-build513126803-931de7d-debug.apk",
+          "size": 233485671,
+          "digest": "sha256:fb9af929798f6854f3348c1a5fc736b31d9f45eaa807f78cf5e720f4d58a5331",
+          "created_at": "2026-10-02T17:55:08Z",
+          "browser_download_url": "https://github.com/bobcatfr63/IPTV-Releases/releases/download/tvflow-latest/TVFlow-v1.0.26-build513126803-931de7d-debug.apk"
+        },
+        {
+          "id": 606170024,
+          "name": "TVFlow-v1.0.26-build513126922-931de7d-debug.apk",
+          "size": 233485671,
+          "digest": "sha256:25a8feae3343db6d51fdea0850bdf55d0b55199e795709bca21ddc2c18e3fd83",
+          "created_at": "2026-10-02T17:56:31Z",
+          "browser_download_url": "https://github.com/bobcatfr63/IPTV-Releases/releases/download/tvflow-latest/TVFlow-v1.0.26-build513126922-931de7d-debug.apk"
+        },
+        {
+          "id": 606185436,
+          "name": "TVFlow-v1.0.26-build513127462-eeb870d-debug.apk",
+          "size": 233485671,
+          "digest": "sha256:fc53db69bf873e1e22188c13374e5269d9cbce9c076afb3774803f08c0deb0c5",
+          "created_at": "2026-10-02T18:05:57Z",
+          "browser_download_url": "https://github.com/bobcatfr63/IPTV-Releases/releases/download/tvflow-latest/TVFlow-v1.0.26-build513127462-eeb870d-debug.apk"
+        },
+        {
+          "id": 606249498,
+          "name": "TVFlow-v1.0.26-build513129829-4d508d2-debug.apk",
+          "size": 233485671,
+          "digest": "sha256:7087a20ddcff5b5ad907a301da3b7322866d7efb902c93063d891614e7ebf2c0",
+          "created_at": "2026-10-02T18:45:10Z",
+          "browser_download_url": "https://github.com/bobcatfr63/IPTV-Releases/releases/download/tvflow-latest/TVFlow-v1.0.26-build513129829-4d508d2-debug.apk"
+        },
+        {
+          "id": 606199815,
+          "name": "TVFlow-v1.0.27-build1113126924-8038e3f-debug.apk",
+          "size": 233485671,
+          "digest": "sha256:a12262c638e38ff951c2bbece6b258f6e5dcf31514e93dbd4f0c22b32e2d9f64",
+          "created_at": "2026-10-02T18:15:04Z",
+          "browser_download_url": "https://github.com/bobcatfr63/IPTV-Releases/releases/download/tvflow-latest/TVFlow-v1.0.27-build1113126924-8038e3f-debug.apk"
+        },
+        {
+          "id": 606203008,
+          "name": "TVFlow-v1.0.27-build1413126925-8038e3f-debug.apk",
+          "size": 233485671,
+          "digest": "sha256:60ae497fd74bd8b875474204bfc6424f72c7424920aa97d6c2a5c40e62ad80c4",
+          "created_at": "2026-10-02T18:17:12Z",
+          "browser_download_url": "https://github.com/bobcatfr63/IPTV-Releases/releases/download/tvflow-latest/TVFlow-v1.0.27-build1413126925-8038e3f-debug.apk"
+        },
+        {
+          "id": 606182029,
+          "name": "TVFlow-v1.0.27-build813126923-eeb870d-debug.apk",
+          "size": 233485671,
+          "digest": "sha256:c69d1696bf8558a2a044573af3bf12233e8bfdb6660abec163f1a8bf0709a972",
+          "created_at": "2026-10-02T18:04:11Z",
+          "browser_download_url": "https://github.com/bobcatfr63/IPTV-Releases/releases/download/tvflow-latest/TVFlow-v1.0.27-build813126923-eeb870d-debug.apk"
+        },
+        {
+          "id": 606254834,
+          "name": "TVFlow-v1.0.28-build1713126926-4d508d2-debug.apk",
+          "size": 233485671,
+          "digest": "sha256:059bc924611993bb8360aef41f51a7afdb6ff565459e3d7bf391e877f75e3c9a",
+          "created_at": "2026-10-02T18:47:36Z",
+          "browser_download_url": "https://github.com/bobcatfr63/IPTV-Releases/releases/download/tvflow-latest/TVFlow-v1.0.28-build1713126926-4d508d2-debug.apk"
+        },
+        {
+          "id": 606262147,
+          "name": "TVFlow-v1.0.29-build2013126927-ecc9cc0-debug.apk",
+          "size": 233502055,
+          "digest": "sha256:54e20389cbe285d9b1b96b041794ad00d7d42b2ea45a236a7a7a2b0f1db67075",
+          "created_at": "2026-10-02T18:51:31Z",
+          "browser_download_url": "https://github.com/bobcatfr63/IPTV-Releases/releases/download/tvflow-latest/TVFlow-v1.0.29-build2013126927-ecc9cc0-debug.apk"
+        },
+        {
+          "id": 606272483,
+          "name": "TVFlow-v1.0.30-build2013126928-6f8283d-debug.apk",
+          "size": 233502055,
+          "digest": "sha256:62f29518ae0776d7bcb6e29d48bee58f099fc6e1e5fb4794a399df7b73c330f2",
+          "created_at": "2026-10-02T18:57:45Z",
+          "browser_download_url": "https://github.com/bobcatfr63/IPTV-Releases/releases/download/tvflow-latest/TVFlow-v1.0.30-build2013126928-6f8283d-debug.apk"
+        },
+        {
+          "id": 606292148,
+          "name": "TVFlow-v1.0.31-build2013126929-4629ab7-debug.apk",
+          "size": 233502055,
+          "digest": "sha256:a45325e23f3bfaaa0c031e727a100155ebcf393eb023ca9d8a4f09e02206da77",
+          "created_at": "2026-10-02T19:09:02Z",
+          "browser_download_url": "https://github.com/bobcatfr63/IPTV-Releases/releases/download/tvflow-latest/TVFlow-v1.0.31-build2013126929-4629ab7-debug.apk"
+        },
+        {
+          "id": 607407904,
+          "name": "TVFlow-v1.0.32-build2013126930-6576496-debug.apk",
+          "size": 233502107,
+          "digest": "sha256:7b4dc20c3c268754d8cf3c354f385bc512c08b267b9d1a2e73ebb300cd34ff68",
+          "created_at": "2026-10-03T07:55:40Z",
+          "browser_download_url": "https://github.com/bobcatfr63/IPTV-Releases/releases/download/tvflow-latest/TVFlow-v1.0.32-build2013126930-6576496-debug.apk"
+        },
+        {
+          "id": 607438935,
+          "name": "TVFlow-v1.0.33-build2013126931-3c0967d-debug.apk",
+          "size": 233518495,
+          "digest": "sha256:d620f42df570bec55bb3b315025a087e6376a85012be9828cd8007c6c83d69a4",
+          "created_at": "2026-10-03T08:20:31Z",
+          "browser_download_url": "https://github.com/bobcatfr63/IPTV-Releases/releases/download/tvflow-latest/TVFlow-v1.0.33-build2013126931-3c0967d-debug.apk"
+        },
+        {
+          "id": 607510996,
+          "name": "TVFlow-v1.0.34-build2013126932-1c4095c-debug.apk",
+          "size": 233518491,
+          "digest": "sha256:08b85a39d669a731e183555975da9fb0063fdda86db7fc73270ae7713fc9b01b",
+          "created_at": "2026-10-03T09:13:09Z",
+          "browser_download_url": "https://github.com/bobcatfr63/IPTV-Releases/releases/download/tvflow-latest/TVFlow-v1.0.34-build2013126932-1c4095c-debug.apk"
+        },
+        {
+          "id": 607531277,
+          "name": "TVFlow-v1.0.35-build2013126933-aee45fa-debug.apk",
+          "size": 233518495,
+          "digest": "sha256:0fd2e675cedd20a4db2a5fa696141a1b319348e2be152692b5ee74a8092c98c6",
+          "created_at": "2026-10-03T09:28:55Z",
+          "browser_download_url": "https://github.com/bobcatfr63/IPTV-Releases/releases/download/tvflow-latest/TVFlow-v1.0.35-build2013126933-aee45fa-debug.apk"
+        },
+        {
+          "id": 607548494,
+          "name": "TVFlow-v1.0.36-build2013126934-7144820-debug.apk",
+          "size": 233518495,
+          "digest": "sha256:1fa9b5117fbfb2d666bc2322c117ba4de64fc37e61a44c0efc2343054ca36f9f",
+          "created_at": "2026-10-03T09:40:53Z",
+          "browser_download_url": "https://github.com/bobcatfr63/IPTV-Releases/releases/download/tvflow-latest/TVFlow-v1.0.36-build2013126934-7144820-debug.apk"
+        },
+        {
+          "id": 607553068,
+          "name": "TVFlow-v1.0.37-build2013126935-b85dde1-debug.apk",
+          "size": 233518491,
+          "digest": "sha256:302d87e40144672ddc6357e13894257f856f24a25ace09d04e356c530707f650",
+          "created_at": "2026-10-03T09:44:45Z",
+          "browser_download_url": "https://github.com/bobcatfr63/IPTV-Releases/releases/download/tvflow-latest/TVFlow-v1.0.37-build2013126935-b85dde1-debug.apk"
+        },
+        {
+          "id": 607564821,
+          "name": "TVFlow-v1.0.38-build2013126936-d53635e-debug.apk",
+          "size": 233518491,
+          "digest": "sha256:223d5707f0ec6d97a1a41bdc7dd2e8b2c874ea5a6944e392e30047d63de05e84",
+          "created_at": "2026-10-03T09:52:50Z",
+          "browser_download_url": "https://github.com/bobcatfr63/IPTV-Releases/releases/download/tvflow-latest/TVFlow-v1.0.38-build2013126936-d53635e-debug.apk"
+        },
+        {
+          "id": 607688359,
+          "name": "TVFlow-v1.0.39-build2013126937-27d16b4-debug.apk",
+          "size": 233535083,
+          "digest": "sha256:1ab3b2b8afcea26dcb6720c381da8adcb48e728ca24e9387888e74362e883948",
+          "created_at": "2026-10-03T11:21:37Z",
+          "browser_download_url": "https://github.com/bobcatfr63/IPTV-Releases/releases/download/tvflow-latest/TVFlow-v1.0.39-build2013126937-27d16b4-debug.apk"
+        },
+        {
+          "id": 607783773,
+          "name": "TVFlow-v1.0.40-build2013126938-463518c-debug.apk",
+          "size": 233535774,
+          "digest": "sha256:d33d788f1fedb2f028d86974e0014622c93814e3bca784d6cd345ce5249beda2",
+          "created_at": "2026-10-03T12:32:59Z",
+          "browser_download_url": "https://github.com/bobcatfr63/IPTV-Releases/releases/download/tvflow-latest/TVFlow-v1.0.40-build2013126938-463518c-debug.apk"
+        },
+        {
+          "id": 608058340,
+          "name": "TVFlow-v1.0.41-build2013126939-a8b0f95-debug.apk",
+          "size": 233535774,
+          "digest": "sha256:2444e214580436dc21b0999084cf347c3a99f8acb69cf2ef7b6a2b4231373601",
+          "created_at": "2026-10-03T15:40:44Z",
+          "browser_download_url": "https://github.com/bobcatfr63/IPTV-Releases/releases/download/tvflow-latest/TVFlow-v1.0.41-build2013126939-a8b0f95-debug.apk"
+        },
+        {
+          "id": 608109582,
+          "name": "TVFlow-v1.0.42-build2013126940-73c26eb-debug.apk",
+          "size": 233535774,
+          "digest": "sha256:60e1f62fca490025626200f980e819efad8826d3a4785fbcf50d308734fb3504",
+          "created_at": "2026-10-03T16:12:42Z",
+          "browser_download_url": "https://github.com/bobcatfr63/IPTV-Releases/releases/download/tvflow-latest/TVFlow-v1.0.42-build2013126940-73c26eb-debug.apk"
+        },
+        {
+          "id": 608179046,
+          "name": "TVFlow-v1.0.43-build2013126941-362d5f7-debug.apk",
+          "size": 233552158,
+          "digest": "sha256:df8a76d27fbf6fabf4435a208e2dc0f6d84be5196df408273524507ad3a3a30a",
+          "created_at": "2026-10-03T17:00:33Z",
+          "browser_download_url": "https://github.com/bobcatfr63/IPTV-Releases/releases/download/tvflow-latest/TVFlow-v1.0.43-build2013126941-362d5f7-debug.apk"
+        },
+        {
+          "id": 608227835,
+          "name": "TVFlow-v1.0.44-build2013126942-1966110-debug.apk",
+          "size": 233569114,
+          "digest": "sha256:146763472bb621e701317fb1be30e735c3e3b4e26015e66528acdb5471bee837",
+          "created_at": "2026-10-03T17:30:45Z",
+          "browser_download_url": "https://github.com/bobcatfr63/IPTV-Releases/releases/download/tvflow-latest/TVFlow-v1.0.44-build2013126942-1966110-debug.apk"
+        },
+        {
+          "id": 608272946,
+          "name": "TVFlow-v1.0.45-build2013126943-08cf2e5-debug.apk",
+          "size": 233601882,
+          "digest": "sha256:14c70a21775418434744baf91b0a37a4578b2cbe1a08fa789ab1e251769cd937",
+          "created_at": "2026-10-03T18:02:48Z",
+          "browser_download_url": "https://github.com/bobcatfr63/IPTV-Releases/releases/download/tvflow-latest/TVFlow-v1.0.45-build2013126943-08cf2e5-debug.apk"
+        },
+        {
+          "id": 608353310,
+          "name": "TVFlow-v1.0.46-build2013126944-cf7d0ef-debug.apk",
+          "size": 233601882,
+          "digest": "sha256:b22056f08e96be73119ec11d4d74b71febf4aab0b69d8cd8782dfeb727631c0a",
+          "created_at": "2026-10-03T18:58:34Z",
+          "browser_download_url": "https://github.com/bobcatfr63/IPTV-Releases/releases/download/tvflow-latest/TVFlow-v1.0.46-build2013126944-cf7d0ef-debug.apk"
+        },
+        {
+          "id": 608374144,
+          "name": "TVFlow-v1.0.47-build2013126945-f14037d-debug.apk",
+          "size": 233618266,
+          "digest": "sha256:9ba493b5c5e1952c497257b04796a1ef18d27ae2c45533d0032fd48d35544b33",
+          "created_at": "2026-10-03T19:12:32Z",
+          "browser_download_url": "https://github.com/bobcatfr63/IPTV-Releases/releases/download/tvflow-latest/TVFlow-v1.0.47-build2013126945-f14037d-debug.apk"
+        },
+        {
+          "id": 608404611,
+          "name": "TVFlow-v1.0.48-build2013126946-06ca91b-debug.apk",
+          "size": 118840449,
+          "digest": "sha256:6c89b204f08e5e1fed456980f44592e0fb5da3d8fae7b25e76d833f1c548b72a",
+          "created_at": "2026-10-03T19:33:16Z",
+          "browser_download_url": "https://github.com/bobcatfr63/IPTV-Releases/releases/download/tvflow-latest/TVFlow-v1.0.48-build2013126946-06ca91b-debug.apk"
+        },
+        {
+          "id": 608439870,
+          "name": "TVFlow-v1.0.49-build2013126947-649a089-arm64-v8a-debug.apk",
+          "size": 78235052,
+          "digest": "sha256:ce9005fd494305a14fc29772df100f3aa9e5a6aa412c99b81aeab1602a3d16d2",
+          "created_at": "2026-10-03T20:00:01Z",
+          "browser_download_url": "https://github.com/bobcatfr63/IPTV-Releases/releases/download/tvflow-latest/TVFlow-v1.0.49-build2013126947-649a089-arm64-v8a-debug.apk"
+        },
+        {
+          "id": 608439871,
+          "name": "TVFlow-v1.0.49-build2013126947-649a089-debug.apk",
+          "size": 63380214,
+          "digest": "sha256:5ffae6f5763f7b65277f3f0fb3fb43a3ca0c4f040a2202bcabc326cecc514b64",
+          "created_at": "2026-10-03T20:00:01Z",
+          "browser_download_url": "https://github.com/bobcatfr63/IPTV-Releases/releases/download/tvflow-latest/TVFlow-v1.0.49-build2013126947-649a089-debug.apk"
+        },
+        {
+          "id": 608559600,
+          "name": "TVFlow-v1.0.50-build2013126948-0006055-arm64-v8a-debug.apk",
+          "size": 78235052,
+          "digest": "sha256:c3e39718f4d7ce2dd5546e261a037e733fc384f797e23b7a7366bacb09ca0587",
+          "created_at": "2026-10-03T21:24:07Z",
+          "browser_download_url": "https://github.com/bobcatfr63/IPTV-Releases/releases/download/tvflow-latest/TVFlow-v1.0.50-build2013126948-0006055-arm64-v8a-debug.apk"
+        },
+        {
+          "id": 608559591,
+          "name": "TVFlow-v1.0.50-build2013126948-0006055-debug.apk",
+          "size": 63380214,
+          "digest": "sha256:797553be88d6fc37267ba499a7781a83c195584adfc19664147f1ee9c64f97fc",
+          "created_at": "2026-10-03T21:24:06Z",
+          "browser_download_url": "https://github.com/bobcatfr63/IPTV-Releases/releases/download/tvflow-latest/TVFlow-v1.0.50-build2013126948-0006055-debug.apk"
+        },
+        {
+          "id": 608592677,
+          "name": "TVFlow-v1.0.51-build2013126949-b6a5609-debug.apk",
+          "size": 233655600,
+          "digest": "sha256:fd92efaf59a6b9548a76a158c509f313c94ff3ae6aa383b14a6a9c1e30cecdc3",
+          "created_at": "2026-10-03T21:48:37Z",
+          "browser_download_url": "https://github.com/bobcatfr63/IPTV-Releases/releases/download/tvflow-latest/TVFlow-v1.0.51-build2013126949-b6a5609-debug.apk"
+        },
+        {
+          "id": 608621301,
+          "name": "TVFlow-v1.0.52-build2013126950-91d3cc5-debug.apk",
+          "size": 233671984,
+          "digest": "sha256:6873100658f343abb78ec8ca91fc6f80f22e0d482199eb7c11db47f2b758110e",
+          "created_at": "2026-10-03T22:10:43Z",
+          "browser_download_url": "https://github.com/bobcatfr63/IPTV-Releases/releases/download/tvflow-latest/TVFlow-v1.0.52-build2013126950-91d3cc5-debug.apk"
+        },
+        {
+          "id": 608631929,
+          "name": "TVFlow-v1.0.53-build2013126951-7138b64-debug.apk",
+          "size": 233655600,
+          "digest": "sha256:eeb489e70c53799312c51a9f194a93d2cae90de249c3f05db1628c71aa56c3ec",
+          "created_at": "2026-10-03T22:18:51Z",
+          "browser_download_url": "https://github.com/bobcatfr63/IPTV-Releases/releases/download/tvflow-latest/TVFlow-v1.0.53-build2013126951-7138b64-debug.apk"
+        },
+        {
+          "id": 610198158,
+          "name": "TVFlow-v1.0.56-build2013126954-cc02490-debug.apk",
+          "size": 233671984,
+          "digest": "sha256:239522a818fac3dc042344e3a23d7addba8d7a9474a4b2d84dc3ba65a47f240b",
+          "created_at": "2026-10-04T16:38:51Z",
+          "browser_download_url": "https://github.com/bobcatfr63/IPTV-Releases/releases/download/tvflow-latest/TVFlow-v1.0.56-build2013126954-cc02490-debug.apk"
+        },
+        {
+          "id": 610218374,
+          "name": "TVFlow-v1.0.57-build2013126955-b325a15-debug.apk",
+          "size": 233671984,
+          "digest": "sha256:1206b50f0065c887fa9ed6ad1b2ea6cb2cbd426ba8094399e6dbc76226232c03",
+          "created_at": "2026-10-04T16:52:51Z",
+          "browser_download_url": "https://github.com/bobcatfr63/IPTV-Releases/releases/download/tvflow-latest/TVFlow-v1.0.57-build2013126955-b325a15-debug.apk"
+        },
+        {
+          "id": 610517991,
+          "name": "TVFlow-v1.0.59-build2013126957-f06c737-debug.apk",
+          "size": 233671984,
+          "digest": "sha256:93a323b74b525c58e6ef366b72c243fdd4c8d64af947331f79ee328af0d54f06",
+          "created_at": "2026-10-04T19:44:22Z",
+          "browser_download_url": "https://github.com/bobcatfr63/IPTV-Releases/releases/download/tvflow-latest/TVFlow-v1.0.59-build2013126957-f06c737-debug.apk"
+        }
+      ]
+    },
+    {
+      "tag_name": "local-latest",
+      "name": "IPTV - derniÃ¨re compilation locale",
+      "published_at": "2026-09-28T22:12:07Z",
+      "updated_at": "2026-10-02T09:11:33Z",
+      "assets": [
+        {
+          "id": 597280117,
+          "name": "iptv-5c63478-debug.apk",
+          "size": 108081539,
+          "digest": "sha256:f9ab9961432d4891b2b1fa67f6fdfb87d70b1159d45a27a1ea71569b3568b484",
+          "created_at": "2026-09-29T04:49:10Z",
+          "browser_download_url": "https://github.com/bobcatfr63/IPTV-Releases/releases/download/local-latest/iptv-5c63478-debug.apk"
+        },
+        {
+          "id": 596535733,
+          "name": "IPTV-app-debug.apk",
+          "size": 108081539,
+          "digest": "sha256:0d06ce166aecf7d48f50d59bfd019f165bf5f1dc9624fa8800ee6e7f6feef846",
+          "created_at": "2026-09-28T22:12:01Z",
+          "browser_download_url": "https://github.com/bobcatfr63/IPTV-Releases/releases/download/local-latest/IPTV-app-debug.apk"
+        },
+        {
+          "id": 599749202,
+          "name": "iptv-v1.1.101-build101-e452838-debug.apk",
+          "size": 108081539,
+          "digest": "sha256:f9ab9961432d4891b2b1fa67f6fdfb87d70b1159d45a27a1ea71569b3568b484",
+          "created_at": "2026-09-30T01:47:25Z",
+          "browser_download_url": "https://github.com/bobcatfr63/IPTV-Releases/releases/download/local-latest/iptv-v1.1.101-build101-e452838-debug.apk"
+        },
+        {
+          "id": 605231779,
+          "name": "release.json",
+          "size": 1943,
+          "digest": "sha256:0eab33d7590798ff6107ffaa67c251648aca7dad6fd33164af0d0fd86edbc05b",
+          "created_at": "2026-10-02T09:11:24Z",
+          "browser_download_url": "https://github.com/bobcatfr63/IPTV-Releases/releases/download/local-latest/release.json"
+        },
+        {
+          "id": 605231777,
+          "name": "sha256.txt",
+          "size": 115,
+          "digest": "sha256:65b081ae29b6ea13d060b081a1aea961cbfad75d25cd33447b9bb15ad70d27e4",
+          "created_at": "2026-10-02T09:11:24Z",
+          "browser_download_url": "https://github.com/bobcatfr63/IPTV-Releases/releases/download/local-latest/sha256.txt"
+        },
+        {
+          "id": 605231770,
+          "name": "TVFlow-v1.0.25-build213095408-030d86b-debug.apk",
+          "size": 233452867,
+          "digest": "sha256:242680efa0fa9452930481c2d8487ced6769a1477f93fd8979771a4edb945f7f",
+          "created_at": "2026-10-02T09:11:23Z",
+          "browser_download_url": "https://github.com/bobcatfr63/IPTV-Releases/releases/download/local-latest/TVFlow-v1.0.25-build213095408-030d86b-debug.apk"
+        },
+        {
+          "id": 605224617,
+          "name": "TVFlow-v1.0.25-build73-030d86b-debug.apk",
+          "size": 233452859,
+          "digest": "sha256:3ff5c30048caaccec5c2192577d6c15c4ed79ef211a5c7fe28366233ed86ea53",
+          "created_at": "2026-10-02T09:06:49Z",
+          "browser_download_url": "https://github.com/bobcatfr63/IPTV-Releases/releases/download/local-latest/TVFlow-v1.0.25-build73-030d86b-debug.apk"
+        }
+      ]
+    },
+    {
+      "tag_name": "bobcat-iptv-latest",
+      "name": "Bobcat IPTV 1.1.231",
+      "published_at": "2026-09-10T20:36:35Z",
+      "updated_at": "2026-09-11T07:19:18Z",
+      "assets": [
+        {
+          "id": 556720449,
+          "name": "Bobcat.IPTV.apk",
+          "size": 94816929,
+          "digest": "sha256:f947e567cdebefbf1029ef36557f07709b7713ab806afe84c02eaf25e69e918f",
+          "created_at": "2026-09-11T07:19:14Z",
+          "browser_download_url": "https://github.com/bobcatfr63/IPTV-Releases/releases/download/bobcat-iptv-latest/Bobcat.IPTV.apk"
+        }
+      ]
+    },
+    {
+      "tag_name": "bobcat-iptv-home-b2e63e7",
+      "name": "Bobcat IPTV — accueil cinéma et séries",
+      "published_at": "2026-09-11T13:58:49Z",
+      "updated_at": "2026-09-11T13:58:49Z",
+      "assets": [
+        {
+          "id": 557354040,
+          "name": "app-debug.apk",
+          "size": 107996573,
+          "digest": "sha256:036d167af0016791026204436afd96c24f2d70b3b5687a6b22483173bd6a5666",
+          "created_at": "2026-09-11T13:58:43Z",
+          "browser_download_url": "https://github.com/bobcatfr63/IPTV-Releases/releases/download/bobcat-iptv-home-b2e63e7/app-debug.apk"
+        }
+      ]
+    },
+    {
+      "tag_name": "bobcat-iptv-debug-c1bdcf5",
+      "name": "Bobcat IPTV test c1bdcf5",
+      "published_at": "2026-09-11T13:15:48Z",
+      "updated_at": "2026-09-11T13:15:48Z",
+      "assets": [
+        {
+          "id": 557284015,
+          "name": "app-debug.apk",
+          "size": 107670103,
+          "digest": "sha256:ccc94a9ae00c5c9d20bc51f050c90ccbdfae85e2a7121e99289a17e43237840c",
+          "created_at": "2026-09-11T13:15:42Z",
+          "browser_download_url": "https://github.com/bobcatfr63/IPTV-Releases/releases/download/bobcat-iptv-debug-c1bdcf5/app-debug.apk"
+        }
+      ]
+    }
+  ]
+}
