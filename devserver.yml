@@ -5,13 +5,13 @@ project:
   status: dev
 source:
   provider: github
-  repository: bobcatfr63/TVFlow
+  repository: bobcatfr63/TvFlow-v2
   default_branch: main
   poll_seconds: 120
   github_actions: false
 local:
   root: G:\DevServer
-  repository_dir: G:\DevServer\repos\TVFlow
+  repository_dir: G:\DevServer\repos\TvFlow-v2
 build:
   local_only: true
   runner_label: windows-native
