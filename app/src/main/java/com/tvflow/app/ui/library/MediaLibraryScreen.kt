@@ -28,6 +28,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -35,6 +36,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import android.content.pm.PackageManager
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import coil3.compose.AsyncImage
 import com.tvflow.app.domain.MediaSection
@@ -58,6 +60,18 @@ fun MediaLibraryScreen(
     val selectedMonth by viewModel.selectedMonth.collectAsState()
     val vod = viewModel.vod.collectAsLazyPagingItems()
     val series = viewModel.series.collectAsLazyPagingItems()
+    val context = LocalContext.current
+    val isTv = remember(context) {
+        context.packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK)
+    }
+    val compactMobile = !isTv
+
+    val screenHorizontalPadding = if (compactMobile) 12.dp else 24.dp
+    val topPadding = if (compactMobile) 6.dp else 24.dp
+    val titleVerticalPadding = if (compactMobile) 4.dp else 12.dp
+    val filterSpacing = if (compactMobile) 4.dp else 8.dp
+    val contentTopPadding = if (compactMobile) 4.dp else 10.dp
+    val categoryWidth = if (compactMobile) 220.dp else 280.dp
 
     LaunchedEffect(categories, selectedId) {
         if (selectedId == null && categories.isNotEmpty()) viewModel.selectCategory(categories.first().id)
@@ -71,47 +85,53 @@ fun MediaLibraryScreen(
                     listOf(Color(0xFF0A3554), Color(0xFF06111B), Color(0xFF03080D))
                 )
             )
-            .padding(top = 24.dp)
+            .padding(top = topPadding)
     ) {
         Text(
             if (viewModel.type == MediaType.VOD) "Films" else "Séries",
-            style = MaterialTheme.typography.headlineLarge,
+            style = if (compactMobile) MaterialTheme.typography.headlineMedium else MaterialTheme.typography.headlineLarge,
             color = MaterialTheme.colorScheme.onBackground,
-            modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp)
+            modifier = Modifier.padding(
+                horizontal = screenHorizontalPadding,
+                vertical = titleVerticalPadding
+            )
         )
         Column(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            modifier = Modifier.fillMaxWidth().padding(horizontal = screenHorizontalPadding),
+            verticalArrangement = Arrangement.spacedBy(filterSpacing)
         ) {
             if (availableSections.isNotEmpty()) {
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(filterSpacing)) {
                     items(availableSections, key = { it.name }) { section ->
                         ReleaseFilterChip(
                             label = mediaSectionLabel(section),
                             selected = selectedSection == section,
-                            onClick = { viewModel.selectSection(section) }
+                            onClick = { viewModel.selectSection(section) },
+                            compact = compactMobile
                         )
                     }
                 }
             }
             Text(
                 "Sorties récentes • date de sortie réelle",
-                style = MaterialTheme.typography.titleMedium,
+                style = if (compactMobile) MaterialTheme.typography.bodyLarge else MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onBackground
             )
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(filterSpacing)) {
                 item {
                     ReleaseFilterChip(
                         label = "Toutes les dates",
                         selected = selectedYear == null,
-                        onClick = { viewModel.selectYear(null) }
+                        onClick = { viewModel.selectYear(null) },
+                        compact = compactMobile
                     )
                 }
                 items(releaseYears, key = { it }) { year ->
                     ReleaseFilterChip(
                         label = year.toString(),
                         selected = selectedYear == year,
-                        onClick = { viewModel.selectYear(year) }
+                        onClick = { viewModel.selectYear(year) },
+                        compact = compactMobile
                     )
                 }
             }
@@ -123,32 +143,37 @@ fun MediaLibraryScreen(
                 )
             }
             if (selectedYear != null && releaseMonths.isNotEmpty()) {
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(filterSpacing)) {
                     item {
                         ReleaseFilterChip(
                             label = "Tous les mois",
                             selected = selectedMonth == null,
-                            onClick = { viewModel.selectMonth(null) }
+                            onClick = { viewModel.selectMonth(null) },
+                            compact = compactMobile
                         )
                     }
                     items(releaseMonths, key = { it }) { month ->
                         ReleaseFilterChip(
                             label = monthName(month),
                             selected = selectedMonth == month,
-                            onClick = { viewModel.selectMonth(month) }
+                            onClick = { viewModel.selectMonth(month) },
+                            compact = compactMobile
                         )
                     }
                 }
             }
         }
-        Row(Modifier.fillMaxSize().padding(top = 10.dp)) {
+        Row(Modifier.fillMaxSize().padding(top = contentTopPadding)) {
             Column(
-                modifier = Modifier.width(280.dp).fillMaxHeight().padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                modifier = Modifier
+                    .width(categoryWidth)
+                    .fillMaxHeight()
+                    .padding(horizontal = if (compactMobile) 8.dp else 16.dp),
+                verticalArrangement = Arrangement.spacedBy(if (compactMobile) 4.dp else 8.dp)
             ) {
                 LazyColumn(
                     modifier = Modifier.fillMaxWidth().weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(if (compactMobile) 4.dp else 8.dp)
                 ) {
                     items(categories, key = { it.id }) { category ->
                         val selected = category.id == selectedId
@@ -182,7 +207,10 @@ fun MediaLibraryScreen(
                                     selected -> MaterialTheme.colorScheme.onPrimary
                                     else -> Color.White
                                 },
-                                modifier = Modifier.padding(14.dp),
+                                modifier = Modifier.padding(
+                                    horizontal = if (compactMobile) 10.dp else 14.dp,
+                                    vertical = if (compactMobile) 8.dp else 14.dp
+                                ),
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
@@ -192,8 +220,14 @@ fun MediaLibraryScreen(
             }
 
             LazyVerticalGrid(
-                columns = GridCells.Adaptive(minSize = 112.dp),
-                modifier = Modifier.fillMaxSize().padding(start = 8.dp, end = 16.dp, bottom = 16.dp),
+                columns = GridCells.Adaptive(minSize = if (compactMobile) 104.dp else 112.dp),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(
+                        start = if (compactMobile) 4.dp else 8.dp,
+                        end = if (compactMobile) 8.dp else 16.dp,
+                        bottom = if (compactMobile) 8.dp else 16.dp
+                    ),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
@@ -206,7 +240,8 @@ fun MediaLibraryScreen(
                                 rating = item.rating,
                                 releaseYear = item.releaseYear,
                                 releaseMonth = item.releaseMonth,
-                                synopsis = item.synopsis
+                                synopsis = item.synopsis,
+                                compact = compactMobile
                             ) { onVodSelected(item) }
                         }
                     }
@@ -219,7 +254,8 @@ fun MediaLibraryScreen(
                                 rating = item.rating,
                                 releaseYear = item.releaseYear,
                                 releaseMonth = item.releaseMonth,
-                                synopsis = item.plot
+                                synopsis = item.plot,
+                                compact = compactMobile
                             ) { onSeriesSelected(item) }
                         }
                     }
@@ -237,6 +273,7 @@ private fun MediaPoster(
     releaseYear: Int?,
     releaseMonth: Int?,
     synopsis: String?,
+    compact: Boolean = false,
     onClick: () -> Unit
 ) {
     val interaction = remember { MutableInteractionSource() }
@@ -263,7 +300,9 @@ private fun MediaPoster(
                 model = image,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxWidth().height(164.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(if (compact) 146.dp else 164.dp)
             )
             Text(
                 name,
@@ -311,7 +350,8 @@ private fun MediaPoster(
 private fun ReleaseFilterChip(
     label: String,
     selected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    compact: Boolean = false
 ) {
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
@@ -332,7 +372,10 @@ private fun ReleaseFilterChip(
     ) {
         Text(
             label,
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp),
+            modifier = Modifier.padding(
+                horizontal = if (compact) 11.dp else 14.dp,
+                vertical = if (compact) 6.dp else 9.dp
+            ),
             color = when {
                 focused -> MaterialTheme.colorScheme.onPrimaryContainer
                 selected -> MaterialTheme.colorScheme.onPrimary
