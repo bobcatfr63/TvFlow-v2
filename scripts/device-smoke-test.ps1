@@ -102,9 +102,9 @@ foreach ($serial in $devices) {
 
         Start-Sleep -Seconds 8
 
-        $pid = (& $adb -s $serial shell pidof $package 2>$null | Out-String).Trim()
-        if (-not $pid) { throw "Le processus TVFlow n'est plus actif après le lancement." }
-        $summary.Add("PROCESS: alive pid=$pid")
+        $appPid = (& $adb -s $serial shell pidof $package 2>$null | Out-String).Trim()
+        if (-not $appPid) { throw "Le processus TVFlow n'est plus actif après le lancement." }
+        $summary.Add("PROCESS: alive pid=$appPid")
 
         $activityDump = (& $adb -s $serial shell dumpsys activity activities 2>$null | Out-String)
         $hasActivity = $activityDump -match [regex]::Escape($package)
