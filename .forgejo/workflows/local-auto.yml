@@ -7,9 +7,6 @@ jobs:
     runs-on: windows-native
     steps:
       - uses: actions/checkout@v4
-      - name: Consolider TVFlow dans TvFlow-v2
-        shell: powershell
-        run: .\scripts\bootstrap-tvflow-v2.ps1
       - name: Détection, tests et compilation
         shell: powershell
         run: G:\DevServer\builder\run-build-isolated.ps1 -Project 'TvFlow-v2' -GitHubRepository 'bobcatfr63/TvFlow-v2'
