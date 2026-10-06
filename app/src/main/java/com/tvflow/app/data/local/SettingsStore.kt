@@ -51,6 +51,7 @@ class SettingsStore @Inject constructor(@ApplicationContext private val context:
         val lastLiveName = stringPreferencesKey("last_live_name")
         val lastLiveCategoryId = stringPreferencesKey("last_live_category_id")
         val tmdbToken = stringPreferencesKey("tmdb_token")
+        val lastReleaseNotesVersion = stringPreferencesKey("last_release_notes_version")
     }
 
     val playerPreferences: Flow<PlayerPreferences> = context.playerSettingsDataStore.data.map { prefs ->
@@ -69,6 +70,9 @@ class SettingsStore @Inject constructor(@ApplicationContext private val context:
 
     val parentalPinConfigured: Flow<Boolean> = context.playerSettingsDataStore.data.map { !it[Keys.pinHash].isNullOrBlank() }
     val tmdbToken: Flow<String?> = context.playerSettingsDataStore.data.map { it[Keys.tmdbToken]?.takeIf(String::isNotBlank) }
+    val lastReleaseNotesVersion: Flow<String?> = context.playerSettingsDataStore.data.map {
+        it[Keys.lastReleaseNotesVersion]?.takeIf(String::isNotBlank)
+    }
 
     val lastLiveChannel: Flow<LastLiveChannel?> = context.playerSettingsDataStore.data.map { prefs ->
         val streamId = prefs[Keys.lastLiveStreamId] ?: return@map null
@@ -99,6 +103,10 @@ class SettingsStore @Inject constructor(@ApplicationContext private val context:
         if (token.isBlank()) prefs.remove(Keys.tmdbToken) else prefs[Keys.tmdbToken] = token
     }
     suspend fun currentTmdbToken(): String? = tmdbToken.first()
+
+    suspend fun markReleaseNotesShown(versionName: String) = context.playerSettingsDataStore.edit {
+        it[Keys.lastReleaseNotesVersion] = versionName
+    }
 
     suspend fun setLastLiveChannel(streamId: Int, name: String, categoryId: String) = context.playerSettingsDataStore.edit {
         it[Keys.lastLiveStreamId] = streamId
