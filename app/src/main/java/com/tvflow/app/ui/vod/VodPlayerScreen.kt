@@ -61,7 +61,7 @@ private const val VOD_PLAYER_TAG = "TVFlowVodPlayer"
 
 @Composable
 fun VodPlayerScreen(
-    onPlayNextEpisode: (Episode, Int) -> Unit = { _, _ -> },
+    onPlayEpisode: (Episode, Int) -> Unit = { _, _ -> },
     viewModel: VodPlayerViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
@@ -288,6 +288,21 @@ fun VodPlayerScreen(
                     Text(state.title, style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurface)
                     state.containerExtension?.let { Text(it.uppercase(), color = MaterialTheme.colorScheme.primary) }
                     state.nextEpisode?.let { Text("À suivre : S${it.season} • E${it.episodeNumber}  ${it.title}", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                    val currentSeriesId = state.seriesId
+                    if (currentSeriesId != null && (state.previousEpisode != null || state.nextEpisode != null)) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            state.previousEpisode?.let { previous ->
+                                Button(onClick = { onPlayEpisode(previous, currentSeriesId) }) {
+                                    Text("⏮ Épisode précédent")
+                                }
+                            }
+                            state.nextEpisode?.let { next ->
+                                Button(onClick = { onPlayEpisode(next, currentSeriesId) }) {
+                                    Text("Épisode suivant ⏭")
+                                }
+                            }
+                        }
+                    }
                     Text("Touchez la vidéo pour masquer", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
@@ -315,7 +330,7 @@ fun VodPlayerScreen(
                         style = MaterialTheme.typography.titleMedium
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(onClick = { onPlayNextEpisode(nextEpisode, seriesId) }) { Text("Lire maintenant") }
+                        Button(onClick = { onPlayEpisode(nextEpisode, seriesId) }) { Text("Lire maintenant") }
                         TextButton(onClick = viewModel::dismissNextEpisode) { Text("Plus tard") }
                     }
                 }
