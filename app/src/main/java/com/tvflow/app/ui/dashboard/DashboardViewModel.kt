@@ -3,11 +3,14 @@ package com.tvflow.app.ui.dashboard
 import android.content.Context
 import android.util.Log
 import androidx.lifecycle.ViewModel
+import com.tvflow.app.BuildConfig
 import androidx.lifecycle.viewModelScope
 import com.tvflow.app.data.AppUpdateChecker
 import com.tvflow.app.data.AppUpdateInfo
 import com.tvflow.app.data.AppUpdateManager
+import com.tvflow.app.data.InstalledReleaseNotes
 import com.tvflow.app.data.UpdateDownloadState
+import com.tvflow.app.data.local.SettingsStore
 import com.tvflow.app.data.repository.XtreamRepository
 import com.tvflow.app.domain.EpgProgram
 import com.tvflow.app.domain.LiveChannel
@@ -50,7 +53,9 @@ data class DashboardUiState(
     val backgroundVideoUrl: String? = null,
     val backgroundVideoTitle: String? = null,
     val updateInfo: AppUpdateInfo? = null,
-    val updateDownloadState: UpdateDownloadState = UpdateDownloadState.Idle
+    val updateDownloadState: UpdateDownloadState = UpdateDownloadState.Idle,
+    val installedReleaseNotesVersion: String? = null,
+    val installedReleaseNotes: List<String> = emptyList()
 )
 
 private data class DashboardBackdrop(val url: String, val title: String)
@@ -60,11 +65,13 @@ private data class DashboardBackdrop(val url: String, val title: String)
 class DashboardViewModel @Inject constructor(
     private val repository: XtreamRepository,
     private val updateChecker: AppUpdateChecker,
-    private val updateManager: AppUpdateManager
+    private val updateManager: AppUpdateManager,
+    private val settingsStore: SettingsStore
 ) : ViewModel() {
     private val updateInfo = MutableStateFlow<AppUpdateInfo?>(null)
     private val updateDownloadState = MutableStateFlow<UpdateDownloadState>(UpdateDownloadState.Idle)
     private val backgroundPreview = MutableStateFlow<DashboardBackdrop?>(null)
+    private val installedReleaseNotes = MutableStateFlow<InstalledReleaseNotesState?>(null)
 
     private val favorites = repository.observeFavorites()
     private val recents = repository.observeRecentChannels(16)
@@ -89,6 +96,16 @@ class DashboardViewModel @Inject constructor(
 
     init {
         viewModelScope.launch { runCatching { repository.prewarmLivePresentation() } }
+        viewModelScope.launch {
+            val lastShown = settingsStore.lastReleaseNotesVersion.first()
+            val currentVersion = InstalledReleaseNotes.versionName
+            if (lastShown != currentVersion && InstalledReleaseNotes.items.isNotEmpty()) {
+                installedReleaseNotes.value = InstalledReleaseNotesState(
+                    versionName = currentVersion,
+                    items = InstalledReleaseNotes.items
+                )
+            }
+        }
         viewModelScope.launch { updateInfo.value = updateChecker.check() }
         viewModelScope.launch {
             val preview = runCatching { repository.randomVodPreview() }
@@ -134,6 +151,11 @@ class DashboardViewModel @Inject constructor(
             }
         }
     }
+
+    private data class InstalledReleaseNotesState(
+        val versionName: String,
+        val items: List<String>
+    )
 
     private data class DashboardSupplemental(
         val updateInfo: AppUpdateInfo?,
@@ -185,8 +207,9 @@ class DashboardViewModel @Inject constructor(
 
     val state: StateFlow<DashboardUiState> = combine(
         contentState,
-        supplementalState
-    ) { content, supplemental ->
+        supplementalState,
+        installedReleaseNotes
+    ) { content, supplemental, installedNotes ->
         DashboardUiState(
             serverName = content.serverName,
             continueWatching = content.watching,
@@ -198,7 +221,9 @@ class DashboardViewModel @Inject constructor(
             backgroundVideoUrl = supplemental.backdrop?.url,
             backgroundVideoTitle = supplemental.backdrop?.title,
             updateInfo = supplemental.updateInfo,
-            updateDownloadState = supplemental.downloadState
+            updateDownloadState = supplemental.downloadState,
+            installedReleaseNotesVersion = installedNotes?.versionName,
+            installedReleaseNotes = installedNotes?.items.orEmpty()
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DashboardUiState())
 
@@ -236,6 +261,14 @@ class DashboardViewModel @Inject constructor(
     fun dismissUpdate() {
         updateInfo.value = null
         updateDownloadState.value = UpdateDownloadState.Idle
+    }
+
+    fun dismissInstalledReleaseNotes() {
+        val notes = installedReleaseNotes.value ?: return
+        installedReleaseNotes.value = null
+        viewModelScope.launch {
+            settingsStore.markReleaseNotesShown(notes.versionName)
+        }
     }
 }
 
