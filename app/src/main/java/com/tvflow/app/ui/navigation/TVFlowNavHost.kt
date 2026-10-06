@@ -215,7 +215,7 @@ fun TVFlowNavHost(
             )
         ) {
             VodPlayerScreen(
-                onPlayNextEpisode = { episode, seriesId ->
+                onPlayEpisode = { episode, seriesId ->
                     navController.popBackStack()
                     navController.navigate(
                         "vodPlayer/episode/${Uri.encode(episode.id)}/${Uri.encode(episode.title)}/${Uri.encode(episode.containerExtension ?: "_")}?seriesId=$seriesId"
