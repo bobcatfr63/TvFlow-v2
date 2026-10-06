@@ -186,7 +186,8 @@ fun DashboardScreen(
             }
         }
 
-        state.updateInfo?.let { update ->
+        val update = state.updateInfo
+        if (update != null) {
             UpdatePopup(
                 update = update,
                 downloadState = state.updateDownloadState,
@@ -198,6 +199,15 @@ fun DashboardScreen(
                     }
                 },
                 onDismiss = viewModel::dismissUpdate
+            )
+        } else if (
+            state.installedReleaseNotesVersion != null &&
+            state.installedReleaseNotes.isNotEmpty()
+        ) {
+            InstalledReleaseNotesPopup(
+                versionName = state.installedReleaseNotesVersion,
+                notes = state.installedReleaseNotes,
+                onDismiss = viewModel::dismissInstalledReleaseNotes
             )
         }
     }
@@ -641,6 +651,20 @@ private fun UpdatePopup(
                     )
                 }
 
+                if (update.releaseNotes.isNotEmpty()) {
+                    Text(
+                        "Cette mise à jour apporte :",
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                    update.releaseNotes.forEach { note ->
+                        Text(
+                            "• $note",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                }
+
                 when (downloadState) {
                     is UpdateDownloadState.Downloading -> {
                         LinearProgressIndicator(
@@ -683,6 +707,46 @@ private fun UpdatePopup(
                 text = "Plus tard",
                 enabled = downloadState !is UpdateDownloadState.Downloading,
                 primary = false,
+                onClick = onDismiss
+            )
+        }
+    )
+}
+
+@Composable
+private fun InstalledReleaseNotesPopup(
+    versionName: String,
+    notes: List<String>,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                "Nouveautés de TVFlow $versionName",
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    "La mise à jour est installée. Voici ce qui change :",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                notes.forEach { note ->
+                    Text(
+                        "• $note",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            UpdateActionButton(
+                text = "J’ai compris",
+                enabled = true,
+                primary = true,
                 onClick = onDismiss
             )
         }
