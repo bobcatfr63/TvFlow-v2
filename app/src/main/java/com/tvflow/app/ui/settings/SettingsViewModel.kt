@@ -58,6 +58,7 @@ private data class AccountSettings(
 private data class CatalogSettings(
     val categories: List<LiveCategory>,
     val selectedCategoryId: String?,
+    val selectedCategoryIds: Set<String>,
     val channels: List<LiveChannel>
 )
 
@@ -99,9 +100,10 @@ class SettingsViewModel @Inject constructor(
     private val catalog = combine(
         repository.observeManageCategories(),
         selectedCategoryId,
+        selectedCategoryIds,
         channels
-    ) { categories, selectedId, channelList ->
-        CatalogSettings(categories, selectedId, channelList)
+    ) { categories, selectedId, bulkSelectedIds, channelList ->
+        CatalogSettings(categories, selectedId, bulkSelectedIds, channelList)
     }
 
     init {
@@ -124,9 +126,8 @@ class SettingsViewModel @Inject constructor(
         catalog,
         busy,
         message,
-        diagnostics,
-        selectedCategoryIds
-    ) { accountState, catalogState, isBusy, info, networkDiagnostics, bulkSelectedIds ->
+        diagnostics
+    ) { accountState, catalogState, isBusy, info, networkDiagnostics ->
         SettingsUiState(
             profiles = accountState.profiles,
             activeProfileId = accountState.activeProfileId,
@@ -135,7 +136,7 @@ class SettingsViewModel @Inject constructor(
             tmdbConfigured = accountState.tmdbConfigured,
             categories = catalogState.categories,
             selectedCategoryId = catalogState.selectedCategoryId,
-            selectedCategoryIds = bulkSelectedIds,
+            selectedCategoryIds = catalogState.selectedCategoryIds,
             channels = catalogState.channels,
             busy = isBusy,
             message = info,
