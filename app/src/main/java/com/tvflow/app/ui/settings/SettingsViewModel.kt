@@ -40,6 +40,7 @@ data class SettingsUiState(
     val tmdbConfigured: Boolean = false,
     val categories: List<LiveCategory> = emptyList(),
     val selectedCategoryId: String? = null,
+    val selectedCategoryIds: Set<String> = emptySet(),
     val channels: List<LiveChannel> = emptyList(),
     val busy: Boolean = false,
     val message: String? = null,
@@ -69,6 +70,7 @@ class SettingsViewModel @Inject constructor(
     private val application: Application
 ) : ViewModel() {
     private val selectedCategoryId = MutableStateFlow<String?>(null)
+    private val selectedCategoryIds = MutableStateFlow<Set<String>>(emptySet())
     private val busy = MutableStateFlow(false)
     private val message = MutableStateFlow<String?>(null)
     private val diagnostics = MutableStateFlow<ConnectionDiagnostics?>(null)
@@ -122,8 +124,9 @@ class SettingsViewModel @Inject constructor(
         catalog,
         busy,
         message,
-        diagnostics
-    ) { accountState, catalogState, isBusy, info, networkDiagnostics ->
+        diagnostics,
+        selectedCategoryIds
+    ) { accountState, catalogState, isBusy, info, networkDiagnostics, bulkSelectedIds ->
         SettingsUiState(
             profiles = accountState.profiles,
             activeProfileId = accountState.activeProfileId,
@@ -132,6 +135,7 @@ class SettingsViewModel @Inject constructor(
             tmdbConfigured = accountState.tmdbConfigured,
             categories = catalogState.categories,
             selectedCategoryId = catalogState.selectedCategoryId,
+            selectedCategoryIds = bulkSelectedIds,
             channels = catalogState.channels,
             busy = isBusy,
             message = info,
@@ -140,6 +144,31 @@ class SettingsViewModel @Inject constructor(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SettingsUiState())
 
     fun selectCategory(id: String) { selectedCategoryId.value = id }
+
+    fun toggleCategorySelection(id: String) {
+        selectedCategoryIds.value = selectedCategoryIds.value.toMutableSet().apply {
+            if (!add(id)) remove(id)
+        }
+    }
+
+    fun selectAllCategories() {
+        selectedCategoryIds.value = state.value.categories.map { it.id }.toSet()
+    }
+
+    fun clearCategorySelection() {
+        selectedCategoryIds.value = emptySet()
+    }
+
+    fun setSelectedCategoriesHidden(hidden: Boolean) {
+        val ids = selectedCategoryIds.value
+        if (ids.isEmpty()) {
+            message.value = "Sélectionne au moins une catégorie"
+            return
+        }
+        launchBusy(if (hidden) "Catégories sélectionnées masquées" else "Catégories sélectionnées affichées") {
+            ids.forEach { id -> repository.setCategoryHidden(id, hidden) }
+        }
+    }
 
     fun switchProfile(id: String) = launchBusy("Profil activé") { repository.switchProfile(id); selectedCategoryId.value = null }
     fun deleteProfile(id: String) = launchBusy("Profil supprimé") { repository.deleteProfile(id); selectedCategoryId.value = null }
