@@ -14,7 +14,7 @@ data class AppUpdateInfo(
     val versionName: String,
     val versionCode: Long,
     val publishedAt: String?,
-    val releaseNotes: List<String>,
+    val releaseNotes: List<String> = emptyList(),
     val downloadUrl: String,
     val artifactSha256: String,
     val artifactSize: Long,
