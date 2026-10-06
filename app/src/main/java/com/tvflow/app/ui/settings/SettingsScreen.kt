@@ -291,14 +291,38 @@ fun SettingsScreen(
         Column(Modifier.weight(1f).fillMaxHeight()) {
             SectionTitle("Organisation des chaînes")
             Text("Masquer, verrouiller et réordonner les catégories. Sélectionne une catégorie pour gérer ses chaînes.")
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                val allSelected = state.categories.isNotEmpty() &&
+                    state.selectedCategoryIds.size == state.categories.size
+                SettingsButton(
+                    onClick = {
+                        if (allSelected) viewModel.clearCategorySelection()
+                        else viewModel.selectAllCategories()
+                    },
+                    selected = allSelected
+                ) {
+                    Text(if (allSelected) "✓ Tout désélectionner" else "☐ Tout sélectionner")
+                }
+                SettingsButton(
+                    onClick = { viewModel.setSelectedCategoriesHidden(true) },
+                    enabled = state.selectedCategoryIds.isNotEmpty()
+                ) { Text("Masquer la sélection") }
+                SettingsButton(
+                    onClick = { viewModel.setSelectedCategoriesHidden(false) },
+                    enabled = state.selectedCategoryIds.isNotEmpty()
+                ) { Text("Afficher la sélection") }
+            }
+            Spacer(Modifier.height(10.dp))
             Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 LazyColumn(Modifier.width(360.dp).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                     items(state.categories, key = { it.id }) { category ->
                         CategoryManageRow(
                             category = category,
                             selected = state.selectedCategoryId == category.id,
+                            selectedForBulk = category.id in state.selectedCategoryIds,
                             onSelect = { viewModel.selectCategory(category.id) },
+                            onToggleBulk = { viewModel.toggleCategorySelection(category.id) },
                             onHide = { viewModel.toggleCategoryHidden(category) },
                             onLock = { viewModel.toggleCategoryLocked(category) },
                             onUp = { viewModel.moveCategory(category, -1) },
@@ -444,13 +468,16 @@ private fun ToggleRow(label: String, enabled: Boolean, onChange: (Boolean) -> Un
 private fun CategoryManageRow(
     category: LiveCategory,
     selected: Boolean,
+    selectedForBulk: Boolean,
     onSelect: () -> Unit,
+    onToggleBulk: () -> Unit,
     onHide: () -> Unit,
     onLock: () -> Unit,
     onUp: () -> Unit,
     onDown: () -> Unit
 ) {
     FocusRow(onClick = onSelect, selected = selected) {
+        SmallAction(if (selectedForBulk) "☑" else "☐", onToggleBulk)
         Text(category.name, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
         SmallAction(if (category.isHidden) "Voir" else "Masq.", onHide)
         SmallAction(if (category.isLocked) "🔒" else "🔓", onLock)
