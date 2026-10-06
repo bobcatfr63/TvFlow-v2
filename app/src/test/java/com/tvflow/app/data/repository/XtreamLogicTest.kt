@@ -205,6 +205,40 @@ class XtreamLogicTest {
     }
 
     @Test
+    fun mediaCategory_classifier_supportsDifferentProviderConventions() {
+        assertEquals(MediaSection.FRANCE, classifyMediaSection("|FR| GENERAL"))
+        assertEquals(MediaSection.FRANCE, classifyMediaSection("FRA CINEMA"))
+        assertEquals(MediaSection.FRANCE, classifyMediaSection("MULTI FR MOVIES"))
+        assertEquals(MediaSection.FRANCE, classifyMediaSection("AUDIO FR SERIES"))
+        assertEquals(MediaSection.FRANCE, classifyMediaSection("FRENCH PREMIUM"))
+        assertEquals(MediaSection.FRANCE, classifyMediaSection("VOSTFR SERIES"))
+        assertEquals(MediaSection.FRANCE, classifyMediaSection("VF FILMS"))
+    }
+
+    @Test
+    fun mediaCategory_classifier_isConservativeForForeignOrAmbiguousNames() {
+        assertEquals(MediaSection.OTHER, classifyMediaSection("AFRICA MOVIES"))
+        assertEquals(MediaSection.OTHER, classifyMediaSection("ENGLISH MOVIES"))
+        assertEquals(MediaSection.OTHER, classifyMediaSection("DE CINEMA"))
+        assertEquals(MediaSection.OTHER, classifyMediaSection("EUROPE GENERAL"))
+        assertEquals(MediaSection.OTHER, classifyMediaSection("PREMIUM MOVIES"))
+    }
+
+    @Test
+    fun primaryLiveCategories_recognizeFrenchProviderCode() {
+        val categories = buildPrimaryLiveCategories(
+            listOf(
+                category("fr", "|FR| GENERAL", 0),
+                category("uk", "|UK| GENERAL", 1)
+            )
+        )
+
+        assertEquals(listOf("FRANCE", "AUTRES"), categories.map { it.name })
+        assertEquals(listOf("fr"), decodeCategoryGroupId(categories[0].id))
+        assertEquals(listOf("uk"), decodeCategoryGroupId(categories[1].id))
+    }
+
+    @Test
     fun epgTimestamp_acceptsSecondsAndNormalizesMilliseconds() {
         assertEquals(1_760_000_000L, parseEpgTimestamp("1760000000"))
         assertEquals(1_760_000_000L, parseEpgTimestamp("1760000000000"))
