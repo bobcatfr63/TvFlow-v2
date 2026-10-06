@@ -14,6 +14,7 @@ data class AppUpdateInfo(
     val versionName: String,
     val versionCode: Long,
     val publishedAt: String?,
+    val releaseNotes: List<String>,
     val downloadUrl: String,
     val artifactSha256: String,
     val artifactSize: Long,
@@ -60,6 +61,7 @@ class AppUpdateChecker @Inject constructor(
             versionName = remoteName,
             versionCode = remoteCode,
             publishedAt = json.optString("publishedAt").takeIf { it.isNotBlank() },
+            releaseNotes = parseReleaseNotes(json),
             downloadUrl = downloadUrl,
             artifactSha256 = sha256.lowercase(),
             artifactSize = size,
@@ -67,6 +69,31 @@ class AppUpdateChecker @Inject constructor(
                 .takeIf { it.isNotBlank() }
                 ?.lowercase()
         )
+    }
+
+    private fun parseReleaseNotes(json: JSONObject): List<String> {
+        val candidates = listOf("releaseNotes", "changes", "notes")
+        for (key in candidates) {
+            val array = json.optJSONArray(key)
+            if (array != null) {
+                return buildList {
+                    for (index in 0 until array.length()) {
+                        array.optString(index).trim().takeIf { it.isNotBlank() }?.let(::add)
+                    }
+                }.take(8)
+            }
+
+            val text = json.optString(key, "").trim()
+            if (text.isNotBlank()) {
+                return text
+                    .lineSequence()
+                    .map { it.trim().removePrefix("-").removePrefix("•").trim() }
+                    .filter { it.isNotBlank() }
+                    .take(8)
+                    .toList()
+            }
+        }
+        return emptyList()
     }
 
     private fun selectArtifactForDevice(json: JSONObject): JSONObject? {
