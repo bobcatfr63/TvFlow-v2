@@ -29,6 +29,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -174,23 +175,6 @@ fun DashboardScreen(
                 }
             }
 
-            state.updateInfo?.let { update ->
-                item {
-                    UpdateBanner(
-                        update = update,
-                        downloadState = state.updateDownloadState,
-                        onUpdate = {
-                            if (state.updateDownloadState is UpdateDownloadState.Ready) {
-                                viewModel.installUpdate(context)
-                            } else {
-                                viewModel.downloadUpdate()
-                            }
-                        },
-                        onDismiss = viewModel::dismissUpdate
-                    )
-                }
-            }
-
             if (state.continueWatching.isNotEmpty()) {
                 item { ContinueRail(state.continueWatching, onResume) }
             }
@@ -200,6 +184,21 @@ fun DashboardScreen(
             if (state.recentChannels.isNotEmpty()) {
                 item { ChannelRail("Vu récemment", state.recentChannels, onChannel) }
             }
+        }
+
+        state.updateInfo?.let { update ->
+            UpdatePopup(
+                update = update,
+                downloadState = state.updateDownloadState,
+                onUpdate = {
+                    if (state.updateDownloadState is UpdateDownloadState.Ready) {
+                        viewModel.installUpdate(context)
+                    } else {
+                        viewModel.downloadUpdate()
+                    }
+                },
+                onDismiss = viewModel::dismissUpdate
+            )
         }
     }
 }
@@ -601,62 +600,72 @@ private fun FeatureTile(
 }
 
 @Composable
-private fun UpdateBanner(
+private fun UpdatePopup(
     update: AppUpdateInfo,
     downloadState: UpdateDownloadState,
     onUpdate: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(MaterialTheme.colorScheme.primaryContainer)
-            .border(1.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(16.dp))
-            .padding(horizontal = 18.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(14.dp)
-    ) {
-        Text("⬆", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.primary)
-
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    val sizeMb = update.artifactSize / (1024f * 1024f)
+    AlertDialog(
+        onDismissRequest = {
+            if (downloadState !is UpdateDownloadState.Downloading) onDismiss()
+        },
+        title = {
             Text(
-                "Mise à jour disponible",
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
+                "Mise à jour TVFlow disponible",
+                fontWeight = FontWeight.Bold
             )
-            Text(
-                "TVFlow ${update.versionName} est disponible.",
-                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.78f)
-            )
-
-            when (downloadState) {
-                is UpdateDownloadState.Downloading -> {
-                    LinearProgressIndicator(
-                        progress = { downloadState.percent / 100f },
-                        modifier = Modifier.fillMaxWidth()
-                    )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    "Nouvelle version : ${update.versionName}",
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Text(
+                    "Version installée : ${BuildConfig.VERSION_NAME}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    "Taille : %.1f Mo".format(Locale.getDefault(), sizeMb),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                update.publishedAt?.takeIf { it.isNotBlank() }?.let { published ->
                     Text(
-                        "Téléchargement ${downloadState.percent} %",
+                        "Publication : $published",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.78f)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                is UpdateDownloadState.Error -> Text(
-                    downloadState.message,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error
-                )
-                is UpdateDownloadState.Ready -> Text(
-                    "APK vérifié. Prêt à installer.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.78f)
-                )
-                UpdateDownloadState.Idle -> Unit
-            }
-        }
 
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                when (downloadState) {
+                    is UpdateDownloadState.Downloading -> {
+                        LinearProgressIndicator(
+                            progress = { downloadState.percent / 100f },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Text("Téléchargement : ${downloadState.percent} %")
+                    }
+                    is UpdateDownloadState.Ready -> Text(
+                        "APK vérifié et prêt à être installé.",
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    is UpdateDownloadState.Error -> Text(
+                        downloadState.message,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                    UpdateDownloadState.Idle -> Text(
+                        "Tu peux installer maintenant ou choisir Plus tard.",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+        },
+        confirmButton = {
             UpdateActionButton(
                 text = when (downloadState) {
                     is UpdateDownloadState.Downloading -> "Téléchargement…"
@@ -668,6 +677,8 @@ private fun UpdateBanner(
                 primary = true,
                 onClick = onUpdate
             )
+        },
+        dismissButton = {
             UpdateActionButton(
                 text = "Plus tard",
                 enabled = downloadState !is UpdateDownloadState.Downloading,
@@ -675,7 +686,7 @@ private fun UpdateBanner(
                 onClick = onDismiss
             )
         }
-    }
+    )
 }
 
 @Composable
