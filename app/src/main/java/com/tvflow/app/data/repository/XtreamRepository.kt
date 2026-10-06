@@ -81,6 +81,27 @@ private val KIDS_CATEGORY_MARKERS = listOf(
     "KINDER", "KINDEREN", "CRIANC", "DZIECI", "ΠΑΙΔ"
 )
 
+private val STRONG_FRENCH_CATEGORY_MARKERS = setOf(
+    "FRANCE", "FRANCAIS", "FRANCAISE", "FRENCH", "VOSTFR", "VF"
+)
+private val FRENCH_CATEGORY_CODES = setOf(
+    "FR", "FRA", "FRE"
+)
+private val FOREIGN_LANGUAGE_CODES = setOf(
+    "EN", "ENG", "ENGLISH", "UK", "US",
+    "ES", "ESP", "SPANISH", "ESPANOL",
+    "DE", "GER", "GERMAN", "DEUTSCH",
+    "IT", "ITA", "ITALIAN", "ITALIANO",
+    "PT", "POR", "PORTUGUESE",
+    "NL", "DUTCH", "NEDERLANDS",
+    "AR", "ARA", "ARABIC",
+    "TR", "TUR", "TURKISH",
+    "RU", "RUS", "RUSSIAN"
+)
+private val FRENCH_AUDIO_HINTS = setOf(
+    "MULTI", "AUDIO", "DUB", "DUBBED", "DOUBLAGE"
+)
+
 @OptIn(ExperimentalCoroutinesApi::class)
 @Singleton
 class XtreamRepository @Inject constructor(
@@ -1163,8 +1184,15 @@ private fun buildPrimaryCategory(
 }
 
 private fun isFranceProviderCategory(entity: LiveCategoryEntity): Boolean {
-    val display = parseProviderCategory(entity).displayName
-    return isFrenchCategoryName(display)
+    val parsed = parseProviderCategory(entity)
+    val combined = buildString {
+        parsed.provider?.let {
+            append(it)
+            append(' ')
+        }
+        append(parsed.displayName)
+    }
+    return frenchCategoryScore(combined) >= FRENCH_CATEGORY_THRESHOLD
 }
 
 private fun isKidsProviderCategory(entity: LiveCategoryEntity): Boolean {
@@ -1188,17 +1216,59 @@ private fun normalizeCategoryName(value: String): String =
         .replace(CATEGORY_DIACRITICS, "")
         .uppercase(Locale.ROOT)
 
+private const val FRENCH_CATEGORY_THRESHOLD = 4
+
+private fun categoryTokens(name: String): List<String> =
+    normalizeCategoryName(name)
+        .replace(Regex("[^A-Z0-9]+"), " ")
+        .trim()
+        .split(Regex("\\s+"))
+        .filter { it.isNotBlank() }
+
+internal fun frenchCategoryScore(name: String): Int {
+    val normalized = normalizeCategoryName(name)
+    val tokens = categoryTokens(name)
+    if (tokens.isEmpty()) return 0
+
+    var score = 0
+
+    // Strong, explicit French markers. These should work regardless of provider separators.
+    tokens.forEach { token ->
+        when {
+            token in STRONG_FRENCH_CATEGORY_MARKERS -> score += 5
+            token in FRENCH_CATEGORY_CODES -> score += 4
+            token == "VOST" && "FR" in tokens -> score += 3
+        }
+    }
+
+    // Bracketed / suffixed provider language tags are usually highly intentional.
+    if (Regex("(?i)\\[(FR|FRA|FRE|VF|VOSTFR)]").containsMatchIn(name)) score += 3
+    if (Regex("(?i)(^|[|:_ -])(FR|FRA|FRE)(?=$|[|:_ -])").containsMatchIn(name)) score += 2
+
+    // "MULTI FR", "AUDIO FR", "DUB FR" are common provider conventions.
+    if (tokens.any { it in FRENCH_AUDIO_HINTS } && tokens.any { it in FRENCH_CATEGORY_CODES || it in STRONG_FRENCH_CATEGORY_MARKERS }) {
+        score += 2
+    }
+
+    // An explicit non-French language should make weak/ambiguous French hints less likely
+    // to steal a category. Strong French markers still win for mixed-language categories.
+    val foreignCount = tokens.count { it in FOREIGN_LANGUAGE_CODES }
+    score -= foreignCount * 3
+
+    // Avoid accidental matches inside geography/provider names such as AFRICA.
+    if (normalized.contains("AFRICA") || normalized.contains("AFRIQUE")) {
+        score -= 1
+    }
+
+    return score
+}
+
 internal fun classifyMediaSection(name: String): MediaSection {
     val normalized = normalizeCategoryName(name)
     if (KIDS_CATEGORY_MARKERS.any { marker -> normalized.contains(marker) }) {
         return MediaSection.KIDS
     }
-    val tokens = normalized
-        .replace(Regex("[^A-Z0-9]+"), " ")
-        .trim()
-        .split(Regex("\\s+"))
-        .filter { it.isNotBlank() }
-    return if (tokens.any { it in setOf("FR", "FRANCE", "FRANCAIS", "FRENCH", "VF", "VOSTFR") }) {
+    return if (frenchCategoryScore(name) >= FRENCH_CATEGORY_THRESHOLD) {
         MediaSection.FRANCE
     } else {
         MediaSection.OTHER
