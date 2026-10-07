@@ -12,6 +12,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -22,6 +23,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -35,17 +37,26 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -72,6 +83,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 @Composable
@@ -706,6 +718,18 @@ private fun InstalledReleaseNotesPopup(
     notes: List<String>,
     onDismiss: () -> Unit
 ) {
+    val context = LocalContext.current
+    val isTv = context.isTelevisionUi()
+    val scrollState = rememberScrollState()
+    val scope = rememberCoroutineScope()
+    val contentFocusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(isTv, notes) {
+        if (isTv) {
+            contentFocusRequester.requestFocus()
+        }
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
@@ -715,7 +739,60 @@ private fun InstalledReleaseNotesPopup(
             )
         },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 360.dp)
+                    .verticalScroll(scrollState)
+                    .then(
+                        if (isTv) {
+                            Modifier
+                                .focusRequester(contentFocusRequester)
+                                .onPreviewKeyEvent { event ->
+                                    if (event.type != KeyEventType.KeyDown) {
+                                        return@onPreviewKeyEvent false
+                                    }
+
+                                    val step = 180
+                                    when (event.key) {
+                                        Key.DirectionDown -> {
+                                            if (scrollState.value < scrollState.maxValue) {
+                                                scope.launch {
+                                                    scrollState.animateScrollTo(
+                                                        (scrollState.value + step)
+                                                            .coerceAtMost(scrollState.maxValue)
+                                                    )
+                                                }
+                                                true
+                                            } else {
+                                                false
+                                            }
+                                        }
+
+                                        Key.DirectionUp -> {
+                                            if (scrollState.value > 0) {
+                                                scope.launch {
+                                                    scrollState.animateScrollTo(
+                                                        (scrollState.value - step)
+                                                            .coerceAtLeast(0)
+                                                    )
+                                                }
+                                                true
+                                            } else {
+                                                false
+                                            }
+                                        }
+
+                                        else -> false
+                                    }
+                                }
+                                .focusable()
+                        } else {
+                            Modifier
+                        }
+                    ),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 Text(
                     "La mise à jour est installée. Voici ce qui change :",
                     style = MaterialTheme.typography.bodyMedium,
