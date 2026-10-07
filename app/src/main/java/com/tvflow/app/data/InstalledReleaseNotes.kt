@@ -7,7 +7,7 @@ object InstalledReleaseNotes {
         get() = BuildConfig.VERSION_NAME
 
     val items: List<String> = listOf(
-        "Mises à jour : popup global désormais défilable à la télécommande et au tactile pour lire toutes les nouveautés.",
+        "Lecture séries : les boutons précédent/suivant du contrôleur Media3 ouvrent directement l’épisode adjacent quand il existe.",
         "Mises à jour : plusieurs tentatives automatiques au lancement si GitHub répond trop lentement.",
         "Lecture : Media3 conserve le secours VLC et la validation locale a été repassée sur le builder Windows.",
         "Séries : épisode précédent/suivant disponible dans le lecteur et via les touches média/Page de la télécommande.",

@@ -47,6 +47,7 @@ import androidx.media3.common.Player
 import androidx.media3.datasource.HttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
+import androidx.media3.ui.R as Media3UiR
 import com.tvflow.app.cast.CastPlaybackEffect
 import com.tvflow.app.cast.CastRouteButton
 import com.tvflow.app.connect.PlaybackTransfer
@@ -239,18 +240,44 @@ fun VodPlayerScreen(
                     }
                 },
                 update = { playerView ->
+                    val currentSeriesId = state.seriesId
+                    val nextEpisode = state.nextEpisode
+                    val previousEpisode = state.previousEpisode
+
+                    playerView.findViewById<android.view.View>(Media3UiR.id.exo_next)?.apply {
+                        isEnabled = currentSeriesId != null && nextEpisode != null
+                        alpha = if (isEnabled) 1f else 0.35f
+                        isFocusable = isEnabled
+                        setOnClickListener {
+                            if (currentSeriesId != null && nextEpisode != null) {
+                                onPlayEpisode(nextEpisode, currentSeriesId)
+                            }
+                        }
+                    }
+
+                    playerView.findViewById<android.view.View>(Media3UiR.id.exo_prev)?.apply {
+                        isEnabled = currentSeriesId != null && previousEpisode != null
+                        alpha = if (isEnabled) 1f else 0.35f
+                        isFocusable = isEnabled
+                        setOnClickListener {
+                            if (currentSeriesId != null && previousEpisode != null) {
+                                onPlayEpisode(previousEpisode, currentSeriesId)
+                            }
+                        }
+                    }
+
                     playerView.setOnKeyListener { _, keyCode, event ->
                         if (event.action != KeyEvent.ACTION_UP) return@setOnKeyListener false
-                        val currentSeriesId = state.seriesId ?: return@setOnKeyListener false
+                        val seriesId = currentSeriesId ?: return@setOnKeyListener false
                         when (keyCode) {
                             KeyEvent.KEYCODE_MEDIA_NEXT, KeyEvent.KEYCODE_PAGE_DOWN -> {
-                                val next = state.nextEpisode ?: return@setOnKeyListener false
-                                onPlayEpisode(next, currentSeriesId)
+                                val next = nextEpisode ?: return@setOnKeyListener false
+                                onPlayEpisode(next, seriesId)
                                 true
                             }
                             KeyEvent.KEYCODE_MEDIA_PREVIOUS, KeyEvent.KEYCODE_PAGE_UP -> {
-                                val previous = state.previousEpisode ?: return@setOnKeyListener false
-                                onPlayEpisode(previous, currentSeriesId)
+                                val previous = previousEpisode ?: return@setOnKeyListener false
+                                onPlayEpisode(previous, seriesId)
                                 true
                             }
                             else -> false
