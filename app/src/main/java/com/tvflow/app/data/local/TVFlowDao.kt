@@ -199,7 +199,10 @@ interface TVFlowDao {
     @Query("SELECT DISTINCT releaseMonth FROM vod_items WHERE profileId = :profileId AND categoryId = :categoryId AND releaseYear = :year AND releaseMonth IS NOT NULL ORDER BY releaseMonth DESC")
     fun observeVodReleaseMonths(profileId: String, categoryId: String, year: Int): Flow<List<Int>>
 
-    @Query("SELECT * FROM vod_items WHERE profileId = :profileId AND categoryId = :categoryId AND (releaseYear IS NULL OR synopsis IS NULL OR synopsis = '') LIMIT :limit")
+    @Query("SELECT * FROM vod_items WHERE profileId = :profileId AND categoryId = :categoryId AND releaseYear IS NULL")
+    suspend fun getVodMissingReleaseDates(profileId: String, categoryId: String): List<VodItemEntity>
+
+    @Query("SELECT * FROM vod_items WHERE profileId = :profileId AND categoryId = :categoryId AND (releaseYear IS NULL OR synopsis IS NULL OR synopsis = '') ORDER BY COALESCE(added, 0) DESC, CAST(streamId AS INTEGER) DESC LIMIT :limit")
     suspend fun getVodMissingMetadata(profileId: String, categoryId: String, limit: Int): List<VodItemEntity>
 
     @Query("UPDATE vod_items SET synopsis = COALESCE(:synopsis, synopsis), releaseYear = COALESCE(:year, releaseYear), releaseMonth = COALESCE(:month, releaseMonth), posterUrl = COALESCE(:posterUrl, posterUrl), rating = COALESCE(:rating, rating), detailsFetchedAt = COALESCE(:detailsFetchedAt, detailsFetchedAt) WHERE profileId = :profileId AND streamId = :streamId")

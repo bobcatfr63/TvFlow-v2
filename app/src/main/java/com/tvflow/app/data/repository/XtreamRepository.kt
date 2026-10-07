@@ -246,7 +246,7 @@ class XtreamRepository @Inject constructor(
             },
             vod = vod.map { dto ->
                 run {
-                    val (releaseYear, releaseMonth) = parseReleaseYearMonth(dto.releaseDate, dto.year)
+                    val (releaseYear, releaseMonth) = parseReleaseYearMonth(dto.releaseDate, dto.year, dto.name)
                     VodItemEntity(
                         profileId = profileId,
                         streamId = dto.streamId,
@@ -264,7 +264,7 @@ class XtreamRepository @Inject constructor(
             },
             series = series.map { dto ->
                 run {
-                    val (releaseYear, releaseMonth) = parseReleaseYearMonth(dto.releaseDate, dto.year)
+                    val (releaseYear, releaseMonth) = parseReleaseYearMonth(dto.releaseDate, dto.year, dto.name)
                     SeriesItemEntity(profileId, dto.seriesId, dto.name, dto.categoryId.orEmpty(), dto.cover?.takeIf { it.isNotBlank() }, dto.rating, dto.plot, releaseYear, releaseMonth)
                 }
             }
@@ -327,7 +327,7 @@ class XtreamRepository @Inject constructor(
             },
             vod = vod.map { dto ->
                 run {
-                    val (releaseYear, releaseMonth) = parseReleaseYearMonth(dto.releaseDate, dto.year)
+                    val (releaseYear, releaseMonth) = parseReleaseYearMonth(dto.releaseDate, dto.year, dto.name)
                     VodItemEntity(
                         profileId = profileId,
                         streamId = dto.streamId,
@@ -345,7 +345,7 @@ class XtreamRepository @Inject constructor(
             },
             series = series.map { dto ->
                 run {
-                    val (releaseYear, releaseMonth) = parseReleaseYearMonth(dto.releaseDate, dto.year)
+                    val (releaseYear, releaseMonth) = parseReleaseYearMonth(dto.releaseDate, dto.year, dto.name)
                     SeriesItemEntity(profileId, dto.seriesId, dto.name, dto.categoryId.orEmpty(), dto.cover?.takeIf { it.isNotBlank() }, dto.rating, dto.plot, releaseYear, releaseMonth)
                 }
             }
@@ -633,22 +633,28 @@ class XtreamRepository @Inject constructor(
 
     suspend fun enrichMissingMediaMetadata(type: MediaType, categoryId: String, limit: Int = 24) {
         val profileId = currentProfileId()
-        if (settingsStore.currentTmdbToken().isNullOrBlank()) return
         when (type) {
-            MediaType.VOD -> dao.getVodMissingMetadata(profileId, categoryId, limit).forEach { item ->
-                val metadata = runCatching {
-                    tmdbMetadataClient.search(MediaType.VOD, item.name, item.releaseYear)
-                }.getOrNull() ?: return@forEach
-                dao.updateVodMetadata(
-                    profileId = profileId,
-                    streamId = item.streamId,
-                    synopsis = metadata.synopsis,
-                    year = metadata.releaseYear,
-                    month = metadata.releaseMonth,
-                    posterUrl = metadata.imageUrl,
-                    rating = metadata.rating
-                )
-                Log.d("TVFlowTmdb", "updated VOD id=${item.streamId} year=${metadata.releaseYear} month=${metadata.releaseMonth} synopsis=${!metadata.synopsis.isNullOrBlank()}")
+            MediaType.VOD -> {
+                val localBackfill = dao.getVodMissingReleaseDates(profileId, categoryId)
+                    .mapNotNull { item ->
+                        val (year, month) = parseReleaseYearMonth(null, null, item.name)
+                        if (year == null) null else item.copy(releaseYear = year, releaseMonth = month)
+                    }
+                localBackfill.chunked(500).forEach { batch -> dao.upsertVod(batch) }
+
+                val candidates = dao.getVodMissingMetadata(profileId, categoryId, limit)
+                candidates.chunked(4).forEach { batch ->
+                    coroutineScope {
+                        batch.map { item ->
+                            async {
+                                runCatching { enrichVodDetails(item.streamId) }
+                                    .onFailure { error ->
+                                        Log.d("TVFlowVodInfo", "Metadata enrichment failed for id=" + item.streamId + ": " + error.message)
+                                    }
+                            }
+                        }.forEach { it.await() }
+                    }
+                }
             }
             MediaType.SERIES -> dao.getSeriesMissingMetadata(profileId, categoryId, limit).forEach { item ->
                 val metadata = runCatching {
@@ -1363,7 +1369,11 @@ internal fun classifyStreamHealth(httpCode: Int?, error: String?): StreamHealth 
     ) StreamHealth.UNPLAYABLE else StreamHealth.UNSTABLE
 }
 
-internal fun parseReleaseYearMonth(releaseDate: String?, yearValue: String?): Pair<Int?, Int?> {
+internal fun parseReleaseYearMonth(
+    releaseDate: String?,
+    yearValue: String?,
+    title: String? = null
+): Pair<Int?, Int?> {
     val yearFromField = yearValue
         ?.let { Regex("""\b(?:19|20)\d{2}\b""").find(it)?.value }
         ?.toIntOrNull()
@@ -1384,7 +1394,19 @@ internal fun parseReleaseYearMonth(releaseDate: String?, yearValue: String?): Pa
         val yearOnly = Regex("""\b(?:19|20)\d{2}\b""").find(releaseDate)?.value?.toIntOrNull()
         if (yearOnly != null) return yearOnly to null
     }
-    return yearFromField to null
+
+    if (yearFromField != null) return yearFromField to null
+
+    // A large number of Xtream servers omit releaseDate/year but keep the real year
+    // in the VOD title, for example "Film (2025)". Use it as a local fallback so
+    // date sorting remains useful without one network request per catalogue item.
+    val yearFromTitle = title
+        ?.let { Regex("""(?:^|[\s(\[._-])((?:19|20)\d{2})(?=$|[\s)\]._+-])""").findAll(it).lastOrNull() }
+        ?.groupValues
+        ?.getOrNull(1)
+        ?.toIntOrNull()
+
+    return yearFromTitle to null
 }
 
 internal fun normalizeXtreamServer(raw: String): String {

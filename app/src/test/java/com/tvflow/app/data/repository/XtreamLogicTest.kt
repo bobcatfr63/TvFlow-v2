@@ -266,6 +266,13 @@ class XtreamLogicTest {
     }
 
     @Test
+    fun releaseDateFallback_usesYearEmbeddedInVodTitle() {
+        assertEquals(2025 to null, parseReleaseYearMonth(null, null, "FR - Affinity (2025)"))
+        assertEquals(2024 to null, parseReleaseYearMonth(null, null, "Movie [2024] FR"))
+        assertEquals(2023 to 9, parseReleaseYearMonth("2023-09-15", null, "Movie (2022)"))
+    }
+
+    @Test
     fun epgTimestamp_acceptsSecondsAndNormalizesMilliseconds() {
         assertEquals(1_760_000_000L, parseEpgTimestamp("1760000000"))
         assertEquals(1_760_000_000L, parseEpgTimestamp("1760000000000"))

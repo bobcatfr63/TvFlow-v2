@@ -151,7 +151,7 @@ class MediaLibraryViewModel @Inject constructor(
     private fun enrichCategory(categoryId: String) {
         viewModelScope.launch {
             runCatching {
-                repository.enrichMissingMediaMetadata(type, categoryId, limit = 24)
+                repository.enrichMissingMediaMetadata(type, categoryId, limit = if (type == MediaType.VOD) 60 else 24)
             }
         }
     }

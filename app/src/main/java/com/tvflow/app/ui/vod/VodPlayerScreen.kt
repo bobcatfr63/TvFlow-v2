@@ -258,27 +258,13 @@ fun VodPlayerScreen(
                     val nextEpisode = state.nextEpisode
                     val previousEpisode = state.previousEpisode
 
-                    playerView.findViewById<android.view.View>(Media3UiR.id.exo_next)?.apply {
-                        isEnabled = currentSeriesId != null && nextEpisode != null
-                        alpha = if (isEnabled) 1f else 0.35f
-                        isFocusable = isEnabled
-                        setOnClickListener {
-                            if (currentSeriesId != null && nextEpisode != null) {
-                                onPlayEpisode(nextEpisode, currentSeriesId)
-                            }
-                        }
-                    }
-
-                    playerView.findViewById<android.view.View>(Media3UiR.id.exo_prev)?.apply {
-                        isEnabled = currentSeriesId != null && previousEpisode != null
-                        alpha = if (isEnabled) 1f else 0.35f
-                        isFocusable = isEnabled
-                        setOnClickListener {
-                            if (currentSeriesId != null && previousEpisode != null) {
-                                onPlayEpisode(previousEpisode, currentSeriesId)
-                            }
-                        }
-                    }
+                    // Media3 recalculates the built-in previous/next controls from its own
+                    // single-item playlist and can disable them again after composition. Hide
+                    // those controls and use the Compose episode controls below instead.
+                    playerView.findViewById<android.view.View>(Media3UiR.id.exo_next)?.visibility =
+                        android.view.View.GONE
+                    playerView.findViewById<android.view.View>(Media3UiR.id.exo_prev)?.visibility =
+                        android.view.View.GONE
 
                     playerView.setOnKeyListener { _, keyCode, event ->
                         if (event.action != KeyEvent.ACTION_UP) return@setOnKeyListener false
@@ -340,6 +326,35 @@ fun VodPlayerScreen(
                 color = MaterialTheme.colorScheme.primary,
                 style = MaterialTheme.typography.labelLarge
             )
+        }
+
+        val navigationSeriesId = state.seriesId
+        if (navigationSeriesId != null && (state.previousEpisode != null || state.nextEpisode != null) && !castActive) {
+            Card(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 20.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f)
+                )
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    state.previousEpisode?.let { previous ->
+                        Button(onClick = { onPlayEpisode(previous, navigationSeriesId) }) {
+                            Text("⏮ Précédent")
+                        }
+                    }
+                    state.nextEpisode?.let { next ->
+                        Button(onClick = { onPlayEpisode(next, navigationSeriesId) }) {
+                            Text("Suivant ⏭")
+                        }
+                    }
+                }
+            }
         }
 
         if (infoVisible) {
