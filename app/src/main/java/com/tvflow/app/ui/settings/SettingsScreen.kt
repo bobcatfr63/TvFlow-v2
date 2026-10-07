@@ -232,6 +232,9 @@ fun SettingsScreen(
                             )
                         }
                     }
+                    SettingsButton(onClick = viewModel::openAndroidSettings) {
+                        Text("Ouvrir les réglages Android")
+                    }
                     Text(
                         "Compatible Android TV, Google TV et box Android qui autorisent un launcher alternatif. Le téléphone garde son interface normale et certains constructeurs peuvent bloquer ce choix.",
                         style = MaterialTheme.typography.bodySmall

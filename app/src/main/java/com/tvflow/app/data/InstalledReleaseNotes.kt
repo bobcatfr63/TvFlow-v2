@@ -7,13 +7,13 @@ object InstalledReleaseNotes {
         get() = BuildConfig.VERSION_NAME
 
     val items: List<String> = listOf(
+        "Récupération TV : nouveau bouton Ouvrir les réglages Android directement depuis TVFlow.",
+        "Launcher TV : contourne le cas où Changer d’écran d’accueil relance simplement TVFlow sur certaines box.",
         "Classement : règles France/Enfants/Autres renforcées et corrections mémorisées par profil serveur.",
-        "Séries : épisode suivant automatique avec compte à rebours configurable dans les réglages.",
-        "Séries : l’URL de l’épisode suivant est préchauffée pour réduire le délai de transition.",
-        "Historique : ajout de Récemment regardé et mémorisation durable des lectures terminées.",
-        "Séries : les épisodes terminés sont maintenant marqués Vu dans la fiche de la série.",
+        "Séries : épisode suivant automatique avec compte à rebours configurable et préchauffage de l’URL suivante.",
+        "Historique : ajout de Récemment regardé et marquage Vu par épisode.",
         "Favoris : synchronisation locale TV/téléphone sur le même réseau pour un même profil Xtream.",
         "Recherche : index local mis en cache pour accélérer la recherche globale sur les gros catalogues.",
-        "Lecture : les échecs Media3 restent diagnostiqués et basculent automatiquement vers le secours VLC quand nécessaire."
+        "Lecture : diagnostic Media3 conservé avec bascule automatique vers VLC quand nécessaire."
     )
 }

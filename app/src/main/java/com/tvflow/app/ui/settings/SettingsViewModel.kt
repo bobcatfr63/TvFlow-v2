@@ -342,6 +342,13 @@ class SettingsViewModel @Inject constructor(
             it.message ?: "Impossible d’ouvrir le sélecteur d’écran d’accueil sur cet appareil"
         }
     }
+
+    fun openAndroidSettings() {
+        val result = TvLauncherMode.openAndroidSettings(application)
+        message.value = result.getOrElse {
+            it.message ?: "Impossible d’ouvrir les réglages Android sur cet appareil"
+        }
+    }
     fun setRefreshIntervalDays(days: Int) {
         viewModelScope.launch {
             settingsStore.setRefreshIntervalDays(days)

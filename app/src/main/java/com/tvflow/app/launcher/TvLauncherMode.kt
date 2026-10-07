@@ -50,6 +50,13 @@ object TvLauncherMode {
         )
     }
 
+    fun openAndroidSettings(context: Context): Result<String> = runCatching {
+        val intent = Intent(Settings.ACTION_SETTINGS)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        context.startActivity(intent)
+        "Réglages Android ouverts"
+    }
+
     fun openHomeChooser(context: Context): Result<String> = runCatching {
         val packageManager = context.packageManager
 
