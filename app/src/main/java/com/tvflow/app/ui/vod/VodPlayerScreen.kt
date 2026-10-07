@@ -270,18 +270,23 @@ fun VodPlayerScreen(
                     playerView.findViewById<android.view.View>(Media3UiR.id.exo_prev)?.visibility =
                         android.view.View.GONE
 
-                    playerView.setOnKeyListener { _, keyCode, event ->
-                        if (event.action != KeyEvent.ACTION_UP) return@setOnKeyListener false
+                    playerView.setOnKeyListener { view, keyCode, event ->
                         val seriesId = currentSeriesId ?: return@setOnKeyListener false
-                        when (keyCode) {
-                            KeyEvent.KEYCODE_DPAD_DOWN -> {
+
+                        if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+                            if (event.action == KeyEvent.ACTION_DOWN) {
+                                view.clearFocus()
                                 when {
                                     nextEpisode != null -> nextEpisodeFocusRequester.requestFocus()
                                     previousEpisode != null -> previousEpisodeFocusRequester.requestFocus()
                                     else -> return@setOnKeyListener false
                                 }
-                                true
                             }
+                            return@setOnKeyListener true
+                        }
+
+                        if (event.action != KeyEvent.ACTION_UP) return@setOnKeyListener false
+                        when (keyCode) {
                             KeyEvent.KEYCODE_MEDIA_NEXT, KeyEvent.KEYCODE_PAGE_DOWN -> {
                                 val next = nextEpisode ?: return@setOnKeyListener false
                                 onPlayEpisode(next, seriesId)
