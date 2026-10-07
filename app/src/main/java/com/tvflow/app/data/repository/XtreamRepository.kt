@@ -587,6 +587,28 @@ class XtreamRepository @Inject constructor(
         val item = candidates.random()
         return item to vodUrl(item)
     }
+    suspend fun learnedMediaCategoryNames(limit: Int = 40): List<String> = withContext(Dispatchers.IO) {
+        val profileId = activeProfileId.filterNotNull().first()
+        val vodCategories = dao.observeMediaCategories(profileId, MediaType.VOD.name).first()
+            .associate { it.id to it.name }
+        val seriesCategories = dao.observeMediaCategories(profileId, MediaType.SERIES.name).first()
+            .associate { it.id to it.name }
+
+        dao.getRecentWatchHistory(profileId, limit)
+            .mapNotNull { history ->
+                when (history.kind) {
+                    "vod" -> history.mediaId.toIntOrNull()
+                        ?.let { dao.getVodItem(profileId, it)?.categoryId }
+                        ?.let(vodCategories::get)
+                    "episode" -> history.seriesId
+                        ?.let { dao.getSeriesItem(profileId, it)?.categoryId }
+                        ?.let(seriesCategories::get)
+                    else -> null
+                }
+            }
+            .filter(String::isNotBlank)
+    }
+
     fun observeSeries(categoryId: String): Flow<List<SeriesItem>> = activeProfileId.flatMapLatest { id -> if (id == null) flowOf(emptyList()) else dao.observeSeries(id, categoryId) }.map { list -> list.map { it.toDomain() } }
 
     fun pagedVod(categoryId: String, year: Int? = null, month: Int? = null): Flow<PagingData<VodItem>> =
@@ -721,7 +743,16 @@ class XtreamRepository @Inject constructor(
         return response.episodes.entries.sortedBy { it.key.toIntOrNull() ?: Int.MAX_VALUE }.flatMap { (seasonKey, episodes) ->
             val season = seasonKey.toIntOrNull() ?: 0
             episodes.mapIndexed { index, dto ->
-                Episode(dto.id, season, dto.episodeNumber ?: index + 1, dto.title?.ifBlank { null } ?: "Épisode ${dto.episodeNumber ?: index + 1}", dto.containerExtension, dto.info?.movieImage, dto.info?.plot)
+                val info = dto.info
+                Episode(
+                    id = dto.id,
+                    season = season,
+                    episodeNumber = dto.episodeNumber ?: index + 1,
+                    title = dto.title?.ifBlank { null } ?: "Épisode ${dto.episodeNumber ?: index + 1}",
+                    containerExtension = dto.containerExtension,
+                    imageUrl = episodeInfoString(info, "movie_image"),
+                    plot = episodeInfoString(info, "plot")
+                )
             }
         }
     }
@@ -1703,6 +1734,23 @@ internal fun decodeCategoryGroupId(categoryId: String): List<String> {
     }
 }
 
+
+private fun episodeInfoString(info: com.google.gson.JsonElement?, key: String): String? {
+    val element = when {
+        info == null || info.isJsonNull -> null
+        info.isJsonObject -> info
+        info.isJsonArray -> info.asJsonArray.firstOrNull { it.isJsonObject }
+        else -> null
+    } ?: return null
+
+    return runCatching {
+        element.asJsonObject.get(key)
+            ?.takeUnless { it.isJsonNull }
+            ?.asString
+            ?.trim()
+            ?.takeIf { it.isNotBlank() }
+    }.getOrNull()
+}
 
 internal fun parseEpgTimestamp(value: String?): Long? {
     val raw = value?.trim()?.toLongOrNull() ?: return null

@@ -11,6 +11,7 @@ import com.tvflow.app.data.AppUpdateManager
 import com.tvflow.app.data.InstalledReleaseNotes
 import com.tvflow.app.data.UpdateDownloadState
 import com.tvflow.app.data.local.SettingsStore
+import com.tvflow.app.data.local.TastePreferences
 import com.tvflow.app.data.repository.XtreamRepository
 import com.tvflow.app.domain.EpgProgram
 import com.tvflow.app.domain.LiveChannel
@@ -20,7 +21,9 @@ import com.tvflow.app.domain.PlaybackPosition
 import com.tvflow.app.domain.SeriesItem
 import com.tvflow.app.domain.VodItem
 import dagger.hilt.android.lifecycle.HiltViewModel
+import java.text.Normalizer
 import java.util.Calendar
+import java.util.Locale
 import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -52,6 +55,11 @@ data class DashboardUiState(
     val tonightPrograms: List<TonightProgram> = emptyList(),
     val recentVodReleases: List<VodItem> = emptyList(),
     val recentSeriesReleases: List<SeriesItem> = emptyList(),
+    val pulseVod: List<VodItem> = emptyList(),
+    val pulseSeries: List<SeriesItem> = emptyList(),
+    val tasteThemes: Set<String> = emptySet(),
+    val learnedThemes: List<String> = emptyList(),
+    val showTasteOnboarding: Boolean = false,
     val backgroundVideoUrl: String? = null,
     val backgroundVideoTitle: String? = null,
     val updateInfo: AppUpdateInfo? = null,
@@ -173,6 +181,85 @@ class DashboardViewModel @Inject constructor(
         val recentSeries: List<SeriesItem>
     )
 
+    private data class TasteState(
+        val preferences: TastePreferences,
+        val learnedThemes: List<String>,
+        val pulseVod: List<VodItem>,
+        val pulseSeries: List<SeriesItem>
+    )
+
+    private val recentVodForTaste = repository.observeRecentFrenchVodReleases(30)
+    private val recentSeriesForTaste = repository.observeRecentFrenchSeriesReleases(30)
+    private val learnedThemes = repository.observeWatchHistory(40).map {
+        runCatching { repository.learnedMediaCategoryNames(40) }
+            .getOrDefault(emptyList())
+            .flatMap(::detectTasteThemes)
+            .groupingBy { it }
+            .eachCount()
+            .entries
+            .sortedByDescending { it.value }
+            .map { it.key }
+            .take(5)
+    }
+
+    private val tasteState = combine(
+        settingsStore.tastePreferences,
+        learnedThemes,
+        recentVodForTaste,
+        recentSeriesForTaste,
+        repository.observeMediaCategories(MediaType.VOD)
+    ) { preferences, learned, vodItems, seriesItems, vodCategories ->
+        val categoryNames = vodCategories.associate { it.id to it.name }
+        val seriesCategoryNames = repository.observeMediaCategories(MediaType.SERIES).first()
+            .associate { it.id to it.name }
+        val activeThemes = (preferences.themes + learned).toSet()
+
+        val pulseVod = vodItems
+            .sortedByDescending { item ->
+                recommendationScore(
+                    text = listOfNotNull(categoryNames[item.categoryId], item.name, item.synopsis).joinToString(" "),
+                    explicitThemes = preferences.themes,
+                    learnedThemes = learned
+                )
+            }
+            .let { scored ->
+                val matched = scored.filter {
+                    recommendationScore(
+                        listOfNotNull(categoryNames[it.categoryId], it.name, it.synopsis).joinToString(" "),
+                        preferences.themes,
+                        learned
+                    ) > 0
+                }
+                (if (matched.isNotEmpty()) matched else scored).take(12)
+            }
+
+        val pulseSeries = seriesItems
+            .sortedByDescending { item ->
+                recommendationScore(
+                    text = listOfNotNull(seriesCategoryNames[item.categoryId], item.name, item.plot).joinToString(" "),
+                    explicitThemes = preferences.themes,
+                    learnedThemes = learned
+                )
+            }
+            .let { scored ->
+                val matched = scored.filter {
+                    recommendationScore(
+                        listOfNotNull(seriesCategoryNames[it.categoryId], it.name, it.plot).joinToString(" "),
+                        preferences.themes,
+                        learned
+                    ) > 0
+                }
+                (if (matched.isNotEmpty()) matched else scored).take(12)
+            }
+
+        TasteState(
+            preferences = preferences,
+            learnedThemes = learned,
+            pulseVod = if (activeThemes.isEmpty()) emptyList() else pulseVod,
+            pulseSeries = if (activeThemes.isEmpty()) emptyList() else pulseSeries
+        )
+    }
+
     private val supplementalState = combine(
         updateInfo,
         updateDownloadState,
@@ -239,8 +326,9 @@ class DashboardViewModel @Inject constructor(
     val state: StateFlow<DashboardUiState> = combine(
         contentState,
         supplementalState,
-        installedReleaseNotes
-    ) { content, supplemental, installedNotes ->
+        installedReleaseNotes,
+        tasteState
+    ) { content, supplemental, installedNotes, taste ->
         DashboardUiState(
             serverName = content.serverName,
             continueWatching = content.watching,
@@ -250,6 +338,11 @@ class DashboardViewModel @Inject constructor(
             tonightPrograms = content.tonight.take(16),
             recentVodReleases = supplemental.recentVod,
             recentSeriesReleases = supplemental.recentSeries,
+            pulseVod = taste.pulseVod,
+            pulseSeries = taste.pulseSeries,
+            tasteThemes = taste.preferences.themes,
+            learnedThemes = taste.learnedThemes,
+            showTasteOnboarding = !taste.preferences.onboardingCompleted,
             backgroundVideoUrl = supplemental.backdrop?.url,
             backgroundVideoTitle = supplemental.backdrop?.title,
             updateInfo = supplemental.updateInfo,
@@ -302,6 +395,60 @@ class DashboardViewModel @Inject constructor(
             settingsStore.markReleaseNotesShown(notes.versionName)
         }
     }
+
+    fun saveTasteProfile(themes: Set<String>) {
+        viewModelScope.launch {
+            settingsStore.saveTastePreferences(themes, completed = true)
+        }
+    }
+
+    fun skipTasteProfile() {
+        viewModelScope.launch {
+            settingsStore.saveTastePreferences(emptySet(), completed = true)
+        }
+    }
+}
+
+private val TASTE_THEME_TOKENS = mapOf(
+    "Action" to listOf("action"),
+    "Aventure" to listOf("aventure", "adventure"),
+    "Comédie" to listOf("comedie", "comedy", "humour"),
+    "Thriller" to listOf("thriller", "suspense"),
+    "Science-fiction" to listOf("science fiction", "science-fiction", "sci fi", "sci-fi", "sf"),
+    "Fantastique" to listOf("fantastique", "fantasy"),
+    "Romance" to listOf("romance", "romantique"),
+    "Policier" to listOf("policier", "crime", "detective"),
+    "Horreur" to listOf("horreur", "horror"),
+    "Documentaire" to listOf("documentaire", "documentary"),
+    "Animation" to listOf("animation", "anime", "manga"),
+    "Famille" to listOf("famille", "family", "kids", "enfant")
+)
+
+private fun normalizedTasteText(value: String): String =
+    Normalizer.normalize(value, Normalizer.Form.NFD)
+        .replace(Regex("\\p{M}+"), "")
+        .lowercase(Locale.ROOT)
+
+private fun detectTasteThemes(value: String): List<String> {
+    val normalized = normalizedTasteText(value)
+    return TASTE_THEME_TOKENS.mapNotNull { (theme, tokens) ->
+        theme.takeIf { tokens.any(normalized::contains) }
+    }
+}
+
+private fun recommendationScore(
+    text: String,
+    explicitThemes: Set<String>,
+    learnedThemes: List<String>
+): Int {
+    val detected = detectTasteThemes(text).toSet()
+    if (detected.isEmpty()) return 0
+    val explicitScore = detected.count { it in explicitThemes } * 5
+    val learnedScore = detected.sumOf { theme ->
+        val index = learnedThemes.indexOf(theme)
+        if (index < 0) 0 else (learnedThemes.size - index).coerceAtLeast(1)
+    }
+    return explicitScore + learnedScore
 }
 
 private fun buildTonightPrograms(

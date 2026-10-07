@@ -1,5 +1,6 @@
 package com.tvflow.app.data.remote
 
+import com.google.gson.JsonElement
 import com.google.gson.annotations.SerializedName
 
 data class XtreamAuthResponse(
@@ -126,7 +127,7 @@ data class EpisodeDto(
     @SerializedName("episode_num") val episodeNumber: Int? = null,
     val title: String? = null,
     @SerializedName("container_extension") val containerExtension: String? = null,
-    val info: EpisodeInfoDto? = null
+    val info: JsonElement? = null
 )
 
 data class EpisodeInfoDto(

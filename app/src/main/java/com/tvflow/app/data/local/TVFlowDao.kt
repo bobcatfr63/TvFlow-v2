@@ -165,6 +165,9 @@ interface TVFlowDao {
     @Query("SELECT * FROM vod_items WHERE profileId = :profileId AND streamId = :streamId LIMIT 1")
     suspend fun getVodItem(profileId: String, streamId: Int): VodItemEntity?
 
+    @Query("SELECT * FROM series_items WHERE profileId = :profileId AND seriesId = :seriesId LIMIT 1")
+    suspend fun getSeriesItem(profileId: String, seriesId: Int): SeriesItemEntity?
+
     @Query("SELECT * FROM vod_items WHERE profileId = :profileId ORDER BY COALESCE(added, 0) DESC, name LIMIT 1")
     suspend fun featuredVod(profileId: String): VodItemEntity?
 
@@ -315,6 +318,9 @@ interface TVFlowDao {
 
     @Query("SELECT * FROM watch_history WHERE profileId = :profileId ORDER BY watchedAt DESC LIMIT :limit")
     fun observeWatchHistory(profileId: String, limit: Int = 40): Flow<List<WatchHistoryEntity>>
+
+    @Query("SELECT * FROM watch_history WHERE profileId = :profileId ORDER BY watchedAt DESC LIMIT :limit")
+    suspend fun getRecentWatchHistory(profileId: String, limit: Int = 40): List<WatchHistoryEntity>
 
     @Query("SELECT mediaId FROM watch_history WHERE profileId = :profileId AND kind = :kind AND completed = 1")
     fun observeCompletedMediaIds(profileId: String, kind: String): Flow<List<String>>

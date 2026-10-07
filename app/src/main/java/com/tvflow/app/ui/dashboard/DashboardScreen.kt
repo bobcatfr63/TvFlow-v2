@@ -40,7 +40,9 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
@@ -171,6 +173,26 @@ fun DashboardScreen(
                 }
             }
 
+            if (state.pulseVod.isNotEmpty()) {
+                item {
+                    RecentVodRail(
+                        items = state.pulseVod,
+                        onItem = onVodItem,
+                        title = "TVFlow Pulse • Films pour toi",
+                        subtitle = pulseSubtitle(state.tasteThemes, state.learnedThemes)
+                    )
+                }
+            }
+            if (state.pulseSeries.isNotEmpty()) {
+                item {
+                    RecentSeriesRail(
+                        items = state.pulseSeries,
+                        onItem = onSeriesItem,
+                        title = "TVFlow Pulse • Séries pour toi"
+                    )
+                }
+            }
+
             if (state.recentVodReleases.isNotEmpty()) {
                 item { RecentVodRail(state.recentVodReleases, onVodItem) }
             }
@@ -201,8 +223,17 @@ fun DashboardScreen(
             }
         }
 
+        if (state.showTasteOnboarding) {
+            TasteOnboardingPopup(
+                initialThemes = state.tasteThemes,
+                onSave = viewModel::saveTasteProfile,
+                onSkip = viewModel::skipTasteProfile
+            )
+        }
+
         val installedReleaseNotesVersion = state.installedReleaseNotesVersion
         if (
+            !state.showTasteOnboarding &&
             installedReleaseNotesVersion != null &&
             state.installedReleaseNotes.isNotEmpty()
         ) {
@@ -715,6 +746,143 @@ private fun UpdatePopup(
     )
 }
 
+private val TVFLOW_TASTE_THEMES = listOf(
+    "Action", "Aventure", "Comédie", "Thriller",
+    "Science-fiction", "Fantastique", "Romance", "Policier",
+    "Horreur", "Documentaire", "Animation", "Famille"
+)
+
+@Composable
+private fun TasteOnboardingPopup(
+    initialThemes: Set<String>,
+    onSave: (Set<String>) -> Unit,
+    onSkip: () -> Unit
+) {
+    var selectedThemes by remember(initialThemes) { mutableStateOf(initialThemes) }
+
+    AlertDialog(
+        onDismissRequest = {},
+        title = {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("TVFlow Pulse", fontWeight = FontWeight.Bold)
+                Text(
+                    "Ton écran d’accueil va apprendre ce que tu aimes.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    "Choisis quelques univers. TVFlow les utilisera comme point de départ, puis ajustera ses propositions à partir de ce que tu regardes réellement.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                TVFLOW_TASTE_THEMES.chunked(4).forEach { rowThemes ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        rowThemes.forEach { theme ->
+                            TasteChoiceChip(
+                                label = theme,
+                                selected = theme in selectedThemes,
+                                modifier = Modifier.weight(1f),
+                                onClick = {
+                                    selectedThemes = if (theme in selectedThemes) {
+                                        selectedThemes - theme
+                                    } else {
+                                        selectedThemes + theme
+                                    }
+                                }
+                            )
+                        }
+                    }
+                }
+                Text(
+                    "Le profil de goût reste dans TVFlow. Plus tu regardes, plus Pulse affine ses choix.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        },
+        confirmButton = {
+            UpdateActionButton(
+                text = if (selectedThemes.isEmpty()) "Commencer sans préférence" else "Créer mon Pulse",
+                enabled = true,
+                primary = true,
+                onClick = { onSave(selectedThemes) }
+            )
+        },
+        dismissButton = {
+            UpdateActionButton(
+                text = "Pas maintenant",
+                enabled = true,
+                primary = false,
+                onClick = onSkip
+            )
+        }
+    )
+}
+
+@Composable
+private fun TasteChoiceChip(
+    label: String,
+    selected: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    val interaction = remember { MutableInteractionSource() }
+    val focused by interaction.collectIsFocusedAsState()
+    Box(
+        modifier = modifier
+            .height(46.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(
+                when {
+                    focused -> MaterialTheme.colorScheme.primaryContainer
+                    selected -> MaterialTheme.colorScheme.primary
+                    else -> MaterialTheme.colorScheme.surfaceVariant
+                }
+            )
+            .border(
+                if (focused) 3.dp else 1.dp,
+                if (focused) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.12f),
+                RoundedCornerShape(12.dp)
+            )
+            .clickable(interactionSource = interaction, indication = null, onClick = onClick)
+            .focusable(interactionSource = interaction),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            label,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            style = MaterialTheme.typography.labelMedium,
+            color = when {
+                focused -> MaterialTheme.colorScheme.onPrimaryContainer
+                selected -> MaterialTheme.colorScheme.onPrimary
+                else -> MaterialTheme.colorScheme.onSurfaceVariant
+            }
+        )
+    }
+}
+
+private fun pulseSubtitle(explicit: Set<String>, learned: List<String>): String {
+    val explicitLabel = explicit.take(3).joinToString(" • ")
+    val learnedLabel = learned.filterNot { it in explicit }.take(2).joinToString(" • ")
+    return when {
+        explicitLabel.isNotBlank() && learnedLabel.isNotBlank() ->
+            "Tes choix : $explicitLabel · Pulse apprend aussi : $learnedLabel"
+        explicitLabel.isNotBlank() -> "Inspiré de tes goûts : $explicitLabel"
+        learnedLabel.isNotBlank() -> "Pulse l’a appris de tes habitudes : $learnedLabel"
+        else -> "Une sélection vivante qui évolue avec tes habitudes."
+    }
+}
+
 @Composable
 private fun InstalledReleaseNotesPopup(
     versionName: String,
@@ -960,13 +1128,15 @@ private fun TonightCard(
 @Composable
 private fun RecentVodRail(
     items: List<VodItem>,
-    onItem: (VodItem) -> Unit
+    onItem: (VodItem) -> Unit,
+    title: String = "Sorties récentes • Films",
+    subtitle: String = "Classées par vraie date de sortie. Xtream d’abord, TMDb complète les métadonnées manquantes."
 ) {
     Column {
-        SectionTitle("Sorties récentes • Films")
+        SectionTitle(title)
         Spacer(Modifier.height(6.dp))
         Text(
-            "Classées par vraie date de sortie. Xtream d’abord, TMDb complète les métadonnées manquantes.",
+            subtitle,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.70f)
         )
@@ -989,10 +1159,11 @@ private fun RecentVodRail(
 @Composable
 private fun RecentSeriesRail(
     items: List<SeriesItem>,
-    onItem: (SeriesItem) -> Unit
+    onItem: (SeriesItem) -> Unit,
+    title: String = "Suggestions • Séries récentes"
 ) {
     Column {
-        SectionTitle("Suggestions • Séries récentes")
+        SectionTitle(title)
         Spacer(Modifier.height(10.dp))
         LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             items(items, key = { "series-" + it.seriesId }) { item ->

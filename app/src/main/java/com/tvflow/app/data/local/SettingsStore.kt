@@ -38,6 +38,11 @@ data class LastLiveChannel(
     val categoryId: String
 )
 
+data class TastePreferences(
+    val onboardingCompleted: Boolean = false,
+    val themes: Set<String> = emptySet()
+)
+
 @Singleton
 class SettingsStore @Inject constructor(@ApplicationContext private val context: Context) {
     private object Keys {
@@ -59,6 +64,8 @@ class SettingsStore @Inject constructor(@ApplicationContext private val context:
         val autoNextEpisode = booleanPreferencesKey("auto_next_episode")
         val nextEpisodeCountdownSeconds = intPreferencesKey("next_episode_countdown_seconds")
         val categorySectionOverrides = stringPreferencesKey("category_section_overrides")
+        val tasteOnboardingCompleted = booleanPreferencesKey("taste_onboarding_completed")
+        val tasteThemes = stringPreferencesKey("taste_themes")
     }
 
     val playerPreferences: Flow<PlayerPreferences> = context.playerSettingsDataStore.data.map { prefs ->
@@ -81,6 +88,18 @@ class SettingsStore @Inject constructor(@ApplicationContext private val context:
     val tmdbToken: Flow<String?> = context.playerSettingsDataStore.data.map { it[Keys.tmdbToken]?.takeIf(String::isNotBlank) }
     val lastReleaseNotesVersion: Flow<String?> = context.playerSettingsDataStore.data.map {
         it[Keys.lastReleaseNotesVersion]?.takeIf(String::isNotBlank)
+    }
+
+    val tastePreferences: Flow<TastePreferences> = context.playerSettingsDataStore.data.map { prefs ->
+        TastePreferences(
+            onboardingCompleted = prefs[Keys.tasteOnboardingCompleted] ?: false,
+            themes = prefs[Keys.tasteThemes]
+                ?.split('|')
+                ?.map(String::trim)
+                ?.filter(String::isNotBlank)
+                ?.toSet()
+                .orEmpty()
+        )
     }
 
     val lastLiveChannel: Flow<LastLiveChannel?> = context.playerSettingsDataStore.data.map { prefs ->
@@ -122,6 +141,17 @@ class SettingsStore @Inject constructor(@ApplicationContext private val context:
     suspend fun markReleaseNotesShown(versionName: String) = context.playerSettingsDataStore.edit {
         it[Keys.lastReleaseNotesVersion] = versionName
     }
+
+    suspend fun saveTastePreferences(themes: Set<String>, completed: Boolean = true) =
+        context.playerSettingsDataStore.edit { prefs ->
+            prefs[Keys.tasteOnboardingCompleted] = completed
+            prefs[Keys.tasteThemes] = themes
+                .map(String::trim)
+                .filter(String::isNotBlank)
+                .distinct()
+                .sorted()
+                .joinToString("|")
+        }
 
     fun categorySectionOverrides(profileId: String): Flow<Map<String, String>> =
         context.playerSettingsDataStore.data.map { prefs ->
