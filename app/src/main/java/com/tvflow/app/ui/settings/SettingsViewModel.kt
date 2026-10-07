@@ -41,6 +41,7 @@ data class SettingsUiState(
     val categories: List<LiveCategory> = emptyList(),
     val selectedCategoryId: String? = null,
     val selectedCategoryIds: Set<String> = emptySet(),
+    val selectedChannelIds: Set<Int> = emptySet(),
     val channels: List<LiveChannel> = emptyList(),
     val busy: Boolean = false,
     val message: String? = null,
@@ -59,6 +60,7 @@ private data class CatalogSettings(
     val categories: List<LiveCategory>,
     val selectedCategoryId: String?,
     val selectedCategoryIds: Set<String>,
+    val selectedChannelIds: Set<Int>,
     val channels: List<LiveChannel>
 )
 
@@ -72,6 +74,7 @@ class SettingsViewModel @Inject constructor(
 ) : ViewModel() {
     private val selectedCategoryId = MutableStateFlow<String?>(null)
     private val selectedCategoryIds = MutableStateFlow<Set<String>>(emptySet())
+    private val selectedChannelIds = MutableStateFlow<Set<Int>>(emptySet())
     private val busy = MutableStateFlow(false)
     private val message = MutableStateFlow<String?>(null)
     private val diagnostics = MutableStateFlow<ConnectionDiagnostics?>(null)
@@ -101,9 +104,10 @@ class SettingsViewModel @Inject constructor(
         repository.observeManageCategories(),
         selectedCategoryId,
         selectedCategoryIds,
+        selectedChannelIds,
         channels
-    ) { categories, selectedId, bulkSelectedIds, channelList ->
-        CatalogSettings(categories, selectedId, bulkSelectedIds, channelList)
+    ) { categories, selectedId, bulkSelectedIds, bulkSelectedChannelIds, channelList ->
+        CatalogSettings(categories, selectedId, bulkSelectedIds, bulkSelectedChannelIds, channelList)
     }
 
     init {
@@ -137,6 +141,7 @@ class SettingsViewModel @Inject constructor(
             categories = catalogState.categories,
             selectedCategoryId = catalogState.selectedCategoryId,
             selectedCategoryIds = catalogState.selectedCategoryIds,
+            selectedChannelIds = catalogState.selectedChannelIds,
             channels = catalogState.channels,
             busy = isBusy,
             message = info,
@@ -144,7 +149,11 @@ class SettingsViewModel @Inject constructor(
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SettingsUiState())
 
-    fun selectCategory(id: String) { selectedCategoryId.value = id }
+    fun selectCategory(id: String) {
+        if (selectedCategoryId.value == id) return
+        selectedCategoryId.value = id
+        selectedChannelIds.value = emptySet()
+    }
 
     fun toggleCategorySelection(id: String) {
         selectedCategoryIds.value = selectedCategoryIds.value.toMutableSet().apply {
@@ -158,6 +167,31 @@ class SettingsViewModel @Inject constructor(
 
     fun clearCategorySelection() {
         selectedCategoryIds.value = emptySet()
+    }
+
+    fun toggleChannelSelection(streamId: Int) {
+        selectedChannelIds.value = selectedChannelIds.value.toMutableSet().apply {
+            if (!add(streamId)) remove(streamId)
+        }
+    }
+
+    fun selectAllChannels() {
+        selectedChannelIds.value = state.value.channels.map { it.streamId }.toSet()
+    }
+
+    fun clearChannelSelection() {
+        selectedChannelIds.value = emptySet()
+    }
+
+    fun setSelectedChannelsHidden(hidden: Boolean) {
+        val ids = selectedChannelIds.value
+        if (ids.isEmpty()) {
+            message.value = "Sélectionne au moins une chaîne"
+            return
+        }
+        launchBusy(if (hidden) "Chaînes sélectionnées masquées" else "Chaînes sélectionnées affichées") {
+            ids.forEach { streamId -> repository.setChannelHidden(streamId, hidden) }
+        }
     }
 
     fun setSelectedCategoriesHidden(hidden: Boolean) {

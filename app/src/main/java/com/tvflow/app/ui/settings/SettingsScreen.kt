@@ -330,14 +330,43 @@ fun SettingsScreen(
                         )
                     }
                 }
-                LazyColumn(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                    items(state.channels, key = { it.streamId }) { channel ->
-                        ChannelManageRow(
-                            channel = channel,
-                            onHide = { viewModel.toggleChannelHidden(channel) },
-                            onUp = { viewModel.moveChannel(channel, -1) },
-                            onDown = { viewModel.moveChannel(channel, +1) }
-                        )
+                Column(Modifier.weight(1f).fillMaxHeight()) {
+                    val allChannelsSelected = state.channels.isNotEmpty() &&
+                        state.selectedChannelIds.size == state.channels.size
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    ) {
+                        SettingsButton(
+                            onClick = {
+                                if (allChannelsSelected) viewModel.clearChannelSelection()
+                                else viewModel.selectAllChannels()
+                            },
+                            selected = allChannelsSelected,
+                            enabled = state.channels.isNotEmpty()
+                        ) {
+                            Text(if (allChannelsSelected) "✓ Tout désélectionner" else "☐ Toutes les chaînes")
+                        }
+                        SettingsButton(
+                            onClick = { viewModel.setSelectedChannelsHidden(true) },
+                            enabled = state.selectedChannelIds.isNotEmpty()
+                        ) { Text("Tout masquer") }
+                        SettingsButton(
+                            onClick = { viewModel.setSelectedChannelsHidden(false) },
+                            enabled = state.selectedChannelIds.isNotEmpty()
+                        ) { Text("Tout afficher") }
+                    }
+                    LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                        items(state.channels, key = { it.streamId }) { channel ->
+                            ChannelManageRow(
+                                channel = channel,
+                                selectedForBulk = channel.streamId in state.selectedChannelIds,
+                                onToggleBulk = { viewModel.toggleChannelSelection(channel.streamId) },
+                                onHide = { viewModel.toggleChannelHidden(channel) },
+                                onUp = { viewModel.moveChannel(channel, -1) },
+                                onDown = { viewModel.moveChannel(channel, +1) }
+                            )
+                        }
                     }
                 }
             }
@@ -487,8 +516,16 @@ private fun CategoryManageRow(
 }
 
 @Composable
-private fun ChannelManageRow(channel: LiveChannel, onHide: () -> Unit, onUp: () -> Unit, onDown: () -> Unit) {
-    FocusRow(onClick = {}, selected = false) {
+private fun ChannelManageRow(
+    channel: LiveChannel,
+    selectedForBulk: Boolean,
+    onToggleBulk: () -> Unit,
+    onHide: () -> Unit,
+    onUp: () -> Unit,
+    onDown: () -> Unit
+) {
+    FocusRow(onClick = onToggleBulk, selected = selectedForBulk) {
+        SmallAction(if (selectedForBulk) "☑" else "☐", onToggleBulk)
         Text(channel.name, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
         SmallAction(if (channel.isHidden) "Voir" else "Masq.", onHide)
         SmallAction("↑", onUp)
