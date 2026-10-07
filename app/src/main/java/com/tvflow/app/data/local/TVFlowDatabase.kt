@@ -11,9 +11,10 @@ import androidx.room.RoomDatabase
         MediaCategoryEntity::class,
         VodItemEntity::class,
         SeriesItemEntity::class,
-        PlaybackPositionEntity::class
+        PlaybackPositionEntity::class,
+        WatchHistoryEntity::class
     ],
-    version = 9,
+    version = 10,
     exportSchema = true
 )
 abstract class TVFlowDatabase : RoomDatabase() {

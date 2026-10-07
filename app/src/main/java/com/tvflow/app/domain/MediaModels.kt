@@ -55,8 +55,23 @@ data class PlaybackPosition(
     val imageUrl: String?,
     val kind: String,
     val mediaId: String,
-    val containerExtension: String?
+    val containerExtension: String?,
+    val seriesId: Int? = null
 ) {
     val progress: Float
         get() = if (durationMs > 0L) (positionMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f) else 0f
 }
+
+data class WatchHistoryItem(
+    val mediaKey: String,
+    val kind: String,
+    val mediaId: String,
+    val seriesId: Int?,
+    val title: String,
+    val imageUrl: String?,
+    val containerExtension: String?,
+    val positionMs: Long,
+    val durationMs: Long,
+    val watchedAt: Long,
+    val completed: Boolean
+)

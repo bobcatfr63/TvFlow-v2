@@ -213,8 +213,21 @@ fun SeriesDetailsScreen(
                         }
                         Column(Modifier.weight(1f)) {
                             Text(
-                                "S${episode.season} • E${episode.episodeNumber}  ${episode.title}",
-                                style = MaterialTheme.typography.titleMedium
+                                buildString {
+                                    if (episode.id in state.watchedEpisodeIds) append("✓ Vu  •  ")
+                                    append("S")
+                                    append(episode.season)
+                                    append(" • E")
+                                    append(episode.episodeNumber)
+                                    append("  ")
+                                    append(episode.title)
+                                },
+                                style = MaterialTheme.typography.titleMedium,
+                                color = if (episode.id in state.watchedEpisodeIds) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurface
+                                }
                             )
                             episode.plot?.takeIf { it.isNotBlank() }?.let {
                                 Text(

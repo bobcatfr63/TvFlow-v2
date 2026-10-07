@@ -239,6 +239,33 @@ class XtreamLogicTest {
     }
 
     @Test
+    fun mediaCategory_classifier_recognizesFrenchFlagAndFlexibleSeparators() {
+        assertEquals(MediaSection.FRANCE, classifyMediaSection("🇫🇷 • CINÉMA 4K"))
+        assertEquals(MediaSection.FRANCE, classifyMediaSection("MOVIES-FR"))
+        assertEquals(MediaSection.FRANCE, classifyMediaSection("FR: SÉRIES"))
+        assertEquals(MediaSection.FRANCE, classifyMediaSection("[FRA] PREMIUM"))
+    }
+
+    @Test
+    fun primaryLiveCategories_honorPerProfileOverrides() {
+        val categories = buildPrimaryLiveCategories(
+            listOf(
+                category("weird-fr", "PREMIUM ALPHA", 0),
+                category("kids", "KIDS", 1),
+                category("other", "|UK| GENERAL", 2)
+            ),
+            overrides = mapOf(
+                "LIVE:weird-fr" to MediaSection.FRANCE.name,
+                "LIVE:kids" to MediaSection.OTHER.name
+            )
+        )
+
+        assertEquals(listOf("FRANCE", "AUTRES"), categories.map { it.name })
+        assertEquals(listOf("weird-fr"), decodeCategoryGroupId(categories[0].id))
+        assertTrue(decodeCategoryGroupId(categories[1].id).containsAll(listOf("kids", "other")))
+    }
+
+    @Test
     fun epgTimestamp_acceptsSecondsAndNormalizesMilliseconds() {
         assertEquals(1_760_000_000L, parseEpgTimestamp("1760000000"))
         assertEquals(1_760_000_000L, parseEpgTimestamp("1760000000000"))

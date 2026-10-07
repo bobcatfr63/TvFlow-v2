@@ -157,11 +157,28 @@ object AppModule {
         }
     }
 
+    private val MIGRATION_9_10 = object : Migration(9, 10) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE playback_positions ADD COLUMN seriesId INTEGER")
+            db.execSQL(
+                "CREATE TABLE IF NOT EXISTS watch_history (" +
+                    "profileId TEXT NOT NULL, mediaKey TEXT NOT NULL, kind TEXT NOT NULL, mediaId TEXT NOT NULL, " +
+                    "seriesId INTEGER, title TEXT NOT NULL, imageUrl TEXT, containerExtension TEXT, " +
+                    "positionMs INTEGER NOT NULL, durationMs INTEGER NOT NULL, watchedAt INTEGER NOT NULL, " +
+                    "completed INTEGER NOT NULL, PRIMARY KEY(profileId, mediaKey))"
+            )
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_watch_history_profileId ON watch_history(profileId)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_watch_history_watchedAt ON watch_history(watchedAt)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_watch_history_kind ON watch_history(kind)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_watch_history_completed ON watch_history(completed)")
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): TVFlowDatabase =
         Room.databaseBuilder(context, TVFlowDatabase::class.java, "tvflow.db")
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10)
             .build()
 
     @Provides fun provideDao(db: TVFlowDatabase): TVFlowDao = db.dao()

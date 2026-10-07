@@ -67,5 +67,26 @@ data class PlaybackPositionEntity(
     val imageUrl: String?,
     val kind: String,
     val mediaId: String,
-    val containerExtension: String?
+    val containerExtension: String?,
+    val seriesId: Int? = null
+)
+
+@Entity(
+    tableName = "watch_history",
+    primaryKeys = ["profileId", "mediaKey"],
+    indices = [Index("profileId"), Index("watchedAt"), Index("kind"), Index("completed")]
+)
+data class WatchHistoryEntity(
+    val profileId: String,
+    val mediaKey: String,
+    val kind: String,
+    val mediaId: String,
+    val seriesId: Int?,
+    val title: String,
+    val imageUrl: String?,
+    val containerExtension: String?,
+    val positionMs: Long,
+    val durationMs: Long,
+    val watchedAt: Long,
+    val completed: Boolean
 )

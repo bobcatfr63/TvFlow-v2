@@ -130,7 +130,9 @@ fun VodPlayerScreen(
             }
 
             override fun onPlaybackStateChanged(playbackState: Int) {
-                if (playbackState == Player.STATE_ENDED) viewModel.onPlaybackEnded()
+                if (playbackState == Player.STATE_ENDED) {
+                    viewModel.onPlaybackEnded(player.duration.coerceAtLeast(0L))
+                }
             }
         }
         player.addListener(listener)
@@ -149,12 +151,17 @@ fun VodPlayerScreen(
 
     LaunchedEffect(player, state.mediaKey, useVlcFallback) {
         if (state.mediaKey.isBlank() || useVlcFallback) return@LaunchedEffect
+        var saveTick = 0
         while (true) {
-            delay(5_000L)
+            delay(1_000L)
             val position = player.currentPosition.coerceAtLeast(0L)
             val duration = player.duration.coerceAtLeast(0L)
             viewModel.updatePlaybackProgress(position, duration)
-            if (position % 15_000L < 5_000L) viewModel.saveProgress(position, duration)
+            saveTick++
+            if (saveTick >= 15) {
+                saveTick = 0
+                viewModel.saveProgress(position, duration)
+            }
         }
     }
 
@@ -168,6 +175,13 @@ fun VodPlayerScreen(
             }
             player.release()
         }
+    }
+
+    LaunchedEffect(state.autoNextCountdown, state.nextEpisode?.id, state.seriesId) {
+        if (state.autoNextCountdown != 0) return@LaunchedEffect
+        val next = state.nextEpisode ?: return@LaunchedEffect
+        val currentSeriesId = state.seriesId ?: return@LaunchedEffect
+        onPlayEpisode(next, currentSeriesId)
     }
 
     Box(
@@ -218,7 +232,7 @@ fun VodPlayerScreen(
                 url = state.streamUrl.orEmpty(),
                 modifier = Modifier.fillMaxSize(),
                 startPositionMs = state.resumePositionMs,
-                onPlaybackEnded = viewModel::onPlaybackEnded,
+                onPlaybackEnded = { viewModel.onPlaybackEnded() },
                 onProgress = { position, duration ->
                     viewModel.updatePlaybackProgress(position, duration)
                     viewModel.saveProgress(position, duration)
@@ -378,6 +392,13 @@ fun VodPlayerScreen(
                         "S${nextEpisode.season} • E${nextEpisode.episodeNumber}  ${nextEpisode.title}",
                         style = MaterialTheme.typography.titleMedium
                     )
+                    state.autoNextCountdown?.let { seconds ->
+                        Text(
+                            if (seconds > 0) "Lecture automatique dans " + seconds + "s"
+                            else "Ouverture de l’épisode suivant…",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Button(onClick = { onPlayEpisode(nextEpisode, seriesId) }) { Text("Lire maintenant") }
                         TextButton(onClick = viewModel::dismissNextEpisode) { Text("Plus tard") }

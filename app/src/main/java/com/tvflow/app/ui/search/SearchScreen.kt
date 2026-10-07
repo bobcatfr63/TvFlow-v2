@@ -30,9 +30,10 @@ fun SearchScreen(
     viewModel: SearchViewModel = hiltViewModel()
 ) {
     val query by viewModel.query.collectAsState()
-    val live by viewModel.live.collectAsState()
-    val vod by viewModel.vod.collectAsState()
-    val series by viewModel.series.collectAsState()
+    val results by viewModel.results.collectAsState()
+    val live = results.live
+    val vod = results.vod
+    val series = results.series
 
     Column(Modifier.fillMaxSize().padding(32.dp)) {
         Text("Recherche globale", style = MaterialTheme.typography.headlineLarge)

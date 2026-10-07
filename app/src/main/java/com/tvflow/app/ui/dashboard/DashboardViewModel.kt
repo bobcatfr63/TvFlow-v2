@@ -45,6 +45,7 @@ data class TonightProgram(
 data class DashboardUiState(
     val serverName: String? = null,
     val continueWatching: List<PlaybackPosition> = emptyList(),
+    val recentlyWatched: List<PlaybackPosition> = emptyList(),
     val favorites: List<LiveChannel> = emptyList(),
     val recentChannels: List<LiveChannel> = emptyList(),
     val tonightPrograms: List<TonightProgram> = emptyList(),
@@ -183,26 +184,49 @@ class DashboardViewModel @Inject constructor(
 
     private data class DashboardContent(
         val watching: List<PlaybackPosition>,
+        val history: List<PlaybackPosition>,
         val favorites: List<LiveChannel>,
         val recents: List<LiveChannel>,
         val serverName: String?,
         val tonight: List<TonightProgram>
     )
 
-    private val contentState = combine(
+    private val history = repository.observeWatchHistory(16).map { list ->
+        list.map { item ->
+            PlaybackPosition(
+                mediaKey = item.mediaKey,
+                positionMs = if (item.completed) item.durationMs else item.positionMs,
+                durationMs = item.durationMs,
+                updatedAt = item.watchedAt,
+                title = item.title,
+                imageUrl = item.imageUrl,
+                kind = item.kind,
+                mediaId = item.mediaId,
+                containerExtension = item.containerExtension,
+                seriesId = item.seriesId
+            )
+        }
+    }
+
+    private val coreContent = combine(
         repository.observeContinueWatching(12),
+        history,
         favorites,
         recents,
-        repository.activeProfile,
-        tonightPrograms
-    ) { watching, fav, recent, profile, tonight ->
+        repository.activeProfile
+    ) { watching, historyItems, fav, recent, profile ->
         DashboardContent(
             watching = watching,
+            history = historyItems,
             favorites = fav,
             recents = recent,
             serverName = profile?.name,
-            tonight = tonight
+            tonight = emptyList()
         )
+    }
+
+    private val contentState = combine(coreContent, tonightPrograms) { content, tonight ->
+        content.copy(tonight = tonight)
     }
 
     val state: StateFlow<DashboardUiState> = combine(
@@ -213,6 +237,7 @@ class DashboardViewModel @Inject constructor(
         DashboardUiState(
             serverName = content.serverName,
             continueWatching = content.watching,
+            recentlyWatched = content.history.take(12),
             favorites = content.favorites.take(12),
             recentChannels = content.recents.take(12),
             tonightPrograms = content.tonight.take(16),

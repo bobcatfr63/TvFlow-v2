@@ -121,7 +121,8 @@ fun TVFlowNavHost(
                 onSeriesItem = ::openSeriesDetails,
                 onResume = { item ->
                     navController.navigate(
-                        "vodPlayer/${item.kind}/${Uri.encode(item.mediaId)}/${Uri.encode(item.title)}/${Uri.encode(item.containerExtension ?: "_")}"
+                        "vodPlayer/${item.kind}/${Uri.encode(item.mediaId)}/${Uri.encode(item.title)}/${Uri.encode(item.containerExtension ?: "_")}" +
+                            "?seriesId=${item.seriesId ?: -1}"
                     )
                 }
             )

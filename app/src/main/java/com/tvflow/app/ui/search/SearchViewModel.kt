@@ -2,28 +2,38 @@ package com.tvflow.app.ui.search
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.tvflow.app.data.repository.GlobalSearchResults
 import com.tvflow.app.data.repository.XtreamRepository
-import com.tvflow.app.domain.LiveChannel
-import com.tvflow.app.domain.SeriesItem
-import com.tvflow.app.domain.VodItem
 import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
-import javax.inject.Inject
 
-@OptIn(ExperimentalCoroutinesApi::class)
+@OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
 @HiltViewModel
-class SearchViewModel @Inject constructor(repository: XtreamRepository) : ViewModel() {
+class SearchViewModel @Inject constructor(
+    private val repository: XtreamRepository
+) : ViewModel() {
     val query = MutableStateFlow("")
-    val live: StateFlow<List<LiveChannel>> = query.flatMapLatest { q -> if (q.trim().length >= 2) repository.searchLive(q.trim()) else flowOf(emptyList()) }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
-    val vod: StateFlow<List<VodItem>> = query.flatMapLatest { q -> if (q.trim().length >= 2) repository.searchVod(q.trim()) else flowOf(emptyList()) }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
-    val series: StateFlow<List<SeriesItem>> = query.flatMapLatest { q -> if (q.trim().length >= 2) repository.searchSeries(q.trim()) else flowOf(emptyList()) }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val results: StateFlow<GlobalSearchResults> = query
+        .debounce(180)
+        .distinctUntilChanged()
+        .mapLatest { raw ->
+            val q = raw.trim()
+            if (q.length < 2) GlobalSearchResults()
+            else runCatching { repository.searchGlobal(q) }.getOrDefault(GlobalSearchResults())
+        }
+        .stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5_000),
+            GlobalSearchResults()
+        )
 }

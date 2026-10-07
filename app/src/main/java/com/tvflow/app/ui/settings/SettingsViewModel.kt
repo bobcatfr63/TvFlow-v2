@@ -11,6 +11,9 @@ import com.tvflow.app.data.repository.XtreamRepository
 import com.tvflow.app.domain.ConnectionDiagnostics
 import com.tvflow.app.domain.LiveCategory
 import com.tvflow.app.domain.LiveChannel
+import com.tvflow.app.domain.MediaCategory
+import com.tvflow.app.domain.MediaSection
+import com.tvflow.app.domain.MediaType
 import com.tvflow.app.domain.ServerProfile
 import com.tvflow.app.launcher.TvLauncherMode
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -39,6 +42,8 @@ data class SettingsUiState(
     val pinConfigured: Boolean = false,
     val tmdbConfigured: Boolean = false,
     val categories: List<LiveCategory> = emptyList(),
+    val vodCategories: List<MediaCategory> = emptyList(),
+    val seriesCategories: List<MediaCategory> = emptyList(),
     val selectedCategoryId: String? = null,
     val selectedCategoryIds: Set<String> = emptySet(),
     val selectedChannelIds: Set<Int> = emptySet(),
@@ -58,6 +63,8 @@ private data class AccountSettings(
 
 private data class CatalogSettings(
     val categories: List<LiveCategory>,
+    val vodCategories: List<MediaCategory>,
+    val seriesCategories: List<MediaCategory>,
     val selectedCategoryId: String?,
     val selectedCategoryIds: Set<String>,
     val selectedChannelIds: Set<Int>,
@@ -100,14 +107,45 @@ class SettingsViewModel @Inject constructor(
         AccountSettings(profiles, activeId, player, pinConfigured, tmdbConfigured)
     }
 
-    private val catalog = combine(
+    private data class LiveCatalogSettings(
+        val categories: List<LiveCategory>,
+        val selectedCategoryId: String?,
+        val selectedCategoryIds: Set<String>,
+        val selectedChannelIds: Set<Int>,
+        val channels: List<LiveChannel>
+    )
+
+    private val liveCatalog = combine(
         repository.observeManageCategories(),
         selectedCategoryId,
         selectedCategoryIds,
         selectedChannelIds,
         channels
     ) { categories, selectedId, bulkSelectedIds, bulkSelectedChannelIds, channelList ->
-        CatalogSettings(categories, selectedId, bulkSelectedIds, bulkSelectedChannelIds, channelList)
+        LiveCatalogSettings(
+            categories = categories,
+            selectedCategoryId = selectedId,
+            selectedCategoryIds = bulkSelectedIds,
+            selectedChannelIds = bulkSelectedChannelIds,
+            channels = channelList
+        )
+    }
+
+    private val mediaCategories = combine(
+        repository.observeMediaCategories(MediaType.VOD),
+        repository.observeMediaCategories(MediaType.SERIES)
+    ) { vod, series -> vod to series }
+
+    private val catalog = combine(liveCatalog, mediaCategories) { live, media ->
+        CatalogSettings(
+            categories = live.categories,
+            vodCategories = media.first,
+            seriesCategories = media.second,
+            selectedCategoryId = live.selectedCategoryId,
+            selectedCategoryIds = live.selectedCategoryIds,
+            selectedChannelIds = live.selectedChannelIds,
+            channels = live.channels
+        )
     }
 
     init {
@@ -139,6 +177,8 @@ class SettingsViewModel @Inject constructor(
             pinConfigured = accountState.pinConfigured,
             tmdbConfigured = accountState.tmdbConfigured,
             categories = catalogState.categories,
+            vodCategories = catalogState.vodCategories,
+            seriesCategories = catalogState.seriesCategories,
             selectedCategoryId = catalogState.selectedCategoryId,
             selectedCategoryIds = catalogState.selectedCategoryIds,
             selectedChannelIds = catalogState.selectedChannelIds,
@@ -245,6 +285,8 @@ class SettingsViewModel @Inject constructor(
     fun setScale(value: String) { viewModelScope.launch { settingsStore.setVideoScale(value) } }
     fun setSubtitles(value: Boolean) { viewModelScope.launch { settingsStore.setSubtitlesEnabled(value) } }
     fun setAccent(value: String) { viewModelScope.launch { settingsStore.setAccent(value) } }
+    fun setAutoNextEpisode(value: Boolean) { viewModelScope.launch { settingsStore.setAutoNextEpisode(value) } }
+    fun setNextEpisodeCountdownSeconds(value: Int) { viewModelScope.launch { settingsStore.setNextEpisodeCountdownSeconds(value) } }
     fun setHideOfflineStreams(value: Boolean) { viewModelScope.launch { settingsStore.setHideOfflineStreams(value) } }
     fun setAutoStartOnTvBoot(value: Boolean) { viewModelScope.launch { settingsStore.setAutoStartOnTvBoot(value) } }
     fun setResumeLastLiveOnTvBoot(value: Boolean) { viewModelScope.launch { settingsStore.setResumeLastLiveOnTvBoot(value) } }
@@ -323,6 +365,27 @@ class SettingsViewModel @Inject constructor(
         launchBusy(null) { repository.setCategoryLocked(category.id, !category.isLocked) }
     }
     fun moveCategory(category: LiveCategory, delta: Int) = launchBusy(null) { repository.moveCategory(category.id, delta) }
+    fun classifyCategory(category: LiveCategory, section: com.tvflow.app.domain.MediaSection) =
+        launchBusy("Classement mémorisé pour ce serveur") {
+            repository.setCategorySectionOverride(category.id, section)
+        }
+    fun resetCategoryClassification(category: LiveCategory) =
+        launchBusy("Classement automatique réactivé") {
+            repository.setCategorySectionOverride(category.id, null)
+        }
+
+    fun classifyMediaCategory(
+        category: MediaCategory,
+        section: MediaSection
+    ) = launchBusy("Classement mémorisé pour ce serveur") {
+        repository.setMediaCategorySectionOverride(category.type, category.id, section)
+    }
+
+    fun resetMediaCategoryClassification(category: MediaCategory) =
+        launchBusy("Classement automatique réactivé") {
+            repository.setMediaCategorySectionOverride(category.type, category.id, null)
+        }
+
     fun toggleChannelHidden(channel: LiveChannel) = launchBusy(null) { repository.setChannelHidden(channel.streamId, !channel.isHidden) }
     fun moveChannel(channel: LiveChannel, delta: Int) {
         val category = selectedCategoryId.value ?: return

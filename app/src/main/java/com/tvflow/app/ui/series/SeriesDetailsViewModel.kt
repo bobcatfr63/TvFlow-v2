@@ -19,6 +19,7 @@ data class SeriesDetailsUiState(
     val episodes: List<Episode> = emptyList(),
     val selectedSeason: Int? = null,
     val suggestions: List<SeriesItem> = emptyList(),
+    val watchedEpisodeIds: Set<String> = emptySet(),
     val error: String? = null
 )
 
@@ -32,7 +33,14 @@ class SeriesDetailsViewModel @Inject constructor(
     private val _state = MutableStateFlow(SeriesDetailsUiState())
     val state: StateFlow<SeriesDetailsUiState> = _state.asStateFlow()
 
-    init { load() }
+    init {
+        load()
+        viewModelScope.launch {
+            repository.observeCompletedEpisodeIds(seriesId).collect { watched ->
+                _state.value = _state.value.copy(watchedEpisodeIds = watched)
+            }
+        }
+    }
 
     fun selectSeason(season: Int) { _state.value = _state.value.copy(selectedSeason = season) }
 
@@ -59,14 +67,15 @@ class SeriesDetailsViewModel @Inject constructor(
                 }
                 episodes to suggestions
             }.onSuccess { (episodes, suggestions) ->
-                _state.value = SeriesDetailsUiState(
+                _state.value = _state.value.copy(
                     loading = false,
                     episodes = episodes,
                     selectedSeason = episodes.firstOrNull()?.season,
-                    suggestions = suggestions
+                    suggestions = suggestions,
+                    error = null
                 )
             }.onFailure { error ->
-                _state.value = SeriesDetailsUiState(
+                _state.value = _state.value.copy(
                     loading = false,
                     error = error.message ?: "Impossible de charger la série"
                 )

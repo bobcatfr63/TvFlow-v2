@@ -188,7 +188,10 @@ fun DashboardScreen(
             }
 
             if (state.continueWatching.isNotEmpty()) {
-                item { ContinueRail(state.continueWatching, onResume) }
+                item { ContinueRail("Continuer à regarder", state.continueWatching, onResume) }
+            }
+            if (state.recentlyWatched.isNotEmpty()) {
+                item { ContinueRail("Récemment regardé", state.recentlyWatched, onResume) }
             }
             if (state.favorites.isNotEmpty()) {
                 item { ChannelRail("★  Mes favoris", state.favorites, onChannel) }
@@ -1140,9 +1143,9 @@ private fun ChannelCard(channel: LiveChannel, onChannel: (LiveChannel) -> Unit) 
 }
 
 @Composable
-private fun ContinueRail(items: List<PlaybackPosition>, onResume: (PlaybackPosition) -> Unit) {
+private fun ContinueRail(title: String, items: List<PlaybackPosition>, onResume: (PlaybackPosition) -> Unit) {
     Column {
-        SectionTitle("Continuer à regarder")
+        SectionTitle(title)
         Spacer(Modifier.height(10.dp))
         LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             items(items, key = { it.mediaKey }) { item ->

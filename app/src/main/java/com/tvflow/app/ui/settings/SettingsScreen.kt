@@ -44,6 +44,8 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.tvflow.app.BuildConfig
 import com.tvflow.app.domain.LiveCategory
 import com.tvflow.app.domain.LiveChannel
+import com.tvflow.app.domain.MediaCategory
+import com.tvflow.app.domain.MediaSection
 import com.tvflow.app.domain.ServerProfile
 import com.tvflow.app.launcher.TvLauncherMode
 import com.tvflow.app.util.isTelevisionUi
@@ -160,6 +162,20 @@ fun SettingsScreen(
                     viewModel::setAccent
                 )
                 ToggleRow("Sous-titres par défaut", state.player.subtitlesEnabled) { viewModel.setSubtitles(it) }
+                ToggleRow("Épisode suivant automatique", state.player.autoNextEpisode) { viewModel.setAutoNextEpisode(it) }
+                if (state.player.autoNextEpisode) {
+                    Text("Compte à rebours épisode suivant", fontWeight = FontWeight.SemiBold)
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        listOf(5, 10, 15, 20, 30).forEach { seconds ->
+                            SettingsButton(
+                                onClick = { viewModel.setNextEpisodeCountdownSeconds(seconds) },
+                                selected = state.player.nextEpisodeCountdownSeconds == seconds
+                            ) {
+                                Text(if (state.player.nextEpisodeCountdownSeconds == seconds) "● " + seconds + "s" else seconds.toString() + "s")
+                            }
+                        }
+                    }
+                }
                 ToggleRow("Masquer les flux confirmés hors ligne", state.player.hideOfflineStreams) { viewModel.setHideOfflineStreams(it) }
                 Text("La santé des flux est apprise uniquement pendant une vraie lecture. Aucun scan massif n’est lancé.", style = MaterialTheme.typography.bodySmall)
                 Text("Actualisation automatique", fontWeight = FontWeight.SemiBold)
@@ -259,6 +275,34 @@ fun SettingsScreen(
             }
 
             item {
+                SectionTitle("Classement Films & Séries")
+                Text(
+                    "Si un fournisseur nomme mal ses catégories, force ici France, Enfants ou Autres. Le choix reste lié au profil serveur.",
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+            items(state.vodCategories, key = { "vod:" + it.id }) { category ->
+                MediaCategoryClassifyRow(
+                    prefix = "Film",
+                    category = category,
+                    onFrance = { viewModel.classifyMediaCategory(category, MediaSection.FRANCE) },
+                    onKids = { viewModel.classifyMediaCategory(category, MediaSection.KIDS) },
+                    onOther = { viewModel.classifyMediaCategory(category, MediaSection.OTHER) },
+                    onAuto = { viewModel.resetMediaCategoryClassification(category) }
+                )
+            }
+            items(state.seriesCategories, key = { "series:" + it.id }) { category ->
+                MediaCategoryClassifyRow(
+                    prefix = "Série",
+                    category = category,
+                    onFrance = { viewModel.classifyMediaCategory(category, MediaSection.FRANCE) },
+                    onKids = { viewModel.classifyMediaCategory(category, MediaSection.KIDS) },
+                    onOther = { viewModel.classifyMediaCategory(category, MediaSection.OTHER) },
+                    onAuto = { viewModel.resetMediaCategoryClassification(category) }
+                )
+            }
+
+            item {
                 SectionTitle("Contrôle parental")
                 Text(if (state.pinConfigured) "PIN configuré" else "Aucun PIN configuré")
                 OutlinedTextField(
@@ -291,6 +335,10 @@ fun SettingsScreen(
         Column(Modifier.weight(1f).fillMaxHeight()) {
             SectionTitle("Organisation des chaînes")
             Text("Masquer, verrouiller et réordonner les catégories. Sélectionne une catégorie pour gérer ses chaînes.")
+            Text(
+                "Classement adaptatif : FR = France, E = Enfants, A = Autres, ↺ = automatique. Le choix est mémorisé pour ce serveur.",
+                style = MaterialTheme.typography.bodySmall
+            )
             Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 val allSelected = state.categories.isNotEmpty() &&
@@ -325,6 +373,10 @@ fun SettingsScreen(
                             onToggleBulk = { viewModel.toggleCategorySelection(category.id) },
                             onHide = { viewModel.toggleCategoryHidden(category) },
                             onLock = { viewModel.toggleCategoryLocked(category) },
+                            onFrance = { viewModel.classifyCategory(category, MediaSection.FRANCE) },
+                            onKids = { viewModel.classifyCategory(category, MediaSection.KIDS) },
+                            onOther = { viewModel.classifyCategory(category, MediaSection.OTHER) },
+                            onAuto = { viewModel.resetCategoryClassification(category) },
                             onUp = { viewModel.moveCategory(category, -1) },
                             onDown = { viewModel.moveCategory(category, +1) }
                         )
@@ -494,6 +546,36 @@ private fun ToggleRow(label: String, enabled: Boolean, onChange: (Boolean) -> Un
 }
 
 @Composable
+private fun MediaCategoryClassifyRow(
+    prefix: String,
+    category: MediaCategory,
+    onFrance: () -> Unit,
+    onKids: () -> Unit,
+    onOther: () -> Unit,
+    onAuto: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(10.dp))
+            .padding(horizontal = 10.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            "$prefix • ${category.name}",
+            modifier = Modifier.weight(1f),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            style = MaterialTheme.typography.bodySmall
+        )
+        SmallAction(if (category.section == MediaSection.FRANCE) "●FR" else "FR", onFrance)
+        SmallAction(if (category.section == MediaSection.KIDS) "●E" else "E", onKids)
+        SmallAction(if (category.section == MediaSection.OTHER) "●A" else "A", onOther)
+        SmallAction("↺", onAuto)
+    }
+}
+
+@Composable
 private fun CategoryManageRow(
     category: LiveCategory,
     selected: Boolean,
@@ -502,12 +584,20 @@ private fun CategoryManageRow(
     onToggleBulk: () -> Unit,
     onHide: () -> Unit,
     onLock: () -> Unit,
+    onFrance: () -> Unit,
+    onKids: () -> Unit,
+    onOther: () -> Unit,
+    onAuto: () -> Unit,
     onUp: () -> Unit,
     onDown: () -> Unit
 ) {
     FocusRow(onClick = onSelect, selected = selected) {
         SmallAction(if (selectedForBulk) "☑" else "☐", onToggleBulk)
         Text(category.name, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+        SmallAction("FR", onFrance)
+        SmallAction("E", onKids)
+        SmallAction("A", onOther)
+        SmallAction("↺", onAuto)
         SmallAction(if (category.isHidden) "Voir" else "Masq.", onHide)
         SmallAction(if (category.isLocked) "🔒" else "🔓", onLock)
         SmallAction("↑", onUp)

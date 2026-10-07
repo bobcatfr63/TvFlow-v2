@@ -13,8 +13,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -30,6 +33,7 @@ import java.net.InetSocketAddress
 import java.net.ServerSocket
 import java.net.Socket
 import java.net.SocketTimeoutException
+import java.util.concurrent.ConcurrentHashMap
 
 data class PlaybackTransfer(
     val kind: String,
@@ -43,6 +47,12 @@ data class PlaybackTransfer(
 
 data class TvFlowTv(val name: String, val address: String)
 
+data class FavoriteSync(
+    val profileId: String,
+    val streamIds: Set<Int>,
+    val updatedAt: Long
+)
+
 object TvFlowConnect {
     private const val TAG = "TVFlowConnect"
     private const val DISCOVERY_PORT = 45891
@@ -50,22 +60,29 @@ object TvFlowConnect {
     private const val DISCOVERY_MAGIC = "TVFLOW_DISCOVER_V1"
     private const val RESPONSE_PREFIX = "TVFLOW_TV_V1|"
     private const val COMMAND_MAGIC = "TVFLOW_PLAY_V1"
+    private const val FAVORITES_MAGIC = "TVFLOW_FAVORITES_V1"
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val _pendingTransfer = MutableStateFlow<PlaybackTransfer?>(null)
     val pendingTransfer: StateFlow<PlaybackTransfer?> = _pendingTransfer
+    private val _favoriteSync = MutableSharedFlow<FavoriteSync>(extraBufferCapacity = 8)
+    val favoriteSync: SharedFlow<FavoriteSync> = _favoriteSync.asSharedFlow()
+    private val knownPeers = ConcurrentHashMap.newKeySet<String>()
 
     @Volatile private var receiverStarted = false
 
     fun startReceiverIfTv(context: Context) {
         val television = context.isTelevisionUi()
         Log.i(TAG, "Receiver check: tv=$television model=${Build.MANUFACTURER} ${Build.MODEL}")
-        if (!television || receiverStarted) return
+        if (receiverStarted) return
         synchronized(this) {
             if (receiverStarted) return
             receiverStarted = true
-            Log.i(TAG, "Starting TVFlow receiver on UDP $DISCOVERY_PORT / TCP $COMMAND_PORT")
-            scope.launch { discoveryLoop() }
+            Log.i(TAG, "Starting TVFlow command receiver on TCP $COMMAND_PORT")
+            if (television) {
+                Log.i(TAG, "Starting TV discovery receiver on UDP $DISCOVERY_PORT")
+                scope.launch { discoveryLoop() }
+            }
             scope.launch { commandLoop(context.applicationContext) }
         }
     }
@@ -97,6 +114,7 @@ object TvFlowConnect {
                     if (!text.startsWith(RESPONSE_PREFIX)) continue
                     val address = response.address.hostAddress.orEmpty()
                     val name = text.removePrefix(RESPONSE_PREFIX).ifBlank { "TVFlow TV" }
+                    if (address.isNotBlank()) knownPeers += address
                     found[address] = TvFlowTv(name, address)
                 } catch (_: SocketTimeoutException) {
                 }
@@ -106,15 +124,28 @@ object TvFlowConnect {
     }
 
     suspend fun send(tv: TvFlowTv, transfer: PlaybackTransfer): Boolean = withContext(Dispatchers.IO) {
+        sendJson(tv.address, transfer.toJson())
+    }
+
+    suspend fun broadcastFavoriteSync(context: Context, sync: FavoriteSync): Int = withContext(Dispatchers.IO) {
+        if (!context.isTelevisionUi()) {
+            discoverTvs(context, timeoutMs = 700L)
+        }
+        val targets = knownPeers.toList()
+        targets.count { address ->
+            sendJson(address, sync.toJson())
+        }
+    }
+
+    private fun sendJson(address: String, json: JSONObject): Boolean =
         runCatching {
             Socket().use { socket ->
-                socket.connect(InetSocketAddress(tv.address, COMMAND_PORT), 1_500)
+                socket.connect(InetSocketAddress(address, COMMAND_PORT), 1_500)
                 socket.soTimeout = 1_500
-                PrintWriter(socket.getOutputStream(), true).use { it.println(transfer.toJson().toString()) }
+                PrintWriter(socket.getOutputStream(), true).use { it.println(json.toString()) }
                 BufferedReader(InputStreamReader(socket.getInputStream())).use { it.readLine() == "OK" }
             }
         }.getOrDefault(false)
-    }
 
     private suspend fun discoveryLoop() {
         while (currentCoroutineContext().isActive) {
@@ -129,6 +160,7 @@ object TvFlowConnect {
                         if (!packet.address.isSiteLocalAddress) continue
                         val text = String(packet.data, 0, packet.length, Charsets.UTF_8)
                         if (text != DISCOVERY_MAGIC) continue
+                        packet.address.hostAddress?.takeIf { it.isNotBlank() }?.let { knownPeers += it }
                         val replyText = RESPONSE_PREFIX + Build.MANUFACTURER + " " + Build.MODEL
                         val reply = replyText.toByteArray(Charsets.UTF_8)
                         socket.send(DatagramPacket(reply, reply.size, packet.address, packet.port))
@@ -162,17 +194,35 @@ object TvFlowConnect {
     private fun handleClient(context: Context, socket: Socket) {
         socket.use { client ->
             if (!client.inetAddress.isSiteLocalAddress) return
+            client.inetAddress.hostAddress?.takeIf { it.isNotBlank() }?.let { knownPeers += it }
             client.soTimeout = 1_500
             val raw = BufferedReader(InputStreamReader(client.getInputStream())).readLine()
-            val transfer = runCatching { parseTransfer(raw) }.getOrNull()
             val writer = PrintWriter(client.getOutputStream(), true)
-            if (transfer != null) {
-                Log.i(TAG, "Received ${transfer.kind}:${transfer.mediaId} from ${client.inetAddress.hostAddress}")
-                _pendingTransfer.value = transfer
-                bringTvFlowToFront(context)
-                writer.println("OK")
-            } else {
-                writer.println("ERROR")
+            val json = runCatching { JSONObject(raw) }.getOrNull()
+            when (json?.optString("magic")) {
+                COMMAND_MAGIC -> {
+                    val transfer = runCatching { parseTransfer(raw) }.getOrNull()
+                    if (transfer != null) {
+                        Log.i(TAG, "Received ${transfer.kind}:${transfer.mediaId} from ${client.inetAddress.hostAddress}")
+                        _pendingTransfer.value = transfer
+                        bringTvFlowToFront(context)
+                        writer.println("OK")
+                    } else {
+                        writer.println("ERROR")
+                    }
+                }
+
+                FAVORITES_MAGIC -> {
+                    val sync = parseFavoriteSync(json)
+                    if (sync != null) {
+                        _favoriteSync.tryEmit(sync)
+                        writer.println("OK")
+                    } else {
+                        writer.println("ERROR")
+                    }
+                }
+
+                else -> writer.println("ERROR")
             }
         }
     }
@@ -211,6 +261,25 @@ object TvFlowConnect {
         .put("extension", extension)
         .put("seriesId", seriesId)
         .put("positionMs", positionMs.coerceAtLeast(0L))
+
+    private fun FavoriteSync.toJson(): JSONObject = JSONObject()
+        .put("magic", FAVORITES_MAGIC)
+        .put("profileId", profileId)
+        .put("streamIds", org.json.JSONArray(streamIds.sorted()))
+        .put("updatedAt", updatedAt)
+
+    private fun parseFavoriteSync(json: JSONObject): FavoriteSync? {
+        val profileId = json.optString("profileId").takeIf { it.isNotBlank() } ?: return null
+        val updatedAt = json.optLong("updatedAt", 0L).takeIf { it > 0L } ?: return null
+        val ids = json.optJSONArray("streamIds") ?: return null
+        val streamIds = buildSet {
+            for (index in 0 until ids.length()) {
+                val id = ids.optInt(index, -1)
+                if (id >= 0) add(id)
+            }
+        }
+        return FavoriteSync(profileId, streamIds, updatedAt)
+    }
 
     private fun parseTransfer(raw: String?): PlaybackTransfer? {
         if (raw.isNullOrBlank()) return null

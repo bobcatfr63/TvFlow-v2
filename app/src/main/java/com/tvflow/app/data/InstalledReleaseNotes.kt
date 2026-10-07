@@ -7,13 +7,13 @@ object InstalledReleaseNotes {
         get() = BuildConfig.VERSION_NAME
 
     val items: List<String> = listOf(
-        "Lecture séries : les boutons précédent/suivant du contrôleur Media3 ouvrent directement l’épisode adjacent quand il existe.",
-        "Mises à jour : plusieurs tentatives automatiques au lancement si GitHub répond trop lentement.",
-        "Lecture : Media3 conserve le secours VLC et la validation locale a été repassée sur le builder Windows.",
-        "Séries : épisode précédent/suivant disponible dans le lecteur et via les touches média/Page de la télécommande.",
-        "Organisation des chaînes : sélection globale des chaînes d’une catégorie, tout masquer et tout afficher.",
-        "Films : fiche détaillée avec synopsis, note, date et suggestions de la même catégorie.",
-        "Séries : fiche enrichie avec jaquette, synopsis, note, date, saisons, épisodes et suggestions.",
-        "Accueil : nouveautés françaises et reprise de lecture restent alimentées depuis le catalogue local."
+        "Classement : règles France/Enfants/Autres renforcées et corrections mémorisées par profil serveur.",
+        "Séries : épisode suivant automatique avec compte à rebours configurable dans les réglages.",
+        "Séries : l’URL de l’épisode suivant est préchauffée pour réduire le délai de transition.",
+        "Historique : ajout de Récemment regardé et mémorisation durable des lectures terminées.",
+        "Séries : les épisodes terminés sont maintenant marqués Vu dans la fiche de la série.",
+        "Favoris : synchronisation locale TV/téléphone sur le même réseau pour un même profil Xtream.",
+        "Recherche : index local mis en cache pour accélérer la recherche globale sur les gros catalogues.",
+        "Lecture : les échecs Media3 restent diagnostiqués et basculent automatiquement vers le secours VLC quand nécessaire."
     )
 }

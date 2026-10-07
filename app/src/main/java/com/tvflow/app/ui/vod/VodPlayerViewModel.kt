@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tvflow.app.data.repository.XtreamRepository
+import com.tvflow.app.data.local.SettingsStore
 import com.tvflow.app.domain.Episode
 import com.tvflow.app.domain.VodItem
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -23,13 +24,18 @@ data class VodPlayerUiState(
     val seriesId: Int? = null,
     val previousEpisode: Episode? = null,
     val nextEpisode: Episode? = null,
+    val nextEpisodeUrl: String? = null,
     val offerNextEpisode: Boolean = false,
+    val autoNextEpisode: Boolean = true,
+    val nextEpisodeCountdownSeconds: Int = 10,
+    val autoNextCountdown: Int? = null,
     val error: String? = null
 )
 
 @HiltViewModel
 class VodPlayerViewModel @Inject constructor(
     private val repository: XtreamRepository,
+    private val settingsStore: SettingsStore,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
     private val kind: String = savedStateHandle["kind"] ?: "vod"
@@ -43,35 +49,91 @@ class VodPlayerViewModel @Inject constructor(
     private var nextEpisodeDismissed = false
     val state: StateFlow<VodPlayerUiState> = _state.asStateFlow()
 
-    init { prepare() }
+    init {
+        prepare()
+        viewModelScope.launch {
+            settingsStore.playerPreferences.collect { prefs ->
+                _state.value = _state.value.copy(
+                    autoNextEpisode = prefs.autoNextEpisode,
+                    nextEpisodeCountdownSeconds = prefs.nextEpisodeCountdownSeconds,
+                    autoNextCountdown = if (prefs.autoNextEpisode) _state.value.autoNextCountdown else null
+                )
+            }
+        }
+    }
 
     fun saveProgress(positionMs: Long, durationMs: Long) {
         val current = _state.value
         val key = current.mediaKey.takeIf { it.isNotBlank() } ?: return
         viewModelScope.launch {
-            repository.savePlaybackPosition(key, positionMs, durationMs, current.title, current.imageUrl, kind, mediaId, ext)
+            repository.savePlaybackPosition(
+                mediaKey = key,
+                positionMs = positionMs,
+                durationMs = durationMs,
+                title = current.title,
+                imageUrl = current.imageUrl,
+                kind = kind,
+                mediaId = mediaId,
+                containerExtension = ext,
+                seriesId = seriesId
+            )
         }
     }
 
     fun updatePlaybackProgress(positionMs: Long, durationMs: Long) {
-        if (kind != "episode" || _state.value.nextEpisode == null || durationMs <= 0L) return
-        val remainingMs = durationMs - positionMs
+        val current = _state.value
+        if (kind != "episode" || current.nextEpisode == null || durationMs <= 0L) return
+        val remainingMs = (durationMs - positionMs).coerceAtLeast(0L)
         val shouldOffer = !nextEpisodeDismissed && remainingMs <= 90_000L
-        if (_state.value.offerNextEpisode != shouldOffer) {
-            _state.value = _state.value.copy(offerNextEpisode = shouldOffer)
+        val autoCountdown = if (
+            current.autoNextEpisode &&
+            !nextEpisodeDismissed &&
+            remainingMs <= current.nextEpisodeCountdownSeconds * 1_000L
+        ) {
+            ((remainingMs + 999L) / 1_000L).toInt().coerceAtLeast(0)
+        } else {
+            null
+        }
+        if (current.offerNextEpisode != shouldOffer || current.autoNextCountdown != autoCountdown) {
+            _state.value = current.copy(
+                offerNextEpisode = shouldOffer,
+                autoNextCountdown = autoCountdown
+            )
         }
     }
 
-    fun onPlaybackEnded() {
-        if (kind == "episode" && _state.value.nextEpisode != null) {
+    fun onPlaybackEnded(durationMs: Long = 0L) {
+        val current = _state.value
+        val key = current.mediaKey
+        if (key.isNotBlank()) {
+            viewModelScope.launch {
+                repository.markPlaybackCompleted(
+                    mediaKey = key,
+                    title = current.title,
+                    imageUrl = current.imageUrl,
+                    kind = kind,
+                    mediaId = mediaId,
+                    containerExtension = ext,
+                    seriesId = seriesId,
+                    durationMs = durationMs
+                )
+            }
+        }
+        if (kind == "episode" && current.nextEpisode != null) {
             nextEpisodeDismissed = false
-            _state.value = _state.value.copy(offerNextEpisode = true)
+            _state.value = current.copy(
+                offerNextEpisode = true,
+                autoNextCountdown = if (current.autoNextEpisode) 0 else null
+            )
         }
     }
 
     fun dismissNextEpisode() {
         nextEpisodeDismissed = true
-        _state.value = _state.value.copy(offerNextEpisode = false)
+        _state.value = _state.value.copy(
+            offerNextEpisode = false,
+            autoNextCountdown = null
+        )
     }
 
     fun onPlaybackError(errorCodeName: String) {
@@ -83,36 +145,54 @@ class VodPlayerViewModel @Inject constructor(
             runCatching {
                 val key: String
                 val url: String
+                var currentEpisode: Episode? = null
+                val navigation: EpisodeNavigation
+
                 if (kind == "episode") {
-                    val episode = Episode(mediaId, 0, 0, title, ext, null, null)
+                    val episodes = if (seriesId != null) repository.getSeriesEpisodes(seriesId) else emptyList()
+                    val index = episodes.indexOfFirst { it.id == mediaId }
+                    currentEpisode = episodes.getOrNull(index)
+                        ?: Episode(mediaId, 0, 0, title, ext, null, null)
                     key = "episode:$mediaId"
-                    url = repository.episodeUrl(episode)
+                    url = repository.episodeUrl(currentEpisode)
+                    navigation = EpisodeNavigation(
+                        previous = if (index > 0) episodes.getOrNull(index - 1) else null,
+                        next = if (index >= 0) episodes.getOrNull(index + 1) else null
+                    )
                 } else {
                     val id = mediaId.toInt()
                     val item = VodItem(id, title, "", null, null, null, ext)
                     key = "vod:$id"
                     url = repository.vodUrl(item)
+                    navigation = EpisodeNavigation()
                 }
+
                 val savedResume = repository.playbackPosition(key)?.positionMs ?: 0L
                 val resume = handoffPositionMs.takeIf { it > 0L } ?: savedResume
-                val navigation = if (kind == "episode" && seriesId != null) {
-                    val episodes = repository.getSeriesEpisodes(seriesId)
-                    val index = episodes.indexOfFirst { it.id == mediaId }
-                    EpisodeNavigation(
-                        previous = if (index > 0) episodes.getOrNull(index - 1) else null,
-                        next = if (index >= 0) episodes.getOrNull(index + 1) else null
-                    )
-                } else {
-                    EpisodeNavigation()
+                val nextUrl = navigation.next?.let { repository.episodeUrl(it) }
+
+                if (!nextUrl.isNullOrBlank()) {
+                    launch { repository.warmStreamUrl(nextUrl) }
                 }
-                PlaybackPreparation(key, url, resume, navigation.previous, navigation.next)
+
+                PlaybackPreparation(
+                    key = key,
+                    url = url,
+                    resumeMs = resume,
+                    imageUrl = currentEpisode?.imageUrl,
+                    previousEpisode = navigation.previous,
+                    nextEpisode = navigation.next,
+                    nextEpisodeUrl = nextUrl
+                )
             }.onSuccess { prepared ->
                 _state.value = _state.value.copy(
                     streamUrl = prepared.url,
                     mediaKey = prepared.key,
                     resumePositionMs = prepared.resumeMs,
+                    imageUrl = prepared.imageUrl,
                     previousEpisode = prepared.previousEpisode,
                     nextEpisode = prepared.nextEpisode,
+                    nextEpisodeUrl = prepared.nextEpisodeUrl,
                     error = null
                 )
             }.onFailure { error ->
@@ -130,7 +210,9 @@ class VodPlayerViewModel @Inject constructor(
         val key: String,
         val url: String,
         val resumeMs: Long,
+        val imageUrl: String?,
         val previousEpisode: Episode?,
-        val nextEpisode: Episode?
+        val nextEpisode: Episode?,
+        val nextEpisodeUrl: String?
     )
 }

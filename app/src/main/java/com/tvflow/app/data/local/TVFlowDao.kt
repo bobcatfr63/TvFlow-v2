@@ -97,6 +97,21 @@ interface TVFlowDao {
     @Query("SELECT streamId FROM live_channels WHERE profileId = :profileId AND isFavorite = 1")
     suspend fun getFavoriteIds(profileId: String): List<Int>
 
+    @Query("SELECT * FROM live_channels WHERE profileId = :profileId")
+    suspend fun getAllChannels(profileId: String): List<LiveChannelEntity>
+
+    @Query("UPDATE live_channels SET isFavorite = 0 WHERE profileId = :profileId")
+    suspend fun clearFavorites(profileId: String)
+
+    @Query("UPDATE live_channels SET isFavorite = 1 WHERE profileId = :profileId AND streamId IN (:streamIds)")
+    suspend fun setFavoriteIds(profileId: String, streamIds: List<Int>)
+
+    @Transaction
+    suspend fun replaceFavorites(profileId: String, streamIds: List<Int>) {
+        clearFavorites(profileId)
+        if (streamIds.isNotEmpty()) setFavoriteIds(profileId, streamIds.distinct())
+    }
+
     @Query("SELECT * FROM live_channels WHERE profileId = :profileId AND lastWatchedAt IS NOT NULL")
     suspend fun getWatched(profileId: String): List<LiveChannelEntity>
 
@@ -278,6 +293,21 @@ interface TVFlowDao {
     @Query("DELETE FROM playback_positions WHERE profileId = :profileId AND mediaKey = :mediaKey")
     suspend fun clearPlaybackPosition(profileId: String, mediaKey: String)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertWatchHistory(item: WatchHistoryEntity)
+
+    @Query("SELECT * FROM watch_history WHERE profileId = :profileId ORDER BY watchedAt DESC LIMIT :limit")
+    fun observeWatchHistory(profileId: String, limit: Int = 40): Flow<List<WatchHistoryEntity>>
+
+    @Query("SELECT mediaId FROM watch_history WHERE profileId = :profileId AND kind = :kind AND completed = 1")
+    fun observeCompletedMediaIds(profileId: String, kind: String): Flow<List<String>>
+
+    @Query("SELECT mediaId FROM watch_history WHERE profileId = :profileId AND kind = 'episode' AND seriesId = :seriesId AND completed = 1")
+    fun observeCompletedEpisodeIds(profileId: String, seriesId: Int): Flow<List<String>>
+
+    @Query("DELETE FROM watch_history WHERE profileId = :profileId")
+    suspend fun clearWatchHistory(profileId: String)
+
     @Query("DELETE FROM epg_programs WHERE profileId = :profileId")
     suspend fun clearAllEpg(profileId: String)
 
@@ -296,6 +326,7 @@ interface TVFlowDao {
         clearSeries(profileId)
         clearAllMediaCategories(profileId)
         clearPlaybackPositions(profileId)
+        clearWatchHistory(profileId)
     }
 }
 

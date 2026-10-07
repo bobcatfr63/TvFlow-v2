@@ -12,6 +12,7 @@ import com.tvflow.app.data.local.SeriesItemEntity
 import com.tvflow.app.data.local.SettingsStore
 import com.tvflow.app.data.local.TVFlowDao
 import com.tvflow.app.data.local.VodItemEntity
+import com.tvflow.app.data.local.WatchHistoryEntity
 import com.tvflow.app.data.metadata.TmdbMetadataClient
 import com.tvflow.app.data.remote.XtreamApi
 import com.tvflow.app.domain.ConnectionDiagnostics
@@ -29,6 +30,7 @@ import com.tvflow.app.domain.SeriesItem
 import com.tvflow.app.domain.ServerProfile
 import com.tvflow.app.domain.StreamHealth
 import com.tvflow.app.domain.VodItem
+import com.tvflow.app.domain.WatchHistoryItem
 import com.tvflow.app.domain.XtreamCredentials
 import com.tvflow.app.domain.parseXtreamM3uUrl
 import androidx.paging.Pager
@@ -102,6 +104,18 @@ private val FRENCH_AUDIO_HINTS = setOf(
     "MULTI", "AUDIO", "DUB", "DUBBED", "DOUBLAGE"
 )
 
+data class GlobalSearchResults(
+    val live: List<LiveChannel> = emptyList(),
+    val vod: List<VodItem> = emptyList(),
+    val series: List<SeriesItem> = emptyList()
+)
+
+private data class SearchCache(
+    val live: List<Pair<String, LiveChannel>>,
+    val vod: List<Pair<String, VodItem>>,
+    val series: List<Pair<String, SeriesItem>>
+)
+
 @OptIn(ExperimentalCoroutinesApi::class)
 @Singleton
 class XtreamRepository @Inject constructor(
@@ -120,6 +134,8 @@ class XtreamRepository @Inject constructor(
     private val liveResultCache = object : LinkedHashMap<String, List<LiveChannel>>(12, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, List<LiveChannel>>?): Boolean = size > 12
     }
+    private val searchCache = mutableMapOf<String, SearchCache>()
+    private val searchCacheMutex = Mutex()
     private val xmltvMutex = Mutex()
     private val catchupProbeCache = LinkedHashMap<String, Boolean>(32, 0.75f, true)
     @Volatile private var lastXmltvRefreshAtMs = 0L
@@ -253,6 +269,7 @@ class XtreamRepository @Inject constructor(
                 }
             }
         )
+        invalidateSearchCache(profileId)
         onProgress(100, "Actualisation terminée")
     }
 
@@ -285,6 +302,7 @@ class XtreamRepository @Inject constructor(
                 )
             }
         )
+        invalidateSearchCache(profileId)
     }
 
     private suspend fun refreshMediaCatalog(credentials: XtreamCredentials, profileId: String) = coroutineScope {
@@ -332,6 +350,7 @@ class XtreamRepository @Inject constructor(
                 }
             }
         )
+        invalidateSearchCache(profileId)
     }
 
     fun observeEpg(streamId: Int): Flow<List<EpgProgram>> = activeProfileId.flatMapLatest { profileId ->
@@ -372,8 +391,18 @@ class XtreamRepository @Inject constructor(
     }
 
     fun observeCategories(): Flow<List<LiveCategory>> = activeProfileId
-        .flatMapLatest { id -> if (id == null) flowOf(emptyList()) else dao.observeCategories(id) }
-        .map(::buildPrimaryLiveCategories)
+        .flatMapLatest { id ->
+            if (id == null) {
+                flowOf(emptyList())
+            } else {
+                combine(
+                    dao.observeCategories(id),
+                    settingsStore.categorySectionOverrides(id)
+                ) { categories, overrides ->
+                    buildPrimaryLiveCategories(categories, overrides)
+                }
+            }
+        }
 
     fun observeManageCategories(): Flow<List<LiveCategory>> = activeProfileId.flatMapLatest { id -> if (id == null) flowOf(emptyList()) else dao.observeManageCategories(id) }
         .map { list -> list.map { LiveCategory(it.id, it.name, it.sortOrder, it.isHidden, it.isLocked) } }
@@ -408,16 +437,27 @@ class XtreamRepository @Inject constructor(
 
     fun observeMediaCategories(type: MediaType): Flow<List<MediaCategory>> =
         activeProfileId.flatMapLatest { id ->
-            if (id == null) flowOf(emptyList()) else dao.observeMediaCategories(id, type.name)
-        }.map { list ->
-            list.map {
-                MediaCategory(
-                    id = it.id,
-                    name = it.name,
-                    type = MediaType.valueOf(it.type),
-                    order = it.sortOrder,
-                    section = classifyMediaSection(it.name)
-                )
+            if (id == null) {
+                flowOf(emptyList())
+            } else {
+                combine(
+                    dao.observeMediaCategories(id, type.name),
+                    settingsStore.categorySectionOverrides(id)
+                ) { list, overrides ->
+                    list.map {
+                        val key = type.name + ":" + it.id
+                        val overridden = overrides[key]?.let { value ->
+                            runCatching { MediaSection.valueOf(value) }.getOrNull()
+                        }
+                        MediaCategory(
+                            id = it.id,
+                            name = it.name,
+                            type = MediaType.valueOf(it.type),
+                            order = it.sortOrder,
+                            section = overridden ?: classifyMediaSection(it.name)
+                        )
+                    }
+                }
             }
         }
     fun observeVod(categoryId: String): Flow<List<VodItem>> = activeProfileId.flatMapLatest { id -> if (id == null) flowOf(emptyList()) else dao.observeVod(id, categoryId) }.map { list -> list.map { it.toDomain() } }
@@ -552,6 +592,46 @@ class XtreamRepository @Inject constructor(
     fun searchVod(query: String): Flow<List<VodItem>> = activeProfileId.flatMapLatest { id -> if (id == null) flowOf(emptyList()) else dao.searchVod(id, query) }.map { list -> list.map { it.toDomain() } }
     fun searchSeries(query: String): Flow<List<SeriesItem>> = activeProfileId.flatMapLatest { id -> if (id == null) flowOf(emptyList()) else dao.searchSeries(id, query) }.map { list -> list.map { it.toDomain() } }
 
+    suspend fun searchGlobal(query: String, limitPerType: Int = 60): GlobalSearchResults = withContext(Dispatchers.Default) {
+        val profileId = currentProfileId()
+        val normalizedQuery = normalizeSearchText(query)
+        if (normalizedQuery.length < 2) return@withContext GlobalSearchResults()
+        val cache = searchCacheMutex.withLock {
+            searchCache[profileId] ?: buildSearchCache(profileId).also { searchCache[profileId] = it }
+        }
+        fun <T> find(source: List<Pair<String, T>>): List<T> =
+            source.asSequence()
+                .filter { (key, _) -> key.contains(normalizedQuery) }
+                .sortedBy { (key, _) -> key.indexOf(normalizedQuery).coerceAtLeast(0) }
+                .take(limitPerType)
+                .map { it.second }
+                .toList()
+
+        GlobalSearchResults(
+            live = find(cache.live),
+            vod = find(cache.vod),
+            series = find(cache.series)
+        )
+    }
+
+    private suspend fun buildSearchCache(profileId: String): SearchCache = withContext(Dispatchers.IO) {
+        SearchCache(
+            live = dao.getAllChannels(profileId)
+                .asSequence()
+                .filterNot { it.isHidden }
+                .map { normalizeSearchText(it.name) to it.toDomain() }
+                .toList(),
+            vod = dao.getAllVod(profileId)
+                .map { normalizeSearchText(it.name) to it.toDomain() },
+            series = dao.getAllSeries(profileId)
+                .map { normalizeSearchText(it.name) to it.toDomain() }
+        )
+    }
+
+    private suspend fun invalidateSearchCache(profileId: String) {
+        searchCacheMutex.withLock { searchCache.remove(profileId) }
+    }
+
     suspend fun getSeriesEpisodes(seriesId: Int): List<Episode> {
         val credentials = savedCredentials.first() ?: return emptyList()
         val response = api.getSeriesInfo(playerApi(credentials.serverUrl), credentials.username, credentials.password, seriesId = seriesId)
@@ -563,7 +643,50 @@ class XtreamRepository @Inject constructor(
         }
     }
 
-    suspend fun toggleFavorite(streamId: Int) = dao.toggleFavorite(currentProfileId(), streamId)
+    suspend fun toggleFavorite(streamId: Int) {
+        val profileId = currentProfileId()
+        dao.toggleFavorite(profileId, streamId)
+        settingsStore.markFavoriteSyncChanged(profileId)
+    }
+
+    fun observeFavoriteIds(): Flow<Set<Int>> = activeProfileId.flatMapLatest { profileId ->
+        if (profileId == null) flowOf(emptySet())
+        else dao.observeFavorites(profileId).map { list -> list.map { it.streamId }.toSet() }
+    }
+
+    suspend fun applySyncedFavorites(profileId: String, streamIds: Set<Int>, timestamp: Long): Boolean {
+        val localTimestamp = settingsStore.favoriteSyncTimestamp(profileId).first()
+        if (timestamp <= localTimestamp) return false
+        dao.replaceFavorites(profileId, streamIds.toList())
+        settingsStore.markFavoriteSyncChanged(profileId, timestamp)
+        return true
+    }
+
+    suspend fun currentFavoriteSyncTimestamp(profileId: String): Long =
+        settingsStore.favoriteSyncTimestamp(profileId).first()
+
+    suspend fun setCategorySectionOverride(categoryId: String, section: MediaSection?) {
+        val profileId = currentProfileId()
+        settingsStore.setCategorySectionOverride(
+            profileId = profileId,
+            categoryKey = "LIVE:" + categoryId,
+            section = section?.name
+        )
+    }
+
+    suspend fun setMediaCategorySectionOverride(
+        type: MediaType,
+        categoryId: String,
+        section: MediaSection?
+    ) {
+        val profileId = currentProfileId()
+        settingsStore.setCategorySectionOverride(
+            profileId = profileId,
+            categoryKey = type.name + ":" + categoryId,
+            section = section?.name
+        )
+    }
+
     suspend fun markWatched(streamId: Int) = dao.markWatched(currentProfileId(), streamId, System.currentTimeMillis())
 
     suspend fun reportPlaybackReady(streamId: Int) {
@@ -666,15 +789,115 @@ class XtreamRepository @Inject constructor(
         return buildEpisodeStreamUrl(credentials, episode.id, episode.containerExtension)
     }
 
-    suspend fun savePlaybackPosition(mediaKey: String, positionMs: Long, durationMs: Long, title: String, imageUrl: String?, kind: String, mediaId: String, containerExtension: String?) {
+    suspend fun savePlaybackPosition(
+        mediaKey: String,
+        positionMs: Long,
+        durationMs: Long,
+        title: String,
+        imageUrl: String?,
+        kind: String,
+        mediaId: String,
+        containerExtension: String?,
+        seriesId: Int? = null
+    ) {
         val profileId = currentProfileId()
         if (positionMs < 5_000L || durationMs <= 0L) return
-        if (durationMs - positionMs < 30_000L || positionMs >= durationMs * 0.95) dao.clearPlaybackPosition(profileId, mediaKey)
-        else dao.savePlaybackPosition(PlaybackPositionEntity(profileId, mediaKey, positionMs, durationMs, System.currentTimeMillis(), title, imageUrl, kind, mediaId, containerExtension))
+        val now = System.currentTimeMillis()
+        val completed = durationMs - positionMs < 30_000L || positionMs >= durationMs * 0.95
+        dao.upsertWatchHistory(
+            WatchHistoryEntity(
+                profileId = profileId,
+                mediaKey = mediaKey,
+                kind = kind,
+                mediaId = mediaId,
+                seriesId = seriesId,
+                title = title,
+                imageUrl = imageUrl,
+                containerExtension = containerExtension,
+                positionMs = positionMs,
+                durationMs = durationMs,
+                watchedAt = now,
+                completed = completed
+            )
+        )
+        if (completed) {
+            dao.clearPlaybackPosition(profileId, mediaKey)
+        } else {
+            dao.savePlaybackPosition(
+                PlaybackPositionEntity(
+                    profileId = profileId,
+                    mediaKey = mediaKey,
+                    positionMs = positionMs,
+                    durationMs = durationMs,
+                    updatedAt = now,
+                    title = title,
+                    imageUrl = imageUrl,
+                    kind = kind,
+                    mediaId = mediaId,
+                    containerExtension = containerExtension,
+                    seriesId = seriesId
+                )
+            )
+        }
+    }
+
+    suspend fun markPlaybackCompleted(
+        mediaKey: String,
+        title: String,
+        imageUrl: String?,
+        kind: String,
+        mediaId: String,
+        containerExtension: String?,
+        seriesId: Int?,
+        durationMs: Long
+    ) {
+        val profileId = currentProfileId()
+        val existing = dao.getPlaybackPosition(profileId, mediaKey)
+        dao.upsertWatchHistory(
+            WatchHistoryEntity(
+                profileId = profileId,
+                mediaKey = mediaKey,
+                kind = kind,
+                mediaId = mediaId,
+                seriesId = seriesId,
+                title = title,
+                imageUrl = imageUrl,
+                containerExtension = containerExtension,
+                positionMs = durationMs.coerceAtLeast(existing?.positionMs ?: 0L),
+                durationMs = durationMs.coerceAtLeast(existing?.durationMs ?: 0L),
+                watchedAt = System.currentTimeMillis(),
+                completed = true
+            )
+        )
+        dao.clearPlaybackPosition(profileId, mediaKey)
     }
 
     suspend fun playbackPosition(mediaKey: String): PlaybackPosition? = dao.getPlaybackPosition(currentProfileId(), mediaKey)?.toDomain()
     fun observeContinueWatching(limit: Int = 20): Flow<List<PlaybackPosition>> = activeProfileId.flatMapLatest { id -> if (id == null) flowOf(emptyList()) else dao.observePlaybackPositions(id, limit) }.map { list -> list.map { it.toDomain() } }
+    fun observeWatchHistory(limit: Int = 40): Flow<List<WatchHistoryItem>> = activeProfileId.flatMapLatest { id ->
+        if (id == null) flowOf(emptyList()) else dao.observeWatchHistory(id, limit)
+    }.map { list -> list.map { it.toDomain() } }
+
+    fun observeCompletedEpisodeIds(seriesId: Int): Flow<Set<String>> = activeProfileId.flatMapLatest { id ->
+        if (id == null) flowOf(emptySet())
+        else dao.observeCompletedEpisodeIds(id, seriesId).map { it.toSet() }
+    }
+
+    suspend fun warmStreamUrl(url: String) = withContext(Dispatchers.IO) {
+        val request = Request.Builder()
+            .url(url)
+            .header("Range", "bytes=0-1")
+            .get()
+            .build()
+        runCatching {
+            okHttpClient.newBuilder()
+                .callTimeout(4, TimeUnit.SECONDS)
+                .build()
+                .newCall(request)
+                .execute()
+                .use { }
+        }
+    }
 
     suspend fun diagnoseConnection(): ConnectionDiagnostics {
         val credentials = savedCredentials.first()
@@ -1024,7 +1247,22 @@ class XtreamRepository @Inject constructor(
         releaseMonth = releaseMonth
     )
     private fun SeriesItemEntity.toDomain() = SeriesItem(seriesId, name, categoryId, coverUrl, rating, plot, releaseYear, releaseMonth)
-    private fun PlaybackPositionEntity.toDomain() = PlaybackPosition(mediaKey, positionMs, durationMs, updatedAt, title, imageUrl, kind, mediaId, containerExtension)
+    private fun PlaybackPositionEntity.toDomain() = PlaybackPosition(
+        mediaKey, positionMs, durationMs, updatedAt, title, imageUrl, kind, mediaId, containerExtension, seriesId
+    )
+    private fun WatchHistoryEntity.toDomain() = WatchHistoryItem(
+        mediaKey = mediaKey,
+        kind = kind,
+        mediaId = mediaId,
+        seriesId = seriesId,
+        title = title,
+        imageUrl = imageUrl,
+        containerExtension = containerExtension,
+        positionMs = positionMs,
+        durationMs = durationMs,
+        watchedAt = watchedAt,
+        completed = completed
+    )
 
     private fun decodeEpgText(value: String?): String {
         if (value.isNullOrBlank()) return ""
@@ -1131,11 +1369,24 @@ private data class ParsedLiveCategory(
     val suffix: String
 )
 
-internal fun buildPrimaryLiveCategories(list: List<LiveCategoryEntity>): List<LiveCategory> {
+internal fun buildPrimaryLiveCategories(
+    list: List<LiveCategoryEntity>,
+    overrides: Map<String, String> = emptyMap()
+): List<LiveCategory> {
     val visible = list.filterNot { it.name.trim().matches(Regex("^#{3,}.*#{3,}$")) }
-    val kids = visible.filter(::isKidsProviderCategory)
+    fun section(entity: LiveCategoryEntity): MediaSection {
+        val overridden = overrides["LIVE:" + entity.id]?.let { value ->
+            runCatching { MediaSection.valueOf(value) }.getOrNull()
+        }
+        return overridden ?: when {
+            isKidsProviderCategory(entity) -> MediaSection.KIDS
+            isFranceProviderCategory(entity) -> MediaSection.FRANCE
+            else -> MediaSection.OTHER
+        }
+    }
+    val kids = visible.filter { section(it) == MediaSection.KIDS }
     val kidsIds = kids.asSequence().map { it.id }.toSet()
-    val france = visible.filter { it.id !in kidsIds && isFranceProviderCategory(it) }
+    val france = visible.filter { it.id !in kidsIds && section(it) == MediaSection.FRANCE }
     val franceIds = france.asSequence().map { it.id }.toSet()
     val others = visible.filter { it.id !in kidsIds && it.id !in franceIds }
 
@@ -1216,6 +1467,13 @@ private fun normalizeCategoryName(value: String): String =
         .replace(CATEGORY_DIACRITICS, "")
         .uppercase(Locale.ROOT)
 
+private fun normalizeSearchText(value: String): String =
+    java.text.Normalizer.normalize(value, java.text.Normalizer.Form.NFD)
+        .replace(CATEGORY_DIACRITICS, "")
+        .lowercase(Locale.ROOT)
+        .replace(Regex("[^a-z0-9]+"), " ")
+        .trim()
+
 private const val FRENCH_CATEGORY_THRESHOLD = 4
 
 private fun categoryTokens(name: String): List<String> =
@@ -1228,9 +1486,9 @@ private fun categoryTokens(name: String): List<String> =
 internal fun frenchCategoryScore(name: String): Int {
     val normalized = normalizeCategoryName(name)
     val tokens = categoryTokens(name)
-    if (tokens.isEmpty()) return 0
+    if (tokens.isEmpty() && !name.contains("🇫🇷")) return 0
 
-    var score = 0
+    var score = if (name.contains("🇫🇷")) 6 else 0
 
     // Strong, explicit French markers. These should work regardless of provider separators.
     tokens.forEach { token ->
