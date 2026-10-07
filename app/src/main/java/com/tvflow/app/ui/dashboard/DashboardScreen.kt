@@ -187,6 +187,7 @@ fun DashboardScreen(
         }
 
         val update = state.updateInfo
+        val installedReleaseNotesVersion = state.installedReleaseNotesVersion
         if (update != null) {
             UpdatePopup(
                 update = update,
@@ -201,11 +202,11 @@ fun DashboardScreen(
                 onDismiss = viewModel::dismissUpdate
             )
         } else if (
-            state.installedReleaseNotesVersion != null &&
+            installedReleaseNotesVersion != null &&
             state.installedReleaseNotes.isNotEmpty()
         ) {
             InstalledReleaseNotesPopup(
-                versionName = state.installedReleaseNotesVersion,
+                versionName = installedReleaseNotesVersion,
                 notes = state.installedReleaseNotes,
                 onDismiss = viewModel::dismissInstalledReleaseNotes
             )
