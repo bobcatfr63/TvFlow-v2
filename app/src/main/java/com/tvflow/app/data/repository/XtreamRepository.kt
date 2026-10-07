@@ -571,14 +571,20 @@ class XtreamRepository @Inject constructor(
               }
         }.map { list -> list.map { it.toDomain() } }
 
-    suspend fun randomVodPreview(): Pair<VodItem, String>? {
+    suspend fun randomVodPreview(excludeStreamId: Int? = null): Pair<VodItem, String>? {
         val profileId = activeProfileId.filterNotNull().first()
         val frenchCategoryIds = dao.observeMediaCategories(profileId, MediaType.VOD.name)
             .first()
             .filter { classifyMediaSection(it.name) == MediaSection.FRANCE }
             .map { it.id }
         if (frenchCategoryIds.isEmpty()) return null
-        val item = dao.featuredVodForCategories(profileId, frenchCategoryIds)?.toDomain() ?: return null
+
+        val candidates = dao.previewVodCandidates(profileId, frenchCategoryIds, limit = 80)
+            .map { it.toDomain() }
+            .filter { it.streamId != excludeStreamId }
+        if (candidates.isEmpty()) return null
+
+        val item = candidates.random()
         return item to vodUrl(item)
     }
     fun observeSeries(categoryId: String): Flow<List<SeriesItem>> = activeProfileId.flatMapLatest { id -> if (id == null) flowOf(emptyList()) else dao.observeSeries(id, categoryId) }.map { list -> list.map { it.toDomain() } }

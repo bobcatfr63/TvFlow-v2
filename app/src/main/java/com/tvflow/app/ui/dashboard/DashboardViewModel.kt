@@ -24,6 +24,7 @@ import java.util.Calendar
 import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -109,11 +110,17 @@ class DashboardViewModel @Inject constructor(
         }
         viewModelScope.launch { updateInfo.value = updateChecker.check() }
         viewModelScope.launch {
-            val preview = runCatching { repository.randomVodPreview() }
-                .onFailure { Log.w("TVFlowHome", "Background preview selection failed", it) }
-                .getOrNull()
-            backgroundPreview.value = preview?.let { (item, url) ->
-                DashboardBackdrop(url = url, title = item.name)
+            var currentStreamId: Int? = null
+            while (true) {
+                val preview = runCatching { repository.randomVodPreview(currentStreamId) }
+                    .onFailure { Log.w("TVFlowHome", "Background preview selection failed", it) }
+                    .getOrNull()
+                if (preview != null) {
+                    val (item, url) = preview
+                    currentStreamId = item.streamId
+                    backgroundPreview.value = DashboardBackdrop(url = url, title = item.name)
+                }
+                delay(60_000L)
             }
         }
         viewModelScope.launch(Dispatchers.IO) {

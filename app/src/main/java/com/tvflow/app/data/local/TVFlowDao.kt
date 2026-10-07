@@ -171,6 +171,13 @@ interface TVFlowDao {
     @Query("SELECT * FROM vod_items WHERE profileId = :profileId AND categoryId IN (:categoryIds) ORDER BY COALESCE(added, 0) DESC, name LIMIT 1")
     suspend fun featuredVodForCategories(profileId: String, categoryIds: List<String>): VodItemEntity?
 
+    @Query("SELECT * FROM vod_items WHERE profileId = :profileId AND categoryId IN (:categoryIds) ORDER BY COALESCE(added, 0) DESC, name LIMIT :limit")
+    suspend fun previewVodCandidates(
+        profileId: String,
+        categoryIds: List<String>,
+        limit: Int = 80
+    ): List<VodItemEntity>
+
     @Query("SELECT * FROM vod_items WHERE profileId = :profileId AND releaseYear IS NOT NULL ORDER BY releaseYear DESC, COALESCE(releaseMonth, 0) DESC, name LIMIT :limit")
     fun observeRecentVodReleases(profileId: String, limit: Int): Flow<List<VodItemEntity>>
 
