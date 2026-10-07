@@ -25,6 +25,7 @@ import com.tvflow.app.ui.search.SearchScreen
 import com.tvflow.app.ui.settings.SettingsScreen
 import com.tvflow.app.ui.series.SeriesDetailsScreen
 import com.tvflow.app.ui.startup.StartupScreen
+import com.tvflow.app.ui.update.GlobalUpdateOverlay
 import com.tvflow.app.ui.vod.VodDetailsScreen
 import com.tvflow.app.ui.vod.VodPlayerScreen
 
@@ -262,4 +263,6 @@ fun TVFlowNavHost(
             PlayerScreen()
         }
     }
+
+    GlobalUpdateOverlay()
 }

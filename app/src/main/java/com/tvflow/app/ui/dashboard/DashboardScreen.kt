@@ -186,22 +186,8 @@ fun DashboardScreen(
             }
         }
 
-        val update = state.updateInfo
         val installedReleaseNotesVersion = state.installedReleaseNotesVersion
-        if (update != null) {
-            UpdatePopup(
-                update = update,
-                downloadState = state.updateDownloadState,
-                onUpdate = {
-                    if (state.updateDownloadState is UpdateDownloadState.Ready) {
-                        viewModel.installUpdate(context)
-                    } else {
-                        viewModel.downloadUpdate()
-                    }
-                },
-                onDismiss = viewModel::dismissUpdate
-            )
-        } else if (
+        if (
             installedReleaseNotesVersion != null &&
             state.installedReleaseNotes.isNotEmpty()
         ) {
