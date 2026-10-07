@@ -50,12 +50,21 @@ fun TVFlowNavHost(
                 "&synopsis=${Uri.encode(item.synopsis ?: "_")}" +
                 "&rating=${Uri.encode(item.rating ?: "_")}" +
                 "&year=${item.releaseYear ?: -1}" +
-                "&month=${item.releaseMonth ?: -1}"
+                "&month=${item.releaseMonth ?: -1}" +
+                "&categoryId=${Uri.encode(item.categoryId)}"
         )
     }
 
     fun openSeriesDetails(item: SeriesItem) {
-        navController.navigate("series/${item.seriesId}/${Uri.encode(item.name)}")
+        navController.navigate(
+            "series/${item.seriesId}/${Uri.encode(item.name)}" +
+                "?categoryId=${Uri.encode(item.categoryId)}" +
+                "&cover=${Uri.encode(item.coverUrl ?: "_")}" +
+                "&plot=${Uri.encode(item.plot ?: "_")}" +
+                "&rating=${Uri.encode(item.rating ?: "_")}" +
+                "&year=${item.releaseYear ?: -1}" +
+                "&month=${item.releaseMonth ?: -1}"
+        )
     }
 
     LaunchedEffect(pendingTransfer) {
@@ -148,7 +157,7 @@ fun TVFlowNavHost(
             )
         }
         composable(
-            route = "vodDetails/{streamId}/{title}/{ext}?poster={poster}&synopsis={synopsis}&rating={rating}&year={year}&month={month}",
+            route = "vodDetails/{streamId}/{title}/{ext}?poster={poster}&synopsis={synopsis}&rating={rating}&year={year}&month={month}&categoryId={categoryId}",
             arguments = listOf(
                 navArgument("streamId") { type = NavType.IntType },
                 navArgument("title") { type = NavType.StringType },
@@ -157,7 +166,8 @@ fun TVFlowNavHost(
                 navArgument("synopsis") { type = NavType.StringType; defaultValue = "_" },
                 navArgument("rating") { type = NavType.StringType; defaultValue = "_" },
                 navArgument("year") { type = NavType.IntType; defaultValue = -1 },
-                navArgument("month") { type = NavType.IntType; defaultValue = -1 }
+                navArgument("month") { type = NavType.IntType; defaultValue = -1 },
+                navArgument("categoryId") { type = NavType.StringType; defaultValue = "" }
             )
         ) { entry ->
             val streamId = entry.arguments?.getInt("streamId") ?: return@composable
@@ -176,7 +186,8 @@ fun TVFlowNavHost(
                 releaseYear = year,
                 releaseMonth = month,
                 onPlay = { openVod(streamId, title, ext) },
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStack() },
+                onSuggestion = ::openVodDetails
             )
         }
         composable("search") {
@@ -187,20 +198,37 @@ fun TVFlowNavHost(
             )
         }
         composable(
-            route = "series/{seriesId}/{name}",
+            route = "series/{seriesId}/{name}?categoryId={categoryId}&cover={cover}&plot={plot}&rating={rating}&year={year}&month={month}",
             arguments = listOf(
                 navArgument("seriesId") { type = NavType.IntType },
-                navArgument("name") { type = NavType.StringType }
+                navArgument("name") { type = NavType.StringType },
+                navArgument("categoryId") { type = NavType.StringType; defaultValue = "" },
+                navArgument("cover") { type = NavType.StringType; defaultValue = "_" },
+                navArgument("plot") { type = NavType.StringType; defaultValue = "_" },
+                navArgument("rating") { type = NavType.StringType; defaultValue = "_" },
+                navArgument("year") { type = NavType.IntType; defaultValue = -1 },
+                navArgument("month") { type = NavType.IntType; defaultValue = -1 }
             )
         ) { entry ->
             val name = Uri.decode(entry.arguments?.getString("name").orEmpty())
+            val cover = Uri.decode(entry.arguments?.getString("cover").orEmpty()).takeUnless { it == "_" }
+            val plot = Uri.decode(entry.arguments?.getString("plot").orEmpty()).takeUnless { it == "_" }
+            val rating = Uri.decode(entry.arguments?.getString("rating").orEmpty()).takeUnless { it == "_" }
+            val year = entry.arguments?.getInt("year")?.takeIf { it > 0 }
+            val month = entry.arguments?.getInt("month")?.takeIf { it in 1..12 }
             SeriesDetailsScreen(
                 seriesName = name,
+                coverUrl = cover,
+                plot = plot,
+                rating = rating,
+                releaseYear = year,
+                releaseMonth = month,
                 onPlayEpisode = { episode ->
                     navController.navigate(
                         "vodPlayer/episode/${Uri.encode(episode.id)}/${Uri.encode(episode.title)}/${Uri.encode(episode.containerExtension ?: "_")}?seriesId=${entry.arguments?.getInt("seriesId") ?: -1}"
                     )
-                }
+                },
+                onSuggestion = ::openSeriesDetails
             )
         }
         composable(
