@@ -55,6 +55,15 @@ interface XtreamApi {
     ): List<VodStreamDto>
 
     @GET
+    suspend fun getVodInfo(
+        @Url playerApiUrl: String,
+        @Query("username") username: String,
+        @Query("password") password: String,
+        @Query("action") action: String = "get_vod_info",
+        @Query("vod_id") vodId: Int
+    ): VodInfoResponse
+
+    @GET
     suspend fun getSeries(
         @Url playerApiUrl: String,
         @Query("username") username: String,

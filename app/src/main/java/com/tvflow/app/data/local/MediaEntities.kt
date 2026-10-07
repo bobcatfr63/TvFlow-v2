@@ -32,7 +32,8 @@ data class VodItemEntity(
     val synopsis: String? = null,
     val releaseYear: Int? = null,
     val releaseMonth: Int? = null,
-    val containerExtension: String?
+    val containerExtension: String?,
+    val detailsFetchedAt: Long? = null
 )
 
 @Entity(

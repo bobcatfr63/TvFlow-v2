@@ -101,7 +101,7 @@ fun SettingsScreen(
             horizontalArrangement = Arrangement.spacedBy(22.dp)
         ) {
         LazyColumn(
-            Modifier.width(420.dp).fillMaxHeight(),
+            Modifier.width(350.dp).fillMaxHeight(),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item {
@@ -337,13 +337,17 @@ fun SettingsScreen(
 
         Column(Modifier.weight(1f).fillMaxHeight()) {
             SectionTitle("Organisation des chaînes")
-            Text("Masquer, verrouiller et réordonner les catégories. Sélectionne une catégorie pour gérer ses chaînes.")
+            Text("Sélectionne une catégorie à gauche, puis utilise les actions à droite.")
             Text(
-                "Classement adaptatif : FR = France, E = Enfants, A = Autres, ↺ = automatique. Le choix est mémorisé pour ce serveur.",
+                "Le classement FR / Enfants / Autres est mémorisé pour chaque serveur.",
                 style = MaterialTheme.typography.bodySmall
             )
             Spacer(Modifier.height(8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 val allSelected = state.categories.isNotEmpty() &&
                     state.selectedCategoryIds.size == state.categories.size
                 SettingsButton(
@@ -351,66 +355,129 @@ fun SettingsScreen(
                         if (allSelected) viewModel.clearCategorySelection()
                         else viewModel.selectAllCategories()
                     },
+                    modifier = Modifier.weight(1f),
                     selected = allSelected
                 ) {
-                    Text(if (allSelected) "✓ Tout désélectionner" else "☐ Tout sélectionner")
+                    Text(if (allSelected) "✓ Désélectionner" else "☐ Tout sélectionner", maxLines = 1)
                 }
                 SettingsButton(
                     onClick = { viewModel.setSelectedCategoriesHidden(true) },
+                    modifier = Modifier.weight(1f),
                     enabled = state.selectedCategoryIds.isNotEmpty()
-                ) { Text("Masquer la sélection") }
+                ) { Text("Masquer sélection", maxLines = 1) }
                 SettingsButton(
                     onClick = { viewModel.setSelectedCategoriesHidden(false) },
+                    modifier = Modifier.weight(1f),
                     enabled = state.selectedCategoryIds.isNotEmpty()
-                ) { Text("Afficher la sélection") }
+                ) { Text("Afficher sélection", maxLines = 1) }
             }
+
             Spacer(Modifier.height(10.dp))
-            Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                LazyColumn(Modifier.width(360.dp).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+            Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                LazyColumn(
+                    Modifier.width(300.dp).fillMaxHeight(),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
                     items(state.categories, key = { it.id }) { category ->
                         CategoryManageRow(
                             category = category,
                             selected = state.selectedCategoryId == category.id,
                             selectedForBulk = category.id in state.selectedCategoryIds,
                             onSelect = { viewModel.selectCategory(category.id) },
-                            onToggleBulk = { viewModel.toggleCategorySelection(category.id) },
-                            onHide = { viewModel.toggleCategoryHidden(category) },
-                            onLock = { viewModel.toggleCategoryLocked(category) },
-                            onFrance = { viewModel.classifyCategory(category, MediaSection.FRANCE) },
-                            onKids = { viewModel.classifyCategory(category, MediaSection.KIDS) },
-                            onOther = { viewModel.classifyCategory(category, MediaSection.OTHER) },
-                            onAuto = { viewModel.resetCategoryClassification(category) },
-                            onUp = { viewModel.moveCategory(category, -1) },
-                            onDown = { viewModel.moveCategory(category, +1) }
+                            onToggleBulk = { viewModel.toggleCategorySelection(category.id) }
                         )
                     }
                 }
+
                 Column(Modifier.weight(1f).fillMaxHeight()) {
+                    val selectedCategory = state.categories.firstOrNull { it.id == state.selectedCategoryId }
+                    if (selectedCategory != null) {
+                        Text(
+                            selectedCategory.name,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Spacer(Modifier.height(6.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            SettingsButton(
+                                onClick = { viewModel.classifyCategory(selectedCategory, MediaSection.FRANCE) },
+                                modifier = Modifier.weight(1f)
+                            ) { Text("FR", maxLines = 1) }
+                            SettingsButton(
+                                onClick = { viewModel.classifyCategory(selectedCategory, MediaSection.KIDS) },
+                                modifier = Modifier.weight(1f)
+                            ) { Text("Enfants", maxLines = 1) }
+                            SettingsButton(
+                                onClick = { viewModel.classifyCategory(selectedCategory, MediaSection.OTHER) },
+                                modifier = Modifier.weight(1f)
+                            ) { Text("Autres", maxLines = 1) }
+                            SettingsButton(
+                                onClick = { viewModel.resetCategoryClassification(selectedCategory) },
+                                modifier = Modifier.weight(1f)
+                            ) { Text("Auto", maxLines = 1) }
+                        }
+                        Spacer(Modifier.height(6.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            SettingsButton(
+                                onClick = { viewModel.toggleCategoryHidden(selectedCategory) },
+                                modifier = Modifier.weight(1f)
+                            ) { Text(if (selectedCategory.isHidden) "Afficher" else "Masquer", maxLines = 1) }
+                            SettingsButton(
+                                onClick = { viewModel.toggleCategoryLocked(selectedCategory) },
+                                modifier = Modifier.weight(1f)
+                            ) { Text(if (selectedCategory.isLocked) "Déverrouiller" else "Verrouiller", maxLines = 1) }
+                            SettingsButton(
+                                onClick = { viewModel.moveCategory(selectedCategory, -1) },
+                                modifier = Modifier.weight(0.55f)
+                            ) { Text("↑") }
+                            SettingsButton(
+                                onClick = { viewModel.moveCategory(selectedCategory, +1) },
+                                modifier = Modifier.weight(0.55f)
+                            ) { Text("↓") }
+                        }
+                        Spacer(Modifier.height(10.dp))
+                    } else {
+                        Text("Choisis une catégorie pour afficher ses actions.", style = MaterialTheme.typography.bodySmall)
+                        Spacer(Modifier.height(10.dp))
+                    }
+
                     val allChannelsSelected = state.channels.isNotEmpty() &&
                         state.selectedChannelIds.size == state.channels.size
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.padding(bottom = 8.dp)
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         SettingsButton(
                             onClick = {
                                 if (allChannelsSelected) viewModel.clearChannelSelection()
                                 else viewModel.selectAllChannels()
                             },
+                            modifier = Modifier.weight(1.25f),
                             selected = allChannelsSelected,
                             enabled = state.channels.isNotEmpty()
                         ) {
-                            Text(if (allChannelsSelected) "✓ Tout désélectionner" else "☐ Toutes les chaînes")
+                            Text(if (allChannelsSelected) "✓ Désélectionner" else "☐ Toutes les chaînes", maxLines = 1)
                         }
                         SettingsButton(
                             onClick = { viewModel.setSelectedChannelsHidden(true) },
+                            modifier = Modifier.weight(1f),
                             enabled = state.selectedChannelIds.isNotEmpty()
-                        ) { Text("Tout masquer") }
+                        ) { Text("Masquer", maxLines = 1) }
                         SettingsButton(
                             onClick = { viewModel.setSelectedChannelsHidden(false) },
+                            modifier = Modifier.weight(1f),
                             enabled = state.selectedChannelIds.isNotEmpty()
-                        ) { Text("Tout afficher") }
+                        ) { Text("Afficher", maxLines = 1) }
                     }
+
                     LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                         items(state.channels, key = { it.streamId }) { channel ->
                             ChannelManageRow(
@@ -584,27 +651,26 @@ private fun CategoryManageRow(
     selected: Boolean,
     selectedForBulk: Boolean,
     onSelect: () -> Unit,
-    onToggleBulk: () -> Unit,
-    onHide: () -> Unit,
-    onLock: () -> Unit,
-    onFrance: () -> Unit,
-    onKids: () -> Unit,
-    onOther: () -> Unit,
-    onAuto: () -> Unit,
-    onUp: () -> Unit,
-    onDown: () -> Unit
+    onToggleBulk: () -> Unit
 ) {
     FocusRow(onClick = onSelect, selected = selected) {
         SmallAction(if (selectedForBulk) "☑" else "☐", onToggleBulk)
-        Text(category.name, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
-        SmallAction("FR", onFrance)
-        SmallAction("E", onKids)
-        SmallAction("A", onOther)
-        SmallAction("↺", onAuto)
-        SmallAction(if (category.isHidden) "Voir" else "Masq.", onHide)
-        SmallAction(if (category.isLocked) "🔒" else "🔓", onLock)
-        SmallAction("↑", onUp)
-        SmallAction("↓", onDown)
+        Column(Modifier.weight(1f)) {
+            Text(category.name, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (category.isHidden || category.isLocked) {
+                Text(
+                    listOfNotNull(
+                        "Masquée".takeIf { category.isHidden },
+                        "Verrouillée".takeIf { category.isLocked }
+                    ).joinToString(" • "),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+        if (selected) {
+            Text("›", style = MaterialTheme.typography.titleLarge)
+        }
     }
 }
 

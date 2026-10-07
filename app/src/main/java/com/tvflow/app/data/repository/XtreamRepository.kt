@@ -462,6 +462,77 @@ class XtreamRepository @Inject constructor(
         }
     fun observeVod(categoryId: String): Flow<List<VodItem>> = activeProfileId.flatMapLatest { id -> if (id == null) flowOf(emptyList()) else dao.observeVod(id, categoryId) }.map { list -> list.map { it.toDomain() } }
 
+    fun observeVodItem(streamId: Int): Flow<VodItem?> = activeProfileId.flatMapLatest { id ->
+        if (id == null) flowOf(null) else dao.observeVodItem(id, streamId)
+    }.map { it?.toDomain() }
+
+    suspend fun enrichVodDetails(streamId: Int) {
+        val profileId = currentProfileId()
+        val item = dao.getVodItem(profileId, streamId) ?: return
+        if (!item.synopsis.isNullOrBlank()) return
+
+        val now = System.currentTimeMillis()
+        val staleAfterMs = 7L * 24L * 60L * 60L * 1000L
+        val shouldQueryProvider = item.detailsFetchedAt == null || now - item.detailsFetchedAt > staleAfterMs
+
+        if (shouldQueryProvider) {
+            val credentials = savedCredentials.first()
+            if (credentials != null) {
+                val response = runCatching {
+                    api.getVodInfo(
+                        playerApiUrl = playerApi(credentials.serverUrl),
+                        username = credentials.username,
+                        password = credentials.password,
+                        vodId = streamId
+                    )
+                }.onFailure {
+                    Log.w("TVFlowVodInfo", "Xtream get_vod_info failed for id=$streamId", it)
+                }.getOrNull()
+
+                if (response != null) {
+                    val info = response.info
+                    val plot = info?.plot?.trim()?.takeIf { it.isNotBlank() }
+                    val (year, month) = parseReleaseYearMonth(info?.releaseDate, info?.year)
+                    dao.updateVodMetadata(
+                        profileId = profileId,
+                        streamId = streamId,
+                        synopsis = plot,
+                        year = year,
+                        month = month,
+                        posterUrl = info?.movieImage?.takeIf { it.isNotBlank() },
+                        rating = info?.rating?.takeIf { it.isNotBlank() },
+                        detailsFetchedAt = now
+                    )
+                    if (!plot.isNullOrBlank()) {
+                        Log.d("TVFlowVodInfo", "Xtream synopsis cached for id=$streamId")
+                        return
+                    }
+                }
+            }
+        }
+
+        if (!settingsStore.currentTmdbToken().isNullOrBlank()) {
+            val latest = dao.getVodItem(profileId, streamId) ?: item
+            val metadata = runCatching {
+                tmdbMetadataClient.search(MediaType.VOD, latest.name, latest.releaseYear)
+            }.onFailure {
+                Log.w("TVFlowTmdb", "TMDb VOD detail fallback failed for id=$streamId", it)
+            }.getOrNull()
+            if (metadata != null) {
+                dao.updateVodMetadata(
+                    profileId = profileId,
+                    streamId = streamId,
+                    synopsis = metadata.synopsis,
+                    year = metadata.releaseYear,
+                    month = metadata.releaseMonth,
+                    posterUrl = metadata.imageUrl,
+                    rating = metadata.rating,
+                    detailsFetchedAt = now
+                )
+            }
+        }
+    }
+
     fun observeRecentVodReleases(limit: Int = 12): Flow<List<VodItem>> =
         activeProfileId.flatMapLatest { id ->
             if (id == null) flowOf(emptyList())

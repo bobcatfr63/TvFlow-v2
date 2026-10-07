@@ -79,6 +79,25 @@ data class VodStreamDto(
     @SerializedName("container_extension") val containerExtension: String? = null
 )
 
+data class VodInfoResponse(
+    val info: VodInfoDto? = null,
+    @SerializedName("movie_data") val movieData: VodMovieDataDto? = null
+)
+
+data class VodInfoDto(
+    @SerializedName(value = "movie_image", alternate = ["cover_big", "stream_icon"]) val movieImage: String? = null,
+    @SerializedName(value = "plot", alternate = ["description", "overview"]) val plot: String? = null,
+    val rating: String? = null,
+    @SerializedName(value = "releasedate", alternate = ["releaseDate", "release_date"]) val releaseDate: String? = null,
+    @SerializedName(value = "year", alternate = ["releaseYear", "release_year"]) val year: String? = null
+)
+
+data class VodMovieDataDto(
+    @SerializedName("stream_id") val streamId: Int? = null,
+    val name: String? = null,
+    @SerializedName("container_extension") val containerExtension: String? = null
+)
+
 data class SeriesDto(
     @SerializedName("series_id") val seriesId: Int,
     val name: String,

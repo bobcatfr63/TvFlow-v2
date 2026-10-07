@@ -48,6 +48,13 @@ fun VodDetailsScreen(
     viewModel: VodDetailsViewModel = hiltViewModel()
 ) {
     val suggestions by viewModel.suggestions.collectAsState()
+    val enrichedItem by viewModel.item.collectAsState()
+    val effectiveTitle = enrichedItem?.name?.takeIf { it.isNotBlank() } ?: title
+    val effectivePoster = enrichedItem?.posterUrl ?: posterUrl
+    val effectiveSynopsis = enrichedItem?.synopsis?.takeIf { it.isNotBlank() } ?: synopsis
+    val effectiveRating = enrichedItem?.rating?.takeIf { it.isNotBlank() } ?: rating
+    val effectiveReleaseYear = enrichedItem?.releaseYear ?: releaseYear
+    val effectiveReleaseMonth = enrichedItem?.releaseMonth ?: releaseMonth
 
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(
@@ -59,8 +66,8 @@ fun VodDetailsScreen(
                 horizontalArrangement = Arrangement.spacedBy(28.dp)
             ) {
                 AsyncImage(
-                    model = posterUrl,
-                    contentDescription = title,
+                    model = effectivePoster,
+                    contentDescription = effectiveTitle,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.width(280.dp).height(420.dp)
                 )
@@ -70,27 +77,27 @@ fun VodDetailsScreen(
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
                     Text(
-                        title,
+                        effectiveTitle,
                         style = MaterialTheme.typography.headlineLarge,
                         fontWeight = FontWeight.Bold
                     )
 
                     val dateLabel = when {
-                        releaseYear != null && releaseMonth != null ->
-                            monthName(releaseMonth) + " " + releaseYear
-                        releaseYear != null -> releaseYear.toString()
+                        effectiveReleaseYear != null && effectiveReleaseMonth != null ->
+                            monthName(effectiveReleaseMonth) + " " + effectiveReleaseYear
+                        effectiveReleaseYear != null -> effectiveReleaseYear.toString()
                         else -> null
                     }
 
                     Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                         dateLabel?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
-                        rating?.takeIf { it.isNotBlank() }?.let {
+                        effectiveRating?.takeIf { it.isNotBlank() }?.let {
                             Text("★ " + it, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
 
                     Text(
-                        synopsis?.takeIf { it.isNotBlank() } ?: "Synopsis indisponible.",
+                        effectiveSynopsis?.takeIf { it.isNotBlank() } ?: "Chargement du synopsis…",
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 12,

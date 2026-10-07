@@ -11,14 +11,18 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
 @HiltViewModel
 class VodDetailsViewModel @Inject constructor(
-    repository: XtreamRepository,
+    private val repository: XtreamRepository,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
     private val streamId: Int = checkNotNull(savedStateHandle["streamId"])
     private val categoryId: String = savedStateHandle.get<String>("categoryId").orEmpty()
+
+    val item: StateFlow<VodItem?> = repository.observeVodItem(streamId)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     val suggestions: StateFlow<List<VodItem>> =
         if (categoryId.isBlank()) {
@@ -38,4 +42,10 @@ class VodDetailsViewModel @Inject constructor(
                 }
                 .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
         }
+
+    init {
+        viewModelScope.launch {
+            repository.enrichVodDetails(streamId)
+        }
+    }
 }

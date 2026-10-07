@@ -159,6 +159,12 @@ interface TVFlowDao {
     @Query("SELECT * FROM vod_items WHERE profileId = :profileId AND categoryId = :categoryId ORDER BY name")
     fun observeVod(profileId: String, categoryId: String): Flow<List<VodItemEntity>>
 
+    @Query("SELECT * FROM vod_items WHERE profileId = :profileId AND streamId = :streamId LIMIT 1")
+    fun observeVodItem(profileId: String, streamId: Int): Flow<VodItemEntity?>
+
+    @Query("SELECT * FROM vod_items WHERE profileId = :profileId AND streamId = :streamId LIMIT 1")
+    suspend fun getVodItem(profileId: String, streamId: Int): VodItemEntity?
+
     @Query("SELECT * FROM vod_items WHERE profileId = :profileId ORDER BY COALESCE(added, 0) DESC, name LIMIT 1")
     suspend fun featuredVod(profileId: String): VodItemEntity?
 
@@ -189,8 +195,8 @@ interface TVFlowDao {
     @Query("SELECT * FROM vod_items WHERE profileId = :profileId AND categoryId = :categoryId AND (releaseYear IS NULL OR synopsis IS NULL OR synopsis = '') LIMIT :limit")
     suspend fun getVodMissingMetadata(profileId: String, categoryId: String, limit: Int): List<VodItemEntity>
 
-    @Query("UPDATE vod_items SET synopsis = COALESCE(:synopsis, synopsis), releaseYear = COALESCE(:year, releaseYear), releaseMonth = COALESCE(:month, releaseMonth), posterUrl = COALESCE(:posterUrl, posterUrl), rating = COALESCE(:rating, rating) WHERE profileId = :profileId AND streamId = :streamId")
-    suspend fun updateVodMetadata(profileId: String, streamId: Int, synopsis: String?, year: Int?, month: Int?, posterUrl: String?, rating: String?)
+    @Query("UPDATE vod_items SET synopsis = COALESCE(:synopsis, synopsis), releaseYear = COALESCE(:year, releaseYear), releaseMonth = COALESCE(:month, releaseMonth), posterUrl = COALESCE(:posterUrl, posterUrl), rating = COALESCE(:rating, rating), detailsFetchedAt = COALESCE(:detailsFetchedAt, detailsFetchedAt) WHERE profileId = :profileId AND streamId = :streamId")
+    suspend fun updateVodMetadata(profileId: String, streamId: Int, synopsis: String?, year: Int?, month: Int?, posterUrl: String?, rating: String?, detailsFetchedAt: Long? = null)
 
     @Query("SELECT * FROM series_items WHERE profileId = :profileId AND categoryId = :categoryId ORDER BY name")
     fun observeSeries(profileId: String, categoryId: String): Flow<List<SeriesItemEntity>>
@@ -265,7 +271,8 @@ interface TVFlowDao {
                 releaseYear = incoming.releaseYear ?: previous?.releaseYear,
                 releaseMonth = incoming.releaseMonth ?: previous?.releaseMonth,
                 posterUrl = incoming.posterUrl ?: previous?.posterUrl,
-                rating = incoming.rating ?: previous?.rating
+                rating = incoming.rating ?: previous?.rating,
+                detailsFetchedAt = previous?.detailsFetchedAt
             )
         }.chunked(500).forEach { batch -> upsertVod(batch) }
 

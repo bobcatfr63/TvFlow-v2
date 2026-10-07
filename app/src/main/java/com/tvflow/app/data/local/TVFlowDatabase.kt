@@ -14,7 +14,7 @@ import androidx.room.RoomDatabase
         PlaybackPositionEntity::class,
         WatchHistoryEntity::class
     ],
-    version = 10,
+    version = 11,
     exportSchema = true
 )
 abstract class TVFlowDatabase : RoomDatabase() {
