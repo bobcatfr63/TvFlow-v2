@@ -7,10 +7,12 @@ object InstalledReleaseNotes {
         get() = BuildConfig.VERSION_NAME
 
     val items: List<String> = listOf(
-        "Films et séries plus compacts sur téléphone pour afficher les jaquettes plus haut.",
-        "Organisation des chaînes : sélection multiple, tout sélectionner, masquer ou afficher en masse.",
-        "Séries : navigation manuelle vers l’épisode précédent ou suivant depuis le lecteur.",
-        "Mises à jour : nouveau pop-up avec version, taille, progression et informations de version.",
-        "Filtres France : détection plus robuste des catégories Xtream selon les conventions FR, FRA, VF, VOSTFR, FRENCH et MULTI FR."
+        "Mises à jour : canal tvflow-latest nettoyé et notes de version lues directement depuis le changelog publié.",
+        "Lecture : Media3 conserve le secours VLC et la validation locale a été repassée sur le builder Windows.",
+        "Séries : épisode précédent/suivant disponible dans le lecteur et via les touches média/Page de la télécommande.",
+        "Organisation des chaînes : sélection globale des chaînes d’une catégorie, tout masquer et tout afficher.",
+        "Films : fiche détaillée avec synopsis, note, date et suggestions de la même catégorie.",
+        "Séries : fiche enrichie avec jaquette, synopsis, note, date, saisons, épisodes et suggestions.",
+        "Accueil : nouveautés françaises et reprise de lecture restent alimentées depuis le catalogue local."
     )
 }

@@ -72,6 +72,19 @@ class AppUpdateChecker @Inject constructor(
     }
 
     private fun parseReleaseNotes(json: JSONObject): List<String> {
+        val changelog = json.optJSONArray("changelog")
+        if (changelog != null) {
+            val items = buildList {
+                for (index in 0 until changelog.length()) {
+                    val entry = changelog.optJSONObject(index)
+                    val title = entry?.optString("title").orEmpty().trim()
+                    val subject = entry?.optString("subject").orEmpty().trim()
+                    (title.ifBlank { subject }).takeIf { it.isNotBlank() }?.let(::add)
+                }
+            }.take(8)
+            if (items.isNotEmpty()) return items
+        }
+
         val candidates = listOf("releaseNotes", "changes", "notes")
         for (key in candidates) {
             val array = json.optJSONArray(key)
