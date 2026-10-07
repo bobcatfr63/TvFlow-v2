@@ -5,6 +5,7 @@ import android.content.Context
 import android.media.AudioManager
 import android.content.pm.ActivityInfo
 import android.util.Log
+import android.view.KeyEvent
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.compose.foundation.background
@@ -232,7 +233,28 @@ fun VodPlayerScreen(
                         this.player = player
                         useController = true
                         keepScreenOn = true
+                        isFocusable = true
+                        isFocusableInTouchMode = true
                         layoutParams = FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+                    }
+                },
+                update = { playerView ->
+                    playerView.setOnKeyListener { _, keyCode, event ->
+                        if (event.action != KeyEvent.ACTION_UP) return@setOnKeyListener false
+                        val currentSeriesId = state.seriesId ?: return@setOnKeyListener false
+                        when (keyCode) {
+                            KeyEvent.KEYCODE_MEDIA_NEXT, KeyEvent.KEYCODE_PAGE_DOWN -> {
+                                val next = state.nextEpisode ?: return@setOnKeyListener false
+                                onPlayEpisode(next, currentSeriesId)
+                                true
+                            }
+                            KeyEvent.KEYCODE_MEDIA_PREVIOUS, KeyEvent.KEYCODE_PAGE_UP -> {
+                                val previous = state.previousEpisode ?: return@setOnKeyListener false
+                                onPlayEpisode(previous, currentSeriesId)
+                                true
+                            }
+                            else -> false
+                        }
                     }
                 },
                 modifier = Modifier.fillMaxSize()
