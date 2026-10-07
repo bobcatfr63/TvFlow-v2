@@ -36,6 +36,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
@@ -78,6 +80,8 @@ fun VodPlayerScreen(
     var infoVisible by remember { mutableStateOf(false) }
     var gestureLabel by remember { mutableStateOf<String?>(null) }
     var useVlcFallback by remember { mutableStateOf(false) }
+    val previousEpisodeFocusRequester = remember { FocusRequester() }
+    val nextEpisodeFocusRequester = remember { FocusRequester() }
     var castActive by remember { mutableStateOf(false) }
     val vlcFallbackActive by rememberUpdatedState(useVlcFallback)
 
@@ -270,6 +274,14 @@ fun VodPlayerScreen(
                         if (event.action != KeyEvent.ACTION_UP) return@setOnKeyListener false
                         val seriesId = currentSeriesId ?: return@setOnKeyListener false
                         when (keyCode) {
+                            KeyEvent.KEYCODE_DPAD_DOWN -> {
+                                when {
+                                    nextEpisode != null -> nextEpisodeFocusRequester.requestFocus()
+                                    previousEpisode != null -> previousEpisodeFocusRequester.requestFocus()
+                                    else -> return@setOnKeyListener false
+                                }
+                                true
+                            }
                             KeyEvent.KEYCODE_MEDIA_NEXT, KeyEvent.KEYCODE_PAGE_DOWN -> {
                                 val next = nextEpisode ?: return@setOnKeyListener false
                                 onPlayEpisode(next, seriesId)
@@ -344,12 +356,18 @@ fun VodPlayerScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     state.previousEpisode?.let { previous ->
-                        Button(onClick = { onPlayEpisode(previous, navigationSeriesId) }) {
+                        Button(
+                            onClick = { onPlayEpisode(previous, navigationSeriesId) },
+                            modifier = Modifier.focusRequester(previousEpisodeFocusRequester)
+                        ) {
                             Text("⏮ Précédent")
                         }
                     }
                     state.nextEpisode?.let { next ->
-                        Button(onClick = { onPlayEpisode(next, navigationSeriesId) }) {
+                        Button(
+                            onClick = { onPlayEpisode(next, navigationSeriesId) },
+                            modifier = Modifier.focusRequester(nextEpisodeFocusRequester)
+                        ) {
                             Text("Suivant ⏭")
                         }
                     }

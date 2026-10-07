@@ -26,7 +26,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.paging.compose.collectAsLazyPagingItems
@@ -65,6 +67,7 @@ fun MediaLibraryScreen(
         context.packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK)
     }
     val compactMobile = !isTv
+    var preview by remember(viewModel.type) { mutableStateOf<MediaPreview?>(null) }
 
     val screenHorizontalPadding = if (compactMobile) 12.dp else 24.dp
     val topPadding = if (compactMobile) 6.dp else 24.dp
@@ -171,6 +174,12 @@ fun MediaLibraryScreen(
                     .padding(horizontal = if (compactMobile) 8.dp else 16.dp),
                 verticalArrangement = Arrangement.spacedBy(if (compactMobile) 4.dp else 8.dp)
             ) {
+                if (isTv) {
+                    MediaPreviewPanel(
+                        preview = preview,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
                 LazyColumn(
                     modifier = Modifier.fillMaxWidth().weight(1f),
                     verticalArrangement = Arrangement.spacedBy(if (compactMobile) 4.dp else 8.dp)
@@ -241,7 +250,17 @@ fun MediaLibraryScreen(
                                 releaseYear = item.releaseYear,
                                 releaseMonth = item.releaseMonth,
                                 synopsis = item.synopsis,
-                                compact = compactMobile
+                                compact = compactMobile,
+                                onFocused = {
+                                    preview = MediaPreview(
+                                        title = item.name,
+                                        image = item.posterUrl,
+                                        rating = item.rating,
+                                        releaseYear = item.releaseYear,
+                                        releaseMonth = item.releaseMonth,
+                                        synopsis = item.synopsis
+                                    )
+                                }
                             ) { onVodSelected(item) }
                         }
                     }
@@ -255,10 +274,108 @@ fun MediaLibraryScreen(
                                 releaseYear = item.releaseYear,
                                 releaseMonth = item.releaseMonth,
                                 synopsis = item.plot,
-                                compact = compactMobile
+                                compact = compactMobile,
+                                onFocused = {
+                                    preview = MediaPreview(
+                                        title = item.name,
+                                        image = item.coverUrl,
+                                        rating = item.rating,
+                                        releaseYear = item.releaseYear,
+                                        releaseMonth = item.releaseMonth,
+                                        synopsis = item.plot
+                                    )
+                                }
                             ) { onSeriesSelected(item) }
                         }
                     }
+                }
+            }
+        }
+    }
+}
+
+private data class MediaPreview(
+    val title: String,
+    val image: String?,
+    val rating: String?,
+    val releaseYear: Int?,
+    val releaseMonth: Int?,
+    val synopsis: String?
+)
+
+@Composable
+private fun MediaPreviewPanel(
+    preview: MediaPreview?,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.height(150.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF0B2033)),
+        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))
+    ) {
+        if (preview == null) {
+            Column(
+                modifier = Modifier.fillMaxSize().padding(14.dp),
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    "Aperçu",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    "Sélectionne un film ou une série pour afficher ses informations.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        } else {
+            Row(
+                modifier = Modifier.fillMaxSize().padding(10.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                AsyncImage(
+                    model = preview.image,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.width(76.dp).fillMaxHeight()
+                )
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        preview.title,
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    val dateLabel = when {
+                        preview.releaseYear != null && preview.releaseMonth != null ->
+                            monthName(preview.releaseMonth) + " " + preview.releaseYear
+                        preview.releaseYear != null -> preview.releaseYear.toString()
+                        else -> null
+                    }
+                    val meta = listOfNotNull(
+                        dateLabel,
+                        preview.rating?.takeIf { it.isNotBlank() }?.let { "★ $it" }
+                    ).joinToString(" • ")
+                    if (meta.isNotBlank()) {
+                        Text(
+                            meta,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    Text(
+                        preview.synopsis?.takeIf { it.isNotBlank() }
+                            ?: "Synopsis en cours de récupération…",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 4,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
             }
         }
@@ -274,10 +391,14 @@ private fun MediaPoster(
     releaseMonth: Int?,
     synopsis: String?,
     compact: Boolean = false,
+    onFocused: () -> Unit = {},
     onClick: () -> Unit
 ) {
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
+    LaunchedEffect(focused) {
+        if (focused) onFocused()
+    }
     Card(
         onClick = onClick,
         interactionSource = interaction,
