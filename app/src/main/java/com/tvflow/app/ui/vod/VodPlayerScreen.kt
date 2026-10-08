@@ -361,6 +361,7 @@ fun VodPlayerScreen(
                 .size(48.dp),
             onSent = { player.pause() }
         )
+        }
 
         if (useVlcFallback && !castActive) {
             Text(
