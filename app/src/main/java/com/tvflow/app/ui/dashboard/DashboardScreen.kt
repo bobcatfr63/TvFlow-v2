@@ -286,11 +286,30 @@ fun DashboardScreen(
             )
         }
 
+        // Offer a downloadable update before displaying the installed-version changelog.
+        if (!state.showTasteOnboarding && !showTasteEditor && !showMoment) {
+            state.updateInfo?.let { available ->
+                UpdatePopup(
+                    update = available,
+                    downloadState = state.updateDownloadState,
+                    onUpdate = {
+                        if (state.updateDownloadState is UpdateDownloadState.Ready) {
+                            viewModel.installUpdate(context)
+                        } else {
+                            viewModel.downloadUpdate()
+                        }
+                    },
+                    onDismiss = viewModel::dismissUpdate
+                )
+            }
+        }
+
         val installedReleaseNotesVersion = state.installedReleaseNotesVersion
         if (
             !state.showTasteOnboarding &&
             !showTasteEditor &&
             !showMoment &&
+            state.updateInfo == null &&
             installedReleaseNotesVersion != null &&
             state.installedReleaseNotes.isNotEmpty()
         ) {
