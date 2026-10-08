@@ -28,8 +28,9 @@ val projectVersionName = rootProject.file("VERSION")
 val gitCommitCount = providers.exec {
     commandLine("git", "-C", rootDir.absolutePath, "rev-list", "--count", "HEAD")
 }.standardOutput.asText.get().trim().toIntOrNull()?.coerceAtLeast(35) ?: 35
-val tvFlowVersionCodeBase = 2_020_000_000
-val appVersionCode = devServerVersionCode ?: (tvFlowVersionCodeBase + gitCommitCount)
+// Keep Android upgrades monotonic even if DevServer supplies an older versionCode.
+val tvFlowVersionCodeBase = 2_020_100_000
+val appVersionCode = maxOf(tvFlowVersionCodeBase + gitCommitCount, devServerVersionCode ?: 0)
 val releaseKeystorePath = providers.environmentVariable("TVFLOW_KEYSTORE_PATH").orNull
 val releaseStorePassword = providers.environmentVariable("TVFLOW_STORE_PASSWORD").orNull
 val releaseKeyAlias = providers.environmentVariable("TVFLOW_KEY_ALIAS").orNull
