@@ -80,6 +80,7 @@ fun VodPlayerScreen(
     var infoVisible by remember { mutableStateOf(false) }
     var gestureLabel by remember { mutableStateOf<String?>(null) }
     var useVlcFallback by remember { mutableStateOf(false) }
+    var episodeNavigationVisible by remember { mutableStateOf(false) }
     val previousEpisodeFocusRequester = remember { FocusRequester() }
     val nextEpisodeFocusRequester = remember { FocusRequester() }
     var castActive by remember { mutableStateOf(false) }
@@ -188,6 +189,17 @@ fun VodPlayerScreen(
         onPlayEpisode(next, currentSeriesId)
     }
 
+    LaunchedEffect(episodeNavigationVisible, state.nextEpisode?.id, state.previousEpisode?.id) {
+        if (!episodeNavigationVisible) return@LaunchedEffect
+        delay(120L)
+        when {
+            state.nextEpisode != null -> runCatching { nextEpisodeFocusRequester.requestFocus() }
+            state.previousEpisode != null -> runCatching { previousEpisodeFocusRequester.requestFocus() }
+        }
+        delay(4_500L)
+        episodeNavigationVisible = false
+    }
+
     Box(
         Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
             .pointerInput(Unit) { detectTapGestures(onTap = { infoVisible = !infoVisible }) }
@@ -275,12 +287,11 @@ fun VodPlayerScreen(
 
                         if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
                             if (event.action == KeyEvent.ACTION_DOWN) {
-                                view.clearFocus()
-                                when {
-                                    nextEpisode != null -> nextEpisodeFocusRequester.requestFocus()
-                                    previousEpisode != null -> previousEpisodeFocusRequester.requestFocus()
-                                    else -> return@setOnKeyListener false
+                                if (nextEpisode == null && previousEpisode == null) {
+                                    return@setOnKeyListener false
                                 }
+                                view.clearFocus()
+                                episodeNavigationVisible = true
                             }
                             return@setOnKeyListener true
                         }
@@ -346,34 +357,39 @@ fun VodPlayerScreen(
         }
 
         val navigationSeriesId = state.seriesId
-        if (navigationSeriesId != null && (state.previousEpisode != null || state.nextEpisode != null) && !castActive) {
+        if (
+            episodeNavigationVisible &&
+            navigationSeriesId != null &&
+            (state.previousEpisode != null || state.nextEpisode != null) &&
+            !castActive
+        ) {
             Card(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(bottom = 20.dp),
+                    .padding(bottom = 18.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f)
+                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.78f)
                 )
             ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     state.previousEpisode?.let { previous ->
-                        Button(
+                        TextButton(
                             onClick = { onPlayEpisode(previous, navigationSeriesId) },
                             modifier = Modifier.focusRequester(previousEpisodeFocusRequester)
                         ) {
-                            Text("⏮ Précédent")
+                            Text("‹  Épisode précédent")
                         }
                     }
                     state.nextEpisode?.let { next ->
-                        Button(
+                        TextButton(
                             onClick = { onPlayEpisode(next, navigationSeriesId) },
                             modifier = Modifier.focusRequester(nextEpisodeFocusRequester)
                         ) {
-                            Text("Suivant ⏭")
+                            Text("Épisode suivant  ›")
                         }
                     }
                 }

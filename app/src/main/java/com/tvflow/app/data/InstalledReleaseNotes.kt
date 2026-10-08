@@ -7,13 +7,15 @@ object InstalledReleaseNotes {
         get() = BuildConfig.VERSION_NAME
 
     val items: List<String> = listOf(
-        "Séries TV : accès télécommande au bouton Épisode suivant renforcé, la flèche Bas libère maintenant explicitement le focus du lecteur avant de cibler Suivant.",
-        "TVFlow Pulse : profil de goûts au premier lancement avec Action, Romance, Thriller, Science-fiction, Comédie et d’autres univers.",
-        "TVFlow Pulse : les suggestions évoluent selon les catégories réellement regardées, en complément des choix de départ.",
-        "Accueil : rails Films pour toi et Séries pour toi alimentés par Pulse.",
-        "Séries : compatibilité avec les serveurs Xtream qui renvoient le champ info d’un épisode sous forme de tableau au lieu d’un objet.",
-        "Films/Séries TV : panneau d’aperçu dans la colonne gauche avec affiche, date, note et synopsis.",
-        "Films : tri par vraie date de sortie et enrichissement Xtream/TMDb.",
-        "Accueil TV : fond vidéo aléatoire renouvelé automatiquement sans répétition immédiate."
+        "Accueil : en-tête TVFlow beaucoup plus compact, statut de connexion discret et suppression du faux libellé « Connecté à ok ».",
+        "Accueil : nouvel accès Apps séparé, disponible sur téléphone et Android TV, sans encombrer le contenu principal.",
+        "Accueil mobile : cartes de navigation plus petites pour éviter les éléments coupés en mode paysage.",
+        "Réglages : l’organisation des chaînes ouvre désormais sa propre vue au lieu d’écraser les réglages généraux.",
+        "Réglages : répartition des colonnes adaptée aux écrans plus étroits pour éviter les boutons verticaux et textes tronqués.",
+        "Films : la fiche sélectionnée reste visible sur téléphone, avec affiche et synopsis adaptés à la hauteur disponible.",
+        "Films : la rangée « À découvrir » remplace la grosse barre de suggestions avec des cartes plus petites et raffinées.",
+        "Séries : navigation épisode précédent/suivant masquée pendant la lecture, affichée temporairement à la demande.",
+        "Séries TV : flèche Bas ouvre les contrôles d’épisodes pendant quelques secondes puis les masque automatiquement.",
+        "TVFlow Pulse, tri par vraie date de sortie, synopsis Xtream et fond vidéo aléatoire sont conservés."
     )
 }

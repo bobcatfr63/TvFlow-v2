@@ -105,8 +105,9 @@ fun DashboardScreen(
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
     val isTv = context.isTelevisionUi()
-    val tvApps by produceState<List<TvInstalledApp>>(initialValue = emptyList(), isTv) {
-        value = if (isTv) withContext(Dispatchers.IO) { loadTvApps(context) } else emptyList()
+    var appsMode by remember { mutableStateOf(false) }
+    val tvApps by produceState<List<TvInstalledApp>>(initialValue = emptyList(), context) {
+        value = withContext(Dispatchers.IO) { loadTvApps(context) }
     }
 
     Box(
@@ -149,6 +150,8 @@ fun DashboardScreen(
                         onVod = onVod,
                         onSeries = onSeries,
                         onSearch = onSearch,
+                        onApps = { appsMode = !appsMode },
+                        appsSelected = appsMode,
                         onSettings = onSettings
                     )
                 } else {
@@ -159,6 +162,8 @@ fun DashboardScreen(
                         onVod = onVod,
                         onSeries = onSeries,
                         onSearch = onSearch,
+                        onApps = { appsMode = !appsMode },
+                        appsSelected = appsMode,
                         onSettings = onSettings
                     )
                 }
@@ -200,7 +205,7 @@ fun DashboardScreen(
                 item { RecentSeriesRail(state.recentSeriesReleases, onSeriesItem) }
             }
 
-            if (isTv && tvApps.isNotEmpty()) {
+            if (appsMode && tvApps.isNotEmpty()) {
                 item {
                     TvAppRail(
                         apps = tvApps,
@@ -373,6 +378,8 @@ private fun TvHeroHeader(
     onVod: () -> Unit,
     onSeries: () -> Unit,
     onSearch: () -> Unit,
+    onApps: () -> Unit,
+    appsSelected: Boolean,
     onSettings: () -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
@@ -387,13 +394,14 @@ private fun TvHeroHeader(
             TvTopAction("Guide TV", onGuide)
             TvTopAction("Films", onVod)
             TvTopAction("Séries", onSeries)
+            if (appsSelected) TvTopSelected("Apps") else TvTopAction("Apps", onApps)
             TvTopAction("⚙  Réglages", onSettings)
         }
 
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(190.dp)
+                .height(92.dp)
                 .clip(RoundedCornerShape(24.dp))
                 .background(
                     Brush.horizontalGradient(
@@ -409,28 +417,27 @@ private fun TvHeroHeader(
                     MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
                     RoundedCornerShape(24.dp)
                 )
-                .padding(26.dp)
+                .padding(horizontal = 22.dp, vertical = 14.dp)
         ) {
-            Column(
+            Row(
                 modifier = Modifier.align(Alignment.CenterStart),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(18.dp)
             ) {
                 Text(
                     "TVFlow",
-                    style = MaterialTheme.typography.displayLarge,
+                    style = MaterialTheme.typography.headlineLarge,
                     fontWeight = FontWeight.Black,
                     color = Color.White
                 )
                 Text(
-                    serverName?.let { "Connecté à $it" } ?: "Votre télévision, vos contenus, vos applications.",
-                    style = MaterialTheme.typography.titleLarge,
-                    color = Color.White.copy(alpha = 0.92f)
+                    "● Connecté",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary
                 )
-                Text(
-                    "Direct • EPG • Films • Séries • Applications",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = Color.White.copy(alpha = 0.78f)
-                )
+                serverName?.takeUnless { it.equals("ok", true) || it.equals("true", true) }?.let {
+                    Text(it, style = MaterialTheme.typography.bodyMedium, color = Color.White.copy(alpha = 0.72f))
+                }
             }
             Text(
                 "v${BuildConfig.VERSION_NAME}",
@@ -551,6 +558,8 @@ private fun HeroHeader(
     onVod: () -> Unit,
     onSeries: () -> Unit,
     onSearch: () -> Unit,
+    onApps: () -> Unit,
+    appsSelected: Boolean,
     onSettings: () -> Unit
 ) {
     Column {
@@ -559,18 +568,29 @@ private fun HeroHeader(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(Modifier.weight(1f)) {
-                Text(
-                    text = "TVFlow",
-                    style = MaterialTheme.typography.displayLarge,
-                    fontWeight = FontWeight.Black,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-                Text(
-                    text = serverName?.let { "Connecté à $it" }
-                        ?: "Ta télévision, fluide et immédiate.",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.78f)
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        text = "TVFlow",
+                        style = MaterialTheme.typography.headlineLarge,
+                        fontWeight = FontWeight.Black,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                    Text(
+                        text = "● Connecté",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+                serverName?.takeUnless { it.equals("ok", true) || it.equals("true", true) }?.let {
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.68f)
+                    )
+                }
             }
             Text(
                 text = "v${BuildConfig.VERSION_NAME}",
@@ -590,6 +610,7 @@ private fun HeroHeader(
             FeatureTile("▶", "Films", "VOD", onVod)
             FeatureTile("S", "Séries", "Épisodes & saisons", onSeries)
             FeatureTile("⌕", "Recherche", "Tout retrouver", onSearch)
+            FeatureTile("▦", if (appsSelected) "Apps ✓" else "Apps", "Applications", onApps)
             FeatureTile("⚙", "Réglages", "Personnaliser", onSettings)
         }
     }
@@ -619,8 +640,8 @@ private fun FeatureTile(
 
     Column(
         modifier = Modifier
-            .width(190.dp)
-            .height(112.dp)
+            .width(156.dp)
+            .height(92.dp)
             .clip(RoundedCornerShape(18.dp))
             .background(bg)
             .border(

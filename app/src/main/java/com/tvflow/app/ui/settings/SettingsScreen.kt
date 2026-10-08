@@ -62,6 +62,7 @@ fun SettingsScreen(
     val isTv = context.isTelevisionUi()
     var pin by remember { mutableStateOf("") }
     var tmdbToken by remember { mutableStateOf("") }
+    var showChannelOrganization by remember { mutableStateOf(false) }
 
     refreshProgress?.let { progress ->
         AlertDialog(
@@ -100,14 +101,24 @@ fun SettingsScreen(
                 .padding(28.dp),
             horizontalArrangement = Arrangement.spacedBy(22.dp)
         ) {
+        if (!showChannelOrganization) {
         LazyColumn(
-            Modifier.width(350.dp).fillMaxHeight(),
+            Modifier.weight(1f).fillMaxHeight(),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item {
                 Text("Réglages TVFlow", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(8.dp))
                 SettingsButton(onClick = onBack) { Text("← Retour") }
+            }
+
+            item {
+                SettingsButton(
+                    onClick = { showChannelOrganization = true },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Organisation des chaînes  ›")
+                }
             }
 
             item {
@@ -334,9 +345,18 @@ fun SettingsScreen(
 
             state.message?.let { message -> item { Text(message, color = MaterialTheme.colorScheme.primary) } }
         }
+        }
 
+        if (showChannelOrganization) {
         Column(Modifier.weight(1f).fillMaxHeight()) {
-            SectionTitle("Organisation des chaînes")
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                SectionTitle("Organisation des chaînes")
+                SettingsButton(onClick = { showChannelOrganization = false }) { Text("← Réglages") }
+            }
             Text("Sélectionne une catégorie à gauche, puis utilise les actions à droite.")
             Text(
                 "Le classement FR / Enfants / Autres est mémorisé pour chaque serveur.",
@@ -375,7 +395,7 @@ fun SettingsScreen(
             Spacer(Modifier.height(10.dp))
             Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                 LazyColumn(
-                    Modifier.width(300.dp).fillMaxHeight(),
+                    Modifier.weight(0.44f).fillMaxHeight(),
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     items(state.categories, key = { it.id }) { category ->
@@ -389,7 +409,7 @@ fun SettingsScreen(
                     }
                 }
 
-                Column(Modifier.weight(1f).fillMaxHeight()) {
+                Column(Modifier.weight(0.56f).fillMaxHeight()) {
                     val selectedCategory = state.categories.firstOrNull { it.id == state.selectedCategoryId }
                     if (selectedCategory != null) {
                         Text(
@@ -492,6 +512,7 @@ fun SettingsScreen(
                     }
                 }
             }
+        }
         }
     }
     }

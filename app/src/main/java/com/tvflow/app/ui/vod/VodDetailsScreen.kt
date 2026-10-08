@@ -25,6 +25,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -33,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import coil3.compose.AsyncImage
 import com.tvflow.app.domain.VodItem
+import com.tvflow.app.util.isTelevisionUi
 
 @Composable
 fun VodDetailsScreen(
@@ -49,6 +51,9 @@ fun VodDetailsScreen(
 ) {
     val suggestions by viewModel.suggestions.collectAsState()
     val enrichedItem by viewModel.item.collectAsState()
+    val isTv = LocalContext.current.isTelevisionUi()
+    val posterWidth = if (isTv) 230.dp else 150.dp
+    val posterHeight = if (isTv) 340.dp else 210.dp
     val effectiveTitle = enrichedItem?.name?.takeIf { it.isNotBlank() } ?: title
     val effectivePoster = enrichedItem?.posterUrl ?: posterUrl
     val effectiveSynopsis = enrichedItem?.synopsis?.takeIf { it.isNotBlank() } ?: synopsis
@@ -62,14 +67,14 @@ fun VodDetailsScreen(
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
             Row(
-                modifier = Modifier.fillMaxWidth().weight(1f),
-                horizontalArrangement = Arrangement.spacedBy(28.dp)
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(if (isTv) 28.dp else 18.dp)
             ) {
                 AsyncImage(
                     model = effectivePoster,
                     contentDescription = effectiveTitle,
                     contentScale = ContentScale.Crop,
-                    modifier = Modifier.width(280.dp).height(420.dp)
+                    modifier = Modifier.width(posterWidth).height(posterHeight)
                 )
 
                 Column(
@@ -100,7 +105,7 @@ fun VodDetailsScreen(
                         effectiveSynopsis?.takeIf { it.isNotBlank() } ?: "Chargement du synopsis…",
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 12,
+                        maxLines = if (isTv) 10 else 5,
                         overflow = TextOverflow.Ellipsis
                     )
 
@@ -114,11 +119,11 @@ fun VodDetailsScreen(
 
             if (suggestions.isNotEmpty()) {
                 Text(
-                    "Suggestions",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
+                    "À découvrir",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
                 )
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     items(suggestions, key = { it.streamId }) { item ->
                         VodSuggestionCard(item = item, onClick = { onSuggestion(item) })
                     }
@@ -140,7 +145,7 @@ private fun VodSuggestionCard(
         onClick = onClick,
         interactionSource = interaction,
         modifier = Modifier
-            .width(150.dp)
+            .width(112.dp)
             .graphicsLayer {
                 scaleX = if (focused) 1.06f else 1f
                 scaleY = if (focused) 1.06f else 1f
@@ -159,11 +164,11 @@ private fun VodSuggestionCard(
                 model = item.posterUrl,
                 contentDescription = item.name,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxWidth().height(190.dp)
+                modifier = Modifier.fillMaxWidth().height(130.dp)
             )
             Text(
                 item.name,
-                modifier = Modifier.padding(8.dp),
+                modifier = Modifier.padding(7.dp),
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 style = MaterialTheme.typography.bodyMedium
