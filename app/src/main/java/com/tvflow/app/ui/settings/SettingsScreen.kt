@@ -63,6 +63,8 @@ fun SettingsScreen(
     var pin by remember { mutableStateOf("") }
     var tmdbToken by remember { mutableStateOf("") }
     var showChannelOrganization by remember { mutableStateOf(false) }
+    var showMediaOrganization by remember { mutableStateOf(false) }
+    var selectedMediaIds by remember { mutableStateOf(setOf<String>()) }
 
     refreshProgress?.let { progress ->
         AlertDialog(
@@ -101,7 +103,7 @@ fun SettingsScreen(
                 .padding(28.dp),
             horizontalArrangement = Arrangement.spacedBy(22.dp)
         ) {
-        if (!showChannelOrganization) {
+        if (!showChannelOrganization && !showMediaOrganization) {
         LazyColumn(
             Modifier.weight(1f).fillMaxHeight(),
             verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -304,31 +306,10 @@ fun SettingsScreen(
             }
 
             item {
-                SectionTitle("Classement Films & Séries")
-                Text(
-                    "Si un fournisseur nomme mal ses catégories, force ici France, Enfants ou Autres. Le choix reste lié au profil serveur.",
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
-            items(state.vodCategories, key = { "vod:" + it.id }) { category ->
-                MediaCategoryClassifyRow(
-                    prefix = "Film",
-                    category = category,
-                    onFrance = { viewModel.classifyMediaCategory(category, MediaSection.FRANCE) },
-                    onKids = { viewModel.classifyMediaCategory(category, MediaSection.KIDS) },
-                    onOther = { viewModel.classifyMediaCategory(category, MediaSection.OTHER) },
-                    onAuto = { viewModel.resetMediaCategoryClassification(category) }
-                )
-            }
-            items(state.seriesCategories, key = { "series:" + it.id }) { category ->
-                MediaCategoryClassifyRow(
-                    prefix = "Série",
-                    category = category,
-                    onFrance = { viewModel.classifyMediaCategory(category, MediaSection.FRANCE) },
-                    onKids = { viewModel.classifyMediaCategory(category, MediaSection.KIDS) },
-                    onOther = { viewModel.classifyMediaCategory(category, MediaSection.OTHER) },
-                    onAuto = { viewModel.resetMediaCategoryClassification(category) }
-                )
+                SettingsButton(
+                    onClick = { selectedMediaIds = emptySet(); showMediaOrganization = true },
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text("Organisation des films et séries  ›") }
             }
 
             item {
@@ -360,6 +341,94 @@ fun SettingsScreen(
 
             state.message?.let { message -> item { Text(message, color = MaterialTheme.colorScheme.primary) } }
         }
+        }
+
+        if (showMediaOrganization) {
+            val allMedia = state.vodCategories + state.seriesCategories
+            fun mediaKey(category: MediaCategory) = "${category.type}:${category.id}"
+            Column(
+                Modifier.weight(1f).fillMaxHeight(),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    SectionTitle("Organisation des films et séries")
+                    SettingsButton(onClick = { showMediaOrganization = false }) {
+                        Text("← Réglages")
+                    }
+                }
+                Text("Sélectionne les catégories à classer en France, Enfants ou Autres.")
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SettingsButton(
+                        onClick = {
+                            selectedMediaIds = if (selectedMediaIds.size == allMedia.size) {
+                                emptySet()
+                            } else allMedia.map(::mediaKey).toSet()
+                        }
+                    ) { Text(if (selectedMediaIds.size == allMedia.size && allMedia.isNotEmpty()) "Désélectionner" else "Tout sélectionner") }
+                    SettingsButton(
+                        onClick = {
+                            viewModel.classifyMediaCategories(
+                                allMedia.filter { mediaKey(it) in selectedMediaIds }, MediaSection.FRANCE
+                            )
+                        },
+                        enabled = selectedMediaIds.isNotEmpty() && !state.busy
+                    ) { Text("France") }
+                    SettingsButton(
+                        onClick = {
+                            viewModel.classifyMediaCategories(
+                                allMedia.filter { mediaKey(it) in selectedMediaIds }, MediaSection.KIDS
+                            )
+                        },
+                        enabled = selectedMediaIds.isNotEmpty() && !state.busy
+                    ) { Text("Enfants") }
+                    SettingsButton(
+                        onClick = {
+                            viewModel.classifyMediaCategories(
+                                allMedia.filter { mediaKey(it) in selectedMediaIds }, MediaSection.OTHER
+                            )
+                        },
+                        enabled = selectedMediaIds.isNotEmpty() && !state.busy
+                    ) { Text("Autres") }
+                    SettingsButton(
+                        onClick = {
+                            viewModel.classifyMediaCategories(
+                                allMedia.filter { mediaKey(it) in selectedMediaIds }, null
+                            )
+                        },
+                        enabled = selectedMediaIds.isNotEmpty() && !state.busy
+                    ) { Text("Auto") }
+                }
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    item { SectionTitle("Films") }
+                    items(state.vodCategories, key = { "vod:" + it.id }) { category ->
+                        val key = mediaKey(category)
+                        SettingsButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            selected = key in selectedMediaIds,
+                            onClick = {
+                                selectedMediaIds = if (key in selectedMediaIds) selectedMediaIds - key
+                                else selectedMediaIds + key
+                            }
+                        ) { Text("${if (key in selectedMediaIds) "☑" else "☐"}  ${category.name}") }
+                    }
+                    item { SectionTitle("Séries") }
+                    items(state.seriesCategories, key = { "series:" + it.id }) { category ->
+                        val key = mediaKey(category)
+                        SettingsButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            selected = key in selectedMediaIds,
+                            onClick = {
+                                selectedMediaIds = if (key in selectedMediaIds) selectedMediaIds - key
+                                else selectedMediaIds + key
+                            }
+                        ) { Text("${if (key in selectedMediaIds) "☑" else "☐"}  ${category.name}") }
+                    }
+                }
+            }
         }
 
         if (showChannelOrganization) {

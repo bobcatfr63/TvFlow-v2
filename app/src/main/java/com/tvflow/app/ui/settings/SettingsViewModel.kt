@@ -404,6 +404,15 @@ class SettingsViewModel @Inject constructor(
             repository.setMediaCategorySectionOverride(category.type, category.id, null)
         }
 
+    fun classifyMediaCategories(categories: List<MediaCategory>, section: MediaSection?) {
+        if (categories.isEmpty()) return
+        launchBusy("${categories.size} catégories mises à jour") {
+            categories.forEach { category ->
+                repository.setMediaCategorySectionOverride(category.type, category.id, section)
+            }
+        }
+    }
+
     fun toggleChannelHidden(channel: LiveChannel) = launchBusy(null) { repository.setChannelHidden(channel.streamId, !channel.isHidden) }
     fun moveChannel(channel: LiveChannel, delta: Int) {
         val category = selectedCategoryId.value ?: return

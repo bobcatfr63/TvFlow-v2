@@ -356,6 +356,24 @@ fun VodPlayerScreen(
             )
         }
 
+        // Small persistent episode shortcut, including when Media3 controls are visible.
+        val shortcutNext = state.nextEpisode
+        val shortcutSeriesId = state.seriesId
+        if (shortcutNext != null && shortcutSeriesId != null && !castActive) {
+            Card(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 24.dp, bottom = 100.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.82f)
+                )
+            ) {
+                TextButton(onClick = { onPlayEpisode(shortcutNext, shortcutSeriesId) }) {
+                    Text("Épisode suivant  ›")
+                }
+            }
+        }
+
         val navigationSeriesId = state.seriesId
         if (
             episodeNavigationVisible &&
