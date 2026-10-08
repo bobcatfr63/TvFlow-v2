@@ -13,6 +13,18 @@ val localGitSha = providers.exec {
 }.standardOutput.asText.get().trim().ifBlank { "unknown" }
 val gitSha = providers.environmentVariable("DEVSERVER_GIT_SHA").orElse(localGitSha).get()
 val devServerVersionCode = providers.environmentVariable("DEVSERVER_VERSION_CODE").orNull?.toIntOrNull()
+// Embed real Git changes at build time, rather than a stale hard-coded changelog.
+val recentReleaseNotes = providers.exec {
+    commandLine("git", "-C", rootDir.absolutePath, "log", "-8", "--pretty=format:%s", "HEAD")
+}.standardOutput.asText.get().lineSequence()
+    .map { it.substringAfter(": ", it).trim() }
+    .filter { it.isNotBlank() }
+    .take(8)
+    .toList()
+val releaseNotesBuildConfig = recentReleaseNotes.joinToString("\n")
+    .replace("\\", "\\\\")
+    .replace("\"", "\\\"")
+    .replace("\n", "\\n")
 val tvFlowArmOnly = providers.environmentVariable("TVFLOW_ARM_ONLY").orNull == "1"
 val tvFlowTargetAbi = providers.environmentVariable("TVFLOW_TARGET_ABI").orNull?.takeIf { it.isNotBlank() }
 val devServerVersionName = providers.gradleProperty("TVFLOW_VERSION_NAME")
@@ -64,6 +76,7 @@ extensions.configure<ApplicationExtension>("android") {
             }
         }
         buildConfigField("String", "GIT_SHA", "\"$gitSha\"")
+        buildConfigField("String", "RELEASE_NOTES", "\"$releaseNotesBuildConfig\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
