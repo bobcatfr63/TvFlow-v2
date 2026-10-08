@@ -18,7 +18,7 @@ build:
   build_only_on_sha_change: true
 versioning:
   scheme: semver
-  current: 1.0.75
+  current: 1.0.76
   artifact_pattern: "{project}-v{version}-build{build}-{sha}.apk"
 author_branding:
   enabled: true
