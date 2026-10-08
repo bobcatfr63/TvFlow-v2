@@ -1,11 +1,16 @@
 package com.tvflow.app
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -15,16 +20,21 @@ import com.tvflow.app.boot.TvBootReceiver
 import com.tvflow.app.ui.navigation.TVFlowNavHost
 import com.tvflow.app.ui.theme.TVFlowTheme
 import com.tvflow.app.ui.theme.ThemeViewModel
+import com.tvflow.app.util.isTelevisionUi
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
 class MainActivity : FragmentActivity() {
     private val themeViewModel: ThemeViewModel by viewModels()
+    private val notificationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         applyImmersiveMode()
+        requestNotificationPermissionIfNeeded()
 
         val bootLiveTarget = intent
             ?.takeIf { it.getBooleanExtra(TvBootReceiver.EXTRA_STARTED_FROM_TV_BOOT, false) }
@@ -50,6 +60,17 @@ class MainActivity : FragmentActivity() {
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
         if (hasFocus) applyImmersiveMode()
+    }
+
+    private fun requestNotificationPermissionIfNeeded() {
+        if (isTelevisionUi()) return
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+        if (
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
     }
 
     private fun applyImmersiveMode() {

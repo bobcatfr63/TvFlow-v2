@@ -7,6 +7,7 @@ import com.tvflow.app.connect.TvFlowConnect
 import com.tvflow.app.data.local.SettingsStore
 import com.tvflow.app.data.repository.XtreamRepository
 import com.tvflow.app.launcher.TvLauncherMode
+import com.tvflow.app.update.UpdateNotificationWorker
 import com.tvflow.app.util.isTelevisionUi
 import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
@@ -32,6 +33,7 @@ class TVFlowApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         TvFlowConnect.startReceiverIfTv(this)
+        UpdateNotificationWorker.schedule(this)
         startFavoriteSync()
 
         if (isTelevisionUi()) {
