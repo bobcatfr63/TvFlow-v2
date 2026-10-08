@@ -79,6 +79,14 @@ class DashboardViewModel @Inject constructor(
     private val updateManager: AppUpdateManager,
     private val settingsStore: SettingsStore
 ) : ViewModel() {
+    suspend fun vignettePreviewUrl(vod: VodItem?, series: SeriesItem?): String? = runCatching {
+        when {
+            vod != null -> repository.vodUrl(vod)
+            series != null -> repository.getSeriesEpisodes(series.seriesId).firstOrNull()?.let { repository.episodeUrl(it) }
+            else -> null
+        }
+    }.getOrNull()
+
     private val updateInfo = MutableStateFlow<AppUpdateInfo?>(null)
     private val updateDownloadState = MutableStateFlow<UpdateDownloadState>(UpdateDownloadState.Idle)
     private val backgroundPreview = MutableStateFlow<DashboardBackdrop?>(null)

@@ -53,6 +53,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -90,6 +91,7 @@ import java.util.Date
 import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
 @Composable
@@ -113,6 +115,16 @@ fun DashboardScreen(
     var appsMode by remember { mutableStateOf(false) }
     var showMoment by remember { mutableStateOf(false) }
     var showTasteEditor by remember { mutableStateOf(false) }
+    var selectedPreviewVod by remember { mutableStateOf<VodItem?>(null) }
+    var selectedPreviewSeries by remember { mutableStateOf<SeriesItem?>(null) }
+    var selectedPreviewUrl by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(selectedPreviewVod, selectedPreviewSeries) {
+        selectedPreviewUrl = null
+        if (selectedPreviewVod != null || selectedPreviewSeries != null) {
+            delay(2_000L)
+            selectedPreviewUrl = viewModel.vignettePreviewUrl(selectedPreviewVod, selectedPreviewSeries)
+        }
+    }
     val tvApps by produceState<List<TvInstalledApp>>(initialValue = emptyList(), context) {
         value = withContext(Dispatchers.IO) { loadTvApps(context) }
     }
@@ -128,7 +140,9 @@ fun DashboardScreen(
             listState.firstVisibleItemIndex == 0 &&
             listState.firstVisibleItemScrollOffset < 24
 
-        if ((isTv || mobilePreviewAllowed) && !state.backgroundVideoUrl.isNullOrBlank()) {
+        if (selectedPreviewUrl != null) {
+            TvVideoBackdrop(url = selectedPreviewUrl.orEmpty(), title = selectedPreviewVod?.name ?: selectedPreviewSeries?.name, mobile = !isTv)
+        } else if ((isTv || mobilePreviewAllowed) && !state.backgroundVideoUrl.isNullOrBlank()) {
             TvVideoBackdrop(
                 url = state.backgroundVideoUrl.orEmpty(),
                 title = state.backgroundVideoTitle,
@@ -208,7 +222,8 @@ fun DashboardScreen(
                         items = state.pulseVod,
                         onItem = onVodItem,
                         title = "TVFlow Pulse • Films pour toi",
-                        subtitle = pulseSubtitle(state.tasteThemes, state.learnedThemes)
+                        subtitle = pulseSubtitle(state.tasteThemes, state.learnedThemes),
+                        onFocused = { selectedPreviewVod = it; selectedPreviewSeries = null }
                     )
                 }
             }
@@ -217,16 +232,17 @@ fun DashboardScreen(
                     RecentSeriesRail(
                         items = state.pulseSeries,
                         onItem = onSeriesItem,
-                        title = "TVFlow Pulse • Séries pour toi"
+                        title = "TVFlow Pulse • Séries pour toi",
+                        onFocused = { selectedPreviewSeries = it; selectedPreviewVod = null }
                     )
                 }
             }
 
             if (state.recentVodReleases.isNotEmpty()) {
-                item { RecentVodRail(state.recentVodReleases, onVodItem) }
+                item { RecentVodRail(state.recentVodReleases, onVodItem, onFocused = { selectedPreviewVod = it; selectedPreviewSeries = null }) }
             }
             if (state.recentSeriesReleases.isNotEmpty()) {
-                item { RecentSeriesRail(state.recentSeriesReleases, onSeriesItem) }
+                item { RecentSeriesRail(state.recentSeriesReleases, onSeriesItem, onFocused = { selectedPreviewSeries = it; selectedPreviewVod = null }) }
             }
 
             if (appsMode && tvApps.isNotEmpty()) {
@@ -1567,7 +1583,8 @@ private fun RecentVodRail(
     items: List<VodItem>,
     onItem: (VodItem) -> Unit,
     title: String = "Sorties récentes • Films",
-    subtitle: String = "Classées par vraie date de sortie. Xtream d’abord, TMDb complète les métadonnées manquantes."
+    subtitle: String = "Classées par vraie date de sortie. Xtream d’abord, TMDb complète les métadonnées manquantes.",
+    onFocused: (VodItem?) -> Unit = {}
 ) {
     Column {
         SectionTitle(title)
@@ -1586,6 +1603,7 @@ private fun RecentVodRail(
                     year = item.releaseYear,
                     month = item.releaseMonth,
                     rating = item.rating,
+                    onFocused = { focused -> onFocused(if (focused) item else null) },
                     onClick = { onItem(item) }
                 )
             }
@@ -1597,7 +1615,8 @@ private fun RecentVodRail(
 private fun RecentSeriesRail(
     items: List<SeriesItem>,
     onItem: (SeriesItem) -> Unit,
-    title: String = "Suggestions • Séries récentes"
+    title: String = "Suggestions • Séries récentes",
+    onFocused: (SeriesItem?) -> Unit = {}
 ) {
     Column {
         SectionTitle(title)
@@ -1610,6 +1629,7 @@ private fun RecentSeriesRail(
                     year = item.releaseYear,
                     month = item.releaseMonth,
                     rating = item.rating,
+                    onFocused = { focused -> onFocused(if (focused) item else null) },
                     onClick = { onItem(item) }
                 )
             }
@@ -1624,6 +1644,7 @@ private fun RecentMediaCard(
     year: Int?,
     month: Int?,
     rating: String?,
+    onFocused: (Boolean) -> Unit = {},
     onClick: () -> Unit
 ) {
     val interaction = remember { MutableInteractionSource() }
@@ -1640,6 +1661,7 @@ private fun RecentMediaCard(
                 RoundedCornerShape(16.dp)
             )
             .clickable(interactionSource = interaction, indication = null, onClick = onClick)
+            .onFocusChanged { onFocused(it.isFocused) }
             .focusable(interactionSource = interaction)
     ) {
         AsyncImage(
