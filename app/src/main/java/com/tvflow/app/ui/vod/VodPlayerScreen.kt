@@ -82,6 +82,7 @@ fun VodPlayerScreen(
     var gestureLabel by remember { mutableStateOf<String?>(null) }
     var useVlcFallback by remember { mutableStateOf(false) }
     var episodeNavigationVisible by remember { mutableStateOf(false) }
+    var playbackControlsVisible by remember { mutableStateOf(false) }
     val previousEpisodeFocusRequester = remember { FocusRequester() }
     val nextEpisodeFocusRequester = remember { FocusRequester() }
     var castActive by remember { mutableStateOf(false) }
@@ -206,6 +207,7 @@ fun VodPlayerScreen(
             .pointerInput(state.seriesId, state.nextEpisode?.id, state.previousEpisode?.id) {
                 detectTapGestures(onTap = {
                     infoVisible = !infoVisible
+                    playbackControlsVisible = !playbackControlsVisible
                     if (state.seriesId != null && (state.nextEpisode != null || state.previousEpisode != null)) {
                         episodeNavigationVisible = true
                     }
@@ -272,6 +274,7 @@ fun VodPlayerScreen(
                         this.player = player
                         useController = true
                         setControllerVisibilityListener(PlayerView.ControllerVisibilityListener { visibility ->
+                            playbackControlsVisible = visibility == View.VISIBLE
                             episodeNavigationVisible = visibility == View.VISIBLE &&
                                 state.seriesId != null &&
                                 (state.nextEpisode != null || state.previousEpisode != null)
@@ -329,6 +332,7 @@ fun VodPlayerScreen(
             )
         }
 
+        if (playbackControlsVisible) {
         CastRouteButton(
             modifier = Modifier
                 .align(Alignment.TopEnd)
@@ -402,7 +406,11 @@ fun VodPlayerScreen(
                             onClick = { onPlayEpisode(next, navigationSeriesId) },
                             modifier = Modifier.focusRequester(nextEpisodeFocusRequester)
                         ) {
-                            Text("Épisode suivant  ›")
+                            Column {
+                                Text("Épisode suivant  ›")
+                                Text("S${next.season} · E${next.episodeNumber}  ${next.title}",
+                                    style = MaterialTheme.typography.labelSmall)
+                            }
                         }
                     }
                 }
