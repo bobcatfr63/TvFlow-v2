@@ -357,6 +357,17 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun setMobileHomePreviewMode(value: String) {
+        viewModelScope.launch {
+            settingsStore.setMobileHomePreviewMode(value)
+            message.value = when (value) {
+                "OFF" -> "Aperçus animés désactivés sur téléphone"
+                "ALWAYS" -> "Aperçus animés autorisés sur Wi‑Fi et données mobiles"
+                else -> "Aperçus animés limités au Wi‑Fi"
+            }
+        }
+    }
+
     fun setPin(pin: String) = launchBusy("PIN parental enregistré") { settingsStore.setParentalPin(pin) }
     fun clearPin() = launchBusy("PIN parental supprimé") {
         repository.observeManageCategories().first().filter { it.isLocked }.forEach { repository.setCategoryLocked(it.id, false) }

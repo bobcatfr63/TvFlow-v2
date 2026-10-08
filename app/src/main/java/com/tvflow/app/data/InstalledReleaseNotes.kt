@@ -7,14 +7,13 @@ object InstalledReleaseNotes {
         get() = BuildConfig.VERSION_NAME
 
     val items: List<String> = listOf(
-        "Nouveau « Mon moment » : choisis ton temps disponible et ton humeur, TVFlow compose automatiquement jusqu’à trois propositions adaptées.",
-        "Mon moment : formats 20 min, 45 min, 1 h 30, soirée ou surprise avec ambiances Action, Détente, Frissons, Romance et Famille.",
-        "TVFlow Pulse : le profil de goûts peut maintenant être rouvert et modifié directement depuis l’accueil.",
-        "TVFlow Pulse : les choix déclarés restent prioritaires mais sont enrichis par les catégories réellement regardées.",
-        "TVFlow Pulse : l’écran indique désormais ce que l’application a appris de tes habitudes.",
-        "Téléphone : les sélecteurs Pulse et Mon moment passent en deux colonnes pour rester lisibles et tactiles.",
-        "Android TV : les mêmes fonctions utilisent une disposition plus large et un focus télécommande dédié.",
-        "Accueil mobile : marges et cartes encore réduites pour mieux exploiter les écrans en paysage.",
-        "Téléphone et Android TV partagent désormais les mêmes fonctions Pulse et Mon moment avec une présentation adaptée à chaque appareil."
+        "Téléphone : l’accueil peut maintenant afficher le même fond vidéo vivant que la Mi Box, avec extraits silencieux de films.",
+        "Téléphone : les aperçus vidéo sont limités au Wi‑Fi par défaut pour préserver les données mobiles.",
+        "Téléphone : nouveau réglage Aperçus animés accueil mobile avec Désactivé, Wi‑Fi et Toujours.",
+        "Téléphone : l’aperçu s’arrête automatiquement dès qu’on fait défiler l’accueil pour économiser batterie et réseau.",
+        "Téléphone : l’extrait démarre plus tôt que sur TV afin d’obtenir rapidement une image intéressante.",
+        "Accueil : contraste mobile adapté pour garder les textes lisibles au-dessus du fond animé.",
+        "Android TV : le comportement existant du fond vidéo aléatoire reste inchangé.",
+        "TVFlow Pulse et Mon moment restent disponibles sur téléphone et Android TV."
     )
 }

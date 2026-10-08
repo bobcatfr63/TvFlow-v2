@@ -62,6 +62,7 @@ data class DashboardUiState(
     val showTasteOnboarding: Boolean = false,
     val backgroundVideoUrl: String? = null,
     val backgroundVideoTitle: String? = null,
+    val mobileHomePreviewMode: String = "WIFI",
     val updateInfo: AppUpdateInfo? = null,
     val updateDownloadState: UpdateDownloadState = UpdateDownloadState.Idle,
     val installedReleaseNotesVersion: String? = null,
@@ -327,8 +328,9 @@ class DashboardViewModel @Inject constructor(
         contentState,
         supplementalState,
         installedReleaseNotes,
-        tasteState
-    ) { content, supplemental, installedNotes, taste ->
+        tasteState,
+        settingsStore.playerPreferences
+    ) { content, supplemental, installedNotes, taste, playerPreferences ->
         DashboardUiState(
             serverName = content.serverName,
             continueWatching = content.watching,
@@ -345,6 +347,7 @@ class DashboardViewModel @Inject constructor(
             showTasteOnboarding = !taste.preferences.onboardingCompleted,
             backgroundVideoUrl = supplemental.backdrop?.url,
             backgroundVideoTitle = supplemental.backdrop?.title,
+            mobileHomePreviewMode = playerPreferences.mobileHomePreviewMode,
             updateInfo = supplemental.updateInfo,
             updateDownloadState = supplemental.downloadState,
             installedReleaseNotesVersion = installedNotes?.versionName,

@@ -4,6 +4,8 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.drawable.Drawable
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.util.Log
 import android.widget.ImageView
 import androidx.compose.animation.animateColorAsState
@@ -29,6 +31,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
@@ -105,6 +108,7 @@ fun DashboardScreen(
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
     val isTv = context.isTelevisionUi()
+    val listState = rememberLazyListState()
     var appsMode by remember { mutableStateOf(false) }
     var showMoment by remember { mutableStateOf(false) }
     var showTasteEditor by remember { mutableStateOf(false) }
@@ -117,10 +121,17 @@ fun DashboardScreen(
             .fillMaxSize()
             .background(Color.Black)
     ) {
-        if (isTv && !state.backgroundVideoUrl.isNullOrBlank()) {
+        val mobilePreviewAllowed = !isTv &&
+            state.mobileHomePreviewMode != "OFF" &&
+            (state.mobileHomePreviewMode == "ALWAYS" || context.isUnmeteredNetwork()) &&
+            listState.firstVisibleItemIndex == 0 &&
+            listState.firstVisibleItemScrollOffset < 24
+
+        if ((isTv || mobilePreviewAllowed) && !state.backgroundVideoUrl.isNullOrBlank()) {
             TvVideoBackdrop(
                 url = state.backgroundVideoUrl.orEmpty(),
-                title = state.backgroundVideoTitle
+                title = state.backgroundVideoTitle,
+                mobile = !isTv
             )
         }
 
@@ -130,8 +141,8 @@ fun DashboardScreen(
                 .background(
                     Brush.verticalGradient(
                         listOf(
-                            MaterialTheme.colorScheme.primary.copy(alpha = if (isTv) 0.18f else 0.30f),
-                            MaterialTheme.colorScheme.background.copy(alpha = if (isTv) 0.70f else 1f),
+                            MaterialTheme.colorScheme.primary.copy(alpha = if (isTv) 0.18f else 0.24f),
+                            MaterialTheme.colorScheme.background.copy(alpha = if (isTv) 0.70f else if (mobilePreviewAllowed) 0.72f else 1f),
                             Color.Black
                         )
                     )
@@ -140,6 +151,7 @@ fun DashboardScreen(
         )
 
         LazyColumn(
+            state = listState,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(
@@ -294,7 +306,7 @@ fun DashboardScreen(
 }
 
 @Composable
-private fun TvVideoBackdrop(url: String, title: String?) {
+private fun TvVideoBackdrop(url: String, title: String?, mobile: Boolean = false) {
     val context = LocalContext.current
     val player = remember(url) {
         ExoPlayer.Builder(context)
@@ -314,7 +326,7 @@ private fun TvVideoBackdrop(url: String, title: String?) {
             })
             setMediaItem(MediaItem.fromUri(url))
             prepare()
-            seekTo(60_000L)
+            seekTo(if (mobile) 30_000L else 60_000L)
             playWhenReady = true
         }
     }
@@ -342,7 +354,7 @@ private fun TvVideoBackdrop(url: String, title: String?) {
 
         if (!title.isNullOrBlank()) {
             Text(
-                text = "En fond • $title",
+                text = if (mobile) "Extrait • $title" else "En fond • $title",
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .padding(18.dp)
@@ -356,6 +368,15 @@ private fun TvVideoBackdrop(url: String, title: String?) {
             )
         }
     }
+}
+
+private fun Context.isUnmeteredNetwork(): Boolean {
+    val manager = getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager ?: return false
+    val network = manager.activeNetwork ?: return false
+    val capabilities = manager.getNetworkCapabilities(network) ?: return false
+    return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED) ||
+        capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ||
+        capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)
 }
 
 private data class TvInstalledApp(

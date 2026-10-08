@@ -29,7 +29,8 @@ data class PlayerPreferences(
     val resumeLastLiveOnTvBoot: Boolean = false,
     val tvLauncherEnabled: Boolean = false,
     val autoNextEpisode: Boolean = true,
-    val nextEpisodeCountdownSeconds: Int = 10
+    val nextEpisodeCountdownSeconds: Int = 10,
+    val mobileHomePreviewMode: String = "WIFI"
 )
 
 data class LastLiveChannel(
@@ -66,6 +67,7 @@ class SettingsStore @Inject constructor(@ApplicationContext private val context:
         val categorySectionOverrides = stringPreferencesKey("category_section_overrides")
         val tasteOnboardingCompleted = booleanPreferencesKey("taste_onboarding_completed")
         val tasteThemes = stringPreferencesKey("taste_themes")
+        val mobileHomePreviewMode = stringPreferencesKey("mobile_home_preview_mode")
     }
 
     val playerPreferences: Flow<PlayerPreferences> = context.playerSettingsDataStore.data.map { prefs ->
@@ -80,7 +82,8 @@ class SettingsStore @Inject constructor(@ApplicationContext private val context:
             resumeLastLiveOnTvBoot = prefs[Keys.resumeLastLiveOnTvBoot] ?: false,
             tvLauncherEnabled = prefs[Keys.tvLauncherEnabled] ?: false,
             autoNextEpisode = prefs[Keys.autoNextEpisode] ?: true,
-            nextEpisodeCountdownSeconds = (prefs[Keys.nextEpisodeCountdownSeconds] ?: 10).coerceIn(3, 30)
+            nextEpisodeCountdownSeconds = (prefs[Keys.nextEpisodeCountdownSeconds] ?: 10).coerceIn(3, 30),
+            mobileHomePreviewMode = prefs[Keys.mobileHomePreviewMode] ?: "WIFI"
         )
     }
 
@@ -126,6 +129,10 @@ class SettingsStore @Inject constructor(@ApplicationContext private val context:
     suspend fun setTvLauncherEnabled(value: Boolean) = context.playerSettingsDataStore.edit {
         it[Keys.tvLauncherEnabled] = value
     }
+    suspend fun setMobileHomePreviewMode(value: String) = context.playerSettingsDataStore.edit {
+        it[Keys.mobileHomePreviewMode] = value
+    }
+
     suspend fun setAutoNextEpisode(value: Boolean) = context.playerSettingsDataStore.edit {
         it[Keys.autoNextEpisode] = value
     }

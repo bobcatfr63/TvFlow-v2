@@ -173,6 +173,21 @@ fun SettingsScreen(
                     viewModel::setAccent
                 )
                 ToggleRow("Sous-titres par défaut", state.player.subtitlesEnabled) { viewModel.setSubtitles(it) }
+                ChoiceRow(
+                    "Aperçus animés accueil mobile",
+                    listOf("OFF", "WIFI", "ALWAYS"),
+                    state.player.mobileHomePreviewMode,
+                    viewModel::setMobileHomePreviewMode
+                )
+                Text(
+                    when (state.player.mobileHomePreviewMode) {
+                        "OFF" -> "Téléphone : fond statique uniquement."
+                        "ALWAYS" -> "Téléphone : aperçu vidéo autorisé sur tous les réseaux."
+                        else -> "Téléphone : aperçu vidéo uniquement sur Wi‑Fi/réseau non facturé."
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
                 ToggleRow("Épisode suivant automatique", state.player.autoNextEpisode) { viewModel.setAutoNextEpisode(it) }
                 if (state.player.autoNextEpisode) {
                     Text("Compte à rebours épisode suivant", fontWeight = FontWeight.SemiBold)
