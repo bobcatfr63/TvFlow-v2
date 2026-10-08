@@ -12,6 +12,7 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.verticalScroll
@@ -123,6 +124,10 @@ fun DashboardScreen(
         if (selectedPreviewVod != null || selectedPreviewSeries != null) {
             delay(2_000L)
             selectedPreviewUrl = viewModel.vignettePreviewUrl(selectedPreviewVod, selectedPreviewSeries)
+            if (selectedPreviewUrl != null) {
+                delay(12_000L)
+                selectedPreviewUrl = null
+            }
         }
     }
     val tvApps by produceState<List<TvInstalledApp>>(initialValue = emptyList(), context) {
@@ -1660,7 +1665,12 @@ private fun RecentMediaCard(
                 if (focused) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f),
                 RoundedCornerShape(16.dp)
             )
-            .clickable(interactionSource = interaction, indication = null, onClick = onClick)
+            .combinedClickable(
+                interactionSource = interaction,
+                indication = null,
+                onClick = onClick,
+                onLongClick = { onFocused(true) }
+            )
             .onFocusChanged { onFocused(it.isFocused) }
             .focusable(interactionSource = interaction)
     ) {
