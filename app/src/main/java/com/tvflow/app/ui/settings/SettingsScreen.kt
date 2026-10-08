@@ -121,6 +121,13 @@ fun SettingsScreen(
                 ) {
                     Text("Organisation des chaînes  ›")
                 }
+                Spacer(Modifier.height(8.dp))
+                SettingsButton(
+                    onClick = { selectedMediaIds = emptySet(); showMediaOrganization = true },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Organisation des films et séries  ›")
+                }
             }
 
             item {
@@ -303,13 +310,6 @@ fun SettingsScreen(
                     "Le token reste stocké localement sur l’appareil et n’est pas intégré dans l’APK ni envoyé sur GitHub.",
                     style = MaterialTheme.typography.bodySmall
                 )
-            }
-
-            item {
-                SettingsButton(
-                    onClick = { selectedMediaIds = emptySet(); showMediaOrganization = true },
-                    modifier = Modifier.fillMaxWidth()
-                ) { Text("Organisation des films et séries  ›") }
             }
 
             item {
