@@ -28,7 +28,7 @@ val projectVersionName = rootProject.file("VERSION")
 val gitCommitCount = providers.exec {
     commandLine("git", "-C", rootDir.absolutePath, "rev-list", "--count", "HEAD")
 }.standardOutput.asText.get().trim().toIntOrNull()?.coerceAtLeast(35) ?: 35
-val tvFlowVersionCodeBase = 300_000_000
+val tvFlowVersionCodeBase = 2_020_000_000
 val appVersionCode = devServerVersionCode ?: (tvFlowVersionCodeBase + gitCommitCount)
 val releaseKeystorePath = providers.environmentVariable("TVFLOW_KEYSTORE_PATH").orNull
 val releaseStorePassword = providers.environmentVariable("TVFLOW_STORE_PASSWORD").orNull
