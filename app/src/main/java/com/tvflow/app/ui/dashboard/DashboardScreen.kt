@@ -238,9 +238,6 @@ fun DashboardScreen(
                 }
             }
 
-            if (state.continueWatching.isNotEmpty()) {
-                item { ContinueRail("Continuer à regarder", state.continueWatching, onResume) }
-            }
             if (state.recentlyWatched.isNotEmpty()) {
                 item { ContinueRail("Récemment regardé", state.recentlyWatched, onResume) }
             }
