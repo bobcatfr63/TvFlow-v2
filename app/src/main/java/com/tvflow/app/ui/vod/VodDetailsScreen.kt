@@ -148,7 +148,6 @@ fun VodDetailsScreen(
             }
         }
         }
-        }
     }
 }
 
