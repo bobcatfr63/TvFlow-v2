@@ -6,6 +6,7 @@ import android.media.AudioManager
 import android.content.pm.ActivityInfo
 import android.util.Log
 import android.view.KeyEvent
+import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.compose.foundation.background
@@ -202,7 +203,14 @@ fun VodPlayerScreen(
 
     Box(
         Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
-            .pointerInput(Unit) { detectTapGestures(onTap = { infoVisible = !infoVisible }) }
+            .pointerInput(state.seriesId, state.nextEpisode?.id, state.previousEpisode?.id) {
+                detectTapGestures(onTap = {
+                    infoVisible = !infoVisible
+                    if (state.seriesId != null && (state.nextEpisode != null || state.previousEpisode != null)) {
+                        episodeNavigationVisible = true
+                    }
+                })
+            }
             .pointerInput(Unit) {
                 var startX = 0f
                 var vertical = 0f
@@ -263,6 +271,11 @@ fun VodPlayerScreen(
                     PlayerView(it).apply {
                         this.player = player
                         useController = true
+                        setControllerVisibilityListener(PlayerView.ControllerVisibilityListener { visibility ->
+                            episodeNavigationVisible = visibility == View.VISIBLE &&
+                                state.seriesId != null &&
+                                (state.nextEpisode != null || state.previousEpisode != null)
+                        })
                         keepScreenOn = true
                         isFocusable = true
                         isFocusableInTouchMode = true
@@ -354,24 +367,6 @@ fun VodPlayerScreen(
                 color = MaterialTheme.colorScheme.primary,
                 style = MaterialTheme.typography.labelLarge
             )
-        }
-
-        // Small persistent episode shortcut, including when Media3 controls are visible.
-        val shortcutNext = state.nextEpisode
-        val shortcutSeriesId = state.seriesId
-        if (shortcutNext != null && shortcutSeriesId != null && !castActive) {
-            Card(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(end = 24.dp, bottom = 100.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.82f)
-                )
-            ) {
-                TextButton(onClick = { onPlayEpisode(shortcutNext, shortcutSeriesId) }) {
-                    Text("Épisode suivant  ›")
-                }
-            }
         }
 
         val navigationSeriesId = state.seriesId
