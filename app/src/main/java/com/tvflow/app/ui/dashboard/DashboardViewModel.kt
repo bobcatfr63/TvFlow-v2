@@ -459,30 +459,39 @@ private fun buildTonightPrograms(
     epg: List<EpgProgram>
 ): List<TonightProgram> {
     val channelById = channels.associateBy { it.streamId }
-    val now = System.currentTimeMillis() / 1000L
     val calendar = Calendar.getInstance()
-    calendar.set(Calendar.HOUR_OF_DAY, 18)
-    calendar.set(Calendar.MINUTE, 0)
+    calendar.set(Calendar.HOUR_OF_DAY, 20)
+    calendar.set(Calendar.MINUTE, 30)
     calendar.set(Calendar.SECOND, 0)
     calendar.set(Calendar.MILLISECOND, 0)
-    val eveningStart = calendar.timeInMillis / 1000L
-    calendar.set(Calendar.HOUR_OF_DAY, 23)
-    calendar.set(Calendar.MINUTE, 59)
-    calendar.set(Calendar.SECOND, 59)
-    val eveningEnd = calendar.timeInMillis / 1000L
-    val windowStart = if (now > eveningStart) now else eveningStart
+    val primeStart = calendar.timeInMillis / 1000L
+    calendar.set(Calendar.HOUR_OF_DAY, 22)
+    calendar.set(Calendar.MINUTE, 0)
+    val primeEnd = calendar.timeInMillis / 1000L
+
+    // Xtream EPG often has no genre field, so classify conservatively.
+    fun isFilm(item: TonightProgram): Boolean {
+        val details = normalizedTasteText(
+            "${item.program.title} ${item.program.description.orEmpty()}"
+        )
+        val excluded = Regex("\\b(serie|episode|journal|actualites|magazine|sport|match|documentaire)\\b")
+        if (excluded.containsMatchIn(details)) return false
+        val channel = normalizedTasteText(item.channel.name)
+        return Regex("\\b(film|cinema|long metrage)\\b").containsMatchIn(details) ||
+            Regex("\\b(cine|cinema|movies)\\b").containsMatchIn(channel)
+    }
 
     return epg.asSequence()
-        .filter { it.stopTimestamp > windowStart && it.startTimestamp <= eveningEnd }
+        .filter { it.startTimestamp <= primeEnd && it.stopTimestamp > primeStart && it.startTimestamp >= primeStart - 45 * 60 }
         .mapNotNull { program ->
             channelById[program.streamId]?.let { channel -> TonightProgram(channel, program) }
         }
+        .filter(::isFilm)
         .distinctBy { it.channel.streamId.toString() + ":" + it.program.startTimestamp }
         .sortedWith(
-            compareByDescending<TonightProgram> { it.channel.isFavorite }
-                .thenByDescending { it.channel.lastWatchedAt ?: 0L }
-                .thenBy { if (it.program.isLiveAt(now)) 0 else 1 }
-                .thenBy { it.program.startTimestamp }
+            compareBy<TonightProgram> { it.program.startTimestamp }
+                .thenByDescending { it.channel.isFavorite }
         )
+        .take(24)
         .toList()
 }

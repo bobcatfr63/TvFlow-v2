@@ -247,9 +247,6 @@ fun DashboardScreen(
             if (state.favorites.isNotEmpty()) {
                 item { ChannelRail("★  Mes favoris", state.favorites, onChannel) }
             }
-            if (state.recentChannels.isNotEmpty()) {
-                item { ChannelRail("Vu récemment", state.recentChannels, onChannel) }
-            }
         }
 
         if (state.showTasteOnboarding) {
@@ -1464,10 +1461,10 @@ private fun TonightRail(
     onChannel: (LiveChannel) -> Unit
 ) {
     Column {
-        SectionTitle("Ce soir à la TV")
+        SectionTitle("Les films du prime time")
         Spacer(Modifier.height(6.dp))
         Text(
-            "Suggestions basées sur tes favoris, tes chaînes récentes et l’EPG disponible.",
+            "Films prévus entre 20 h 30 et 22 h, selon les informations EPG disponibles.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.70f)
         )
