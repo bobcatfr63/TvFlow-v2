@@ -3,6 +3,12 @@ package com.tvflow.app.ui.vod
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -52,8 +58,8 @@ fun VodDetailsScreen(
     val suggestions by viewModel.suggestions.collectAsState()
     val enrichedItem by viewModel.item.collectAsState()
     val isTv = LocalContext.current.isTelevisionUi()
-    val posterWidth = if (isTv) 230.dp else 150.dp
-    val posterHeight = if (isTv) 340.dp else 210.dp
+    val posterWidth = if (isTv) 230.dp else 104.dp
+    val posterHeight = if (isTv) 340.dp else 158.dp
     val effectiveTitle = enrichedItem?.name?.takeIf { it.isNotBlank() } ?: title
     val effectivePoster = enrichedItem?.posterUrl ?: posterUrl
     val effectiveSynopsis = enrichedItem?.synopsis?.takeIf { it.isNotBlank() } ?: synopsis
@@ -62,8 +68,18 @@ fun VodDetailsScreen(
     val effectiveReleaseMonth = enrichedItem?.releaseMonth ?: releaseMonth
 
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+        Box(Modifier.fillMaxSize()) {
+            AsyncImage(
+                model = effectivePoster,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+            Box(Modifier.fillMaxSize().background(Brush.verticalGradient(
+                listOf(Color.Black.copy(alpha = 0.83f), Color(0xFF07121E).copy(alpha = 0.95f), Color.Black)
+            )))
         Column(
-            modifier = Modifier.fillMaxSize().padding(32.dp),
+            modifier = Modifier.fillMaxSize().padding(if (isTv) 32.dp else 16.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
             Row(
@@ -81,6 +97,7 @@ fun VodDetailsScreen(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
+                    Text("TVFlow CINEMA  •  FILM", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
                     Text(
                         effectiveTitle,
                         style = MaterialTheme.typography.headlineLarge,
@@ -129,6 +146,8 @@ fun VodDetailsScreen(
                     }
                 }
             }
+        }
+        }
         }
     }
 }

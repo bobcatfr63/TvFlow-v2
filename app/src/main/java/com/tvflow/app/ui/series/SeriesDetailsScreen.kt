@@ -38,6 +38,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import coil3.compose.AsyncImage
 import com.tvflow.app.domain.Episode
 import com.tvflow.app.domain.SeriesItem
+import com.tvflow.app.util.isTelevisionUi
 
 @Composable
 fun SeriesDetailsScreen(
@@ -52,6 +53,7 @@ fun SeriesDetailsScreen(
     viewModel: SeriesDetailsViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
+    val isTv = androidx.compose.ui.platform.LocalContext.current.isTelevisionUi()
     val seasons = state.episodes.map { it.season }.distinct()
     val episodes = state.episodes.filter {
         state.selectedSeason == null || it.season == state.selectedSeason
@@ -65,7 +67,7 @@ fun SeriesDetailsScreen(
                     listOf(Color(0xFF0A3554), Color(0xFF06111B), Color(0xFF03080D))
                 )
             )
-            .padding(32.dp),
+            .padding(if (isTv) 32.dp else 16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         item {
@@ -86,6 +88,7 @@ fun SeriesDetailsScreen(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
+                    Text("TVFlow CINEMA  •  SÉRIE", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
                     Text(
                         seriesName,
                         style = MaterialTheme.typography.headlineLarge,

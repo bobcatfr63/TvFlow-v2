@@ -9,6 +9,9 @@ import android.net.NetworkCapabilities
 import android.util.Log
 import android.widget.ImageView
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -119,6 +122,14 @@ fun DashboardScreen(
     var selectedPreviewVod by remember { mutableStateOf<VodItem?>(null) }
     var selectedPreviewSeries by remember { mutableStateOf<SeriesItem?>(null) }
     var selectedPreviewUrl by remember { mutableStateOf<String?>(null) }
+    val cinematicPalette = listOf(Color(0xFF234E65), Color(0xFF593149), Color(0xFF4B4925), Color(0xFF36466B), Color(0xFF2E594C))
+    val selectedName = selectedPreviewVod?.name ?: selectedPreviewSeries?.name
+    val cinematicColor by animateColorAsState(
+        targetValue = selectedName?.let { cinematicPalette[(it.hashCode().toLong() and 0x7FFFFFFF).toInt() % cinematicPalette.size] }
+            ?: MaterialTheme.colorScheme.primary,
+        animationSpec = tween(durationMillis = 600),
+        label = "cinemaColor"
+    )
     LaunchedEffect(selectedPreviewVod, selectedPreviewSeries) {
         selectedPreviewUrl = null
         if (selectedPreviewVod != null || selectedPreviewSeries != null) {
@@ -161,7 +172,7 @@ fun DashboardScreen(
                 .background(
                     Brush.verticalGradient(
                         listOf(
-                            MaterialTheme.colorScheme.primary.copy(alpha = if (isTv) 0.18f else 0.24f),
+                            cinematicColor.copy(alpha = if (isTv) 0.38f else 0.24f),
                             MaterialTheme.colorScheme.background.copy(alpha = if (isTv) 0.70f else if (mobilePreviewAllowed) 0.72f else 1f),
                             Color.Black
                         )
@@ -209,6 +220,36 @@ fun DashboardScreen(
                         onMoment = { showMoment = true },
                         onSettings = onSettings
                     )
+                }
+            }
+
+            if (selectedPreviewVod != null || selectedPreviewSeries != null) {
+                item {
+                    Crossfade(
+                        targetState = selectedPreviewVod?.name ?: selectedPreviewSeries?.name.orEmpty(),
+                        animationSpec = tween(350),
+                        label = "cinemaSelection"
+                    ) { name ->
+                        Column(
+                            Modifier.fillMaxWidth()
+                                .clip(RoundedCornerShape(18.dp))
+                                .background(Color.Black.copy(alpha = 0.66f))
+                                .padding(18.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text("TVFlow CINEMA • À la une", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
+                            Text(name, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, maxLines = 2)
+                            Text(
+                                selectedPreviewVod?.synopsis?.takeIf { it.isNotBlank() }
+                                    ?: selectedPreviewSeries?.plot?.takeIf { it.isNotBlank() }
+                                    ?: "Sélectionne ce titre pour découvrir sa fiche et lancer la lecture.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                maxLines = 3,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(if (selectedPreviewUrl != null) "▶ Aperçu silencieux" else "Aperçu dans 2 secondes", style = MaterialTheme.typography.labelMedium)
+                        }
+                    }
                 }
             }
 
@@ -1271,12 +1312,24 @@ private fun buildMomentCandidates(
     fun addSeries(count: Int, reason: String) {
         filteredSeries.filterNot { item -> result.any { it.series?.seriesId == item.seriesId } }
             .take(count)
-            .forEach { result += MomentCandidate(series = it, reason = reason) }
+            .forEach { item ->
+                val matches = seriesMatches(item)
+                result += MomentCandidate(
+                    series = item,
+                    reason = if (mood != "Tout" && matches) "$reason • Correspond à l'ambiance $mood." else reason
+                )
+            }
     }
     fun addVod(count: Int, reason: String) {
         filteredVod.filterNot { item -> result.any { it.vod?.streamId == item.streamId } }
             .take(count)
-            .forEach { result += MomentCandidate(vod = it, reason = reason) }
+            .forEach { item ->
+                val matches = vodMatches(item)
+                result += MomentCandidate(
+                    vod = item,
+                    reason = if (mood != "Tout" && matches) "$reason • Correspond à l'ambiance $mood." else reason
+                )
+            }
     }
 
     when (duration) {
@@ -1824,6 +1877,12 @@ private fun ContinueCard(item: PlaybackPosition, onResume: (PlaybackPosition) ->
             color = MaterialTheme.colorScheme.onSurface
         )
         Column {
+            Text(
+                if (item.progress < 0.99f) "▶ Reprendre à ${(item.positionMs / 60_000L)} min" else "✓ Déjà regardé",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primary,
+                maxLines = 1
+            )
             LinearProgressIndicator(
                 progress = { item.progress },
                 modifier = Modifier.fillMaxWidth().height(5.dp).clip(RoundedCornerShape(8.dp))
