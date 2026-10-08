@@ -69,7 +69,11 @@ class MainActivity : FragmentActivity() {
             ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) !=
             PackageManager.PERMISSION_GRANTED
         ) {
-            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            val prefs = getSharedPreferences("tvflow_notification_permission", MODE_PRIVATE)
+            if (!prefs.getBoolean("asked", false)) {
+                prefs.edit().putBoolean("asked", true).apply()
+                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
         }
     }
 
