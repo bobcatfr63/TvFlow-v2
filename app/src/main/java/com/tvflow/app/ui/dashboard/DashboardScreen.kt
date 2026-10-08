@@ -66,6 +66,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
@@ -671,27 +672,28 @@ private fun HeroHeader(
         Spacer(Modifier.height(20.dp))
 
         Row(
-            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            FeatureTile("●", "Direct", "Regarder maintenant", onLive, true)
-            FeatureTile("▦", "Guide TV", "Programmes & EPG", onGuide)
-            FeatureTile("▶", "Films", "VOD", onVod)
-            FeatureTile("S", "Séries", "Épisodes & saisons", onSeries)
-            FeatureTile("✦", "Mon moment", "TV adaptée à ton temps", onMoment, true)
-            FeatureTile("P", "Pulse", "Mes goûts", onPulse)
-            FeatureTile("⌕", "Recherche", "Tout retrouver", onSearch)
-            FeatureTile("▦", if (appsSelected) "Apps ✓" else "Apps", "Applications", onApps)
-            FeatureTile("⚙", "Réglages", "Personnaliser", onSettings)
+            MobileFeatureTile("●", "Direct", onLive, primary = true)
+            MobileFeatureTile("▦", "Guide TV", onGuide)
+            MobileFeatureTile("▶", "Films", onVod)
+            MobileFeatureTile("S", "Séries", onSeries)
+            MobileFeatureTile("✦", "Mon moment", onMoment, primary = true)
+            MobileFeatureTile("P", "Pulse", onPulse)
+            MobileFeatureTile("⌕", "Recherche", onSearch)
+            MobileFeatureTile("▦", if (appsSelected) "Apps ✓" else "Apps", onApps)
+            MobileFeatureTile("⚙", "Réglages", onSettings)
         }
     }
 }
 
 @Composable
-private fun FeatureTile(
+private fun MobileFeatureTile(
     glyph: String,
     title: String,
-    subtitle: String,
     onClick: () -> Unit,
     primary: Boolean = false
 ) {
@@ -711,8 +713,8 @@ private fun FeatureTile(
 
     Column(
         modifier = Modifier
-            .width(136.dp)
-            .height(86.dp)
+            .width(126.dp)
+            .height(100.dp)
             .clip(RoundedCornerShape(18.dp))
             .background(bg)
             .border(
@@ -723,14 +725,24 @@ private fun FeatureTile(
             )
             .clickable(interactionSource = interaction, indication = null, onClick = onClick)
             .focusable(interactionSource = interaction)
-            .padding(16.dp),
-        verticalArrangement = Arrangement.SpaceBetween
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Text(glyph, style = MaterialTheme.typography.headlineMedium, color = fg)
-        Column {
-            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = fg)
-            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = fg.copy(alpha = 0.70f))
-        }
+        Text(
+            glyph,
+            style = MaterialTheme.typography.titleLarge,
+            color = fg,
+            maxLines = 1
+        )
+        Text(
+            title,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
+            color = fg,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            lineHeight = 18.sp
+        )
     }
 }
 
