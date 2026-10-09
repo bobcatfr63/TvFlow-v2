@@ -1,7 +1,11 @@
 package com.tvflow.app.data.remote
 
+import com.google.gson.JsonDeserializationContext
+import com.google.gson.JsonDeserializer
 import com.google.gson.JsonElement
+import com.google.gson.annotations.JsonAdapter
 import com.google.gson.annotations.SerializedName
+import java.lang.reflect.Type
 
 data class XtreamAuthResponse(
     @SerializedName("user_info") val userInfo: UserInfo?,
@@ -81,7 +85,7 @@ data class VodStreamDto(
 )
 
 data class VodInfoResponse(
-    val info: VodInfoDto? = null,
+    @JsonAdapter(FlexibleVodInfoAdapter::class) val info: VodInfoDto? = null,
     @SerializedName("movie_data") val movieData: VodMovieDataDto? = null
 )
 
@@ -92,6 +96,23 @@ data class VodInfoDto(
     @SerializedName(value = "releasedate", alternate = ["releaseDate", "release_date"]) val releaseDate: String? = null,
     @SerializedName(value = "year", alternate = ["releaseYear", "release_year"]) val year: String? = null
 )
+
+/** Providers may return `info` as an object, an array or an empty array. */
+class FlexibleVodInfoAdapter : JsonDeserializer<VodInfoDto> {
+    override fun deserialize(
+        json: JsonElement?,
+        typeOfT: Type?,
+        context: JsonDeserializationContext?
+    ): VodInfoDto? {
+        val info = when {
+            json == null || json.isJsonNull -> null
+            json.isJsonObject -> json
+            json.isJsonArray -> json.asJsonArray.firstOrNull { it.isJsonObject }
+            else -> null
+        } ?: return null
+        return context?.deserialize(info, VodInfoDto::class.java)
+    }
+}
 
 data class VodMovieDataDto(
     @SerializedName("stream_id") val streamId: Int? = null,
