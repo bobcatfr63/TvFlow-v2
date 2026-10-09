@@ -82,6 +82,7 @@ import androidx.media3.ui.PlayerView
 import coil3.compose.AsyncImage
 import com.tvflow.app.BuildConfig
 import com.tvflow.app.data.AppUpdateInfo
+import com.tvflow.app.data.InstalledReleaseNotes
 import com.tvflow.app.data.UpdateDownloadState
 import com.tvflow.app.ui.common.iptvMediaSourceFactory
 import com.tvflow.app.domain.LiveChannel
@@ -829,6 +830,8 @@ private fun UpdatePopup(
     onDismiss: () -> Unit
 ) {
     val sizeMb = update.artifactSize / (1024f * 1024f)
+    val isTv = LocalContext.current.isTelevisionUi()
+    val readableNotes = remember(update.releaseNotes) { InstalledReleaseNotes.localizedItems(update.releaseNotes) }
     AlertDialog(
         onDismissRequest = {
             if (downloadState !is UpdateDownloadState.Downloading) onDismiss()
@@ -840,7 +843,13 @@ private fun UpdatePopup(
             )
         },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = if (isTv) 335.dp else 265.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
                 Text(
                     "Nouvelle version : ${update.versionName}",
                     style = MaterialTheme.typography.titleMedium
@@ -863,13 +872,13 @@ private fun UpdatePopup(
                     )
                 }
 
-                if (update.releaseNotes.isNotEmpty()) {
+                if (readableNotes.isNotEmpty()) {
                     Text(
                         "Cette mise à jour apporte :",
                         fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.padding(top = 4.dp)
                     )
-                    update.releaseNotes.forEach { note ->
+                    readableNotes.forEach { note ->
                         Text(
                             "• $note",
                             style = MaterialTheme.typography.bodyMedium

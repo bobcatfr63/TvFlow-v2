@@ -16,6 +16,12 @@ object InstalledReleaseNotes {
             .take(6)
             .toList()
 
+    /** Shared human-readable summaries for installed notes and available-update dialogs. */
+    fun localizedItems(rawNotes: List<String>): List<String> = rawNotes
+        .map(::frenchSummary)
+        .distinct()
+        .take(4)
+
     private fun frenchSummary(subject: String): String = when {
         "array-shaped VOD info" in subject -> "Compatibilité Xtream améliorée : correction de la récupération des informations des films."
         "store-safe app bundle" in subject -> "Préparation de TVFlow pour Google Play, sans perturber les mises à jour GitHub."
