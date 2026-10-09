@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -34,10 +35,12 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.MultiFormatWriter
+import com.tvflow.app.BuildConfig
 
 @Composable
 fun LoginScreen(
     onLoggedIn: () -> Unit,
+    onOpenDemo: (() -> Unit)? = null,
     viewModel: LoginViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
@@ -119,6 +122,22 @@ fun LoginScreen(
             ) {
                 if (state.loading) CircularProgressIndicator(modifier = Modifier.height(22.dp))
                 else Text("Se connecter")
+            }
+
+            if (BuildConfig.IS_PLAY_STORE && onOpenDemo != null) {
+                Spacer(Modifier.height(12.dp))
+                OutlinedButton(
+                    onClick = onOpenDemo,
+                    enabled = !state.loading,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Découvrir TVFlow sans identifiants")
+                }
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "Mode de démonstration hors ligne : aucun compte, serveur ou achat requis.",
+                    style = MaterialTheme.typography.bodySmall
+                )
             }
 
             state.error?.let {

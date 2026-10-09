@@ -19,6 +19,7 @@ import com.tvflow.app.ui.dashboard.DashboardScreen
 import com.tvflow.app.ui.home.HomeScreen
 import com.tvflow.app.ui.guide.GuideScreen
 import com.tvflow.app.ui.library.MediaLibraryScreen
+import com.tvflow.app.ui.login.DemoScreen
 import com.tvflow.app.ui.login.LoginScreen
 import com.tvflow.app.ui.player.PlayerScreen
 import com.tvflow.app.ui.search.SearchScreen
@@ -105,7 +106,14 @@ fun TVFlowNavHost(
         }
         composable("login") {
             LoginScreen(
-                onLoggedIn = { navController.navigate("dashboard") { popUpTo("login") { inclusive = true } } }
+                onLoggedIn = { navController.navigate("dashboard") { popUpTo("login") { inclusive = true } } },
+                onOpenDemo = { navController.navigate("demo") }
+            )
+        }
+        composable("demo") {
+            DemoScreen(
+                onBack = { navController.popBackStack() },
+                onConfigureAccount = { navController.popBackStack("login", inclusive = false) }
             )
         }
         composable("dashboard") {
