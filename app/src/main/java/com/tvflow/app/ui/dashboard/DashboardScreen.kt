@@ -1437,6 +1437,10 @@ private fun InstalledReleaseNotesPopup(
 
                                     val step = 180
                                     when (event.key) {
+                                        Key.DirectionCenter, Key.Enter -> {
+                                            onDismiss()
+                                            true
+                                        }
                                         Key.DirectionDown -> {
                                             if (scrollState.value < scrollState.maxValue) {
                                                 scope.launch {

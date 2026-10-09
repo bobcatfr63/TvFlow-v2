@@ -16,7 +16,9 @@
 | 250 déplacements Monkey D-pad | PASS, 0 crash ou ANR | Pas de clic/toucher/test fonctionnel |
 | Ouverture d'une fiche série, focus saison/épisodes, entrée et retour du lecteur | PASS navigation, aucun crash | La vidéo elle-même n'est pas confirmée |
 | Lecture épisode MKV sur Mi Box | INCONCLUSIF | Codec AVC initialisé, capture ADB noire ; vérifier image/son sur téléviseur |
-| Parsing Xtream `get_vod_info` avec `info` tableau | DEFAUT CONSTATE, CORRIGE, test unitaire PASS | Revalider sur APK installé ensuite |
+| Parsing Xtream `get_vod_info` avec `info` tableau | DÉFAUT CONSTATÉ, CORRIGÉ, tests unitaires PASS | Version corrigée 1.0.88 installée sur Mi Box |
+| Fenêtre Nouveautés à la télécommande | DÉFAUT CONSTATÉ : OK non capturé par le contenu défilable | Correctif du focus/bouton central compilé, à retester sur APK suivant |
+| Textes des nouveautés | DÉFAUT CONSTATÉ : sujets de commits anglais visibles | Résumés français concis intégrés, à retester sur APK suivant |
 | 45 tests unitaires (7 suites) | PASS, 0 échec, 0 erreur | Inclut quatre réponses Xtream `info` atypiques |
 | Gradle `bundlePlayRelease`, R8, lint vital | PASS | AAB non signé |
 | Manifeste Play sans `REQUEST_INSTALL_PACKAGES` | PASS | Play Console doit encore examiner l'application |
