@@ -42,6 +42,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.tvflow.app.BuildConfig
+import com.tvflow.app.premium.PremiumPlan
 import com.tvflow.app.domain.LiveCategory
 import com.tvflow.app.domain.LiveChannel
 import com.tvflow.app.domain.MediaCategory
@@ -61,6 +62,25 @@ fun SettingsScreen(
     val context = LocalContext.current
     val isTv = context.isTelevisionUi()
     var pin by remember { mutableStateOf("") }
+    var showPremium by remember { mutableStateOf(false) }
+    if (showPremium) {
+        AlertDialog(
+            onDismissRequest = { showPremium = false },
+            title = { Text("TVFlow Premium · À vie") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("4,99 € · Achat unique, sans abonnement", style = MaterialTheme.typography.titleMedium)
+                    Text("Votre formule actuelle : TVFlow Free")
+                    PremiumPlan.benefits.forEach { Text("• $it") }
+                    Text(
+                        "L’achat et la restauration seront disponibles après la configuration et la vérification sécurisée de Google Play Billing. Aucun paiement n’est effectué ici.",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            },
+            confirmButton = { Button(onClick = { showPremium = false }) { Text("Compris") } }
+        )
+    }
     var tmdbToken by remember { mutableStateOf("") }
     var showChannelOrganization by remember { mutableStateOf(false) }
     var showMediaOrganization by remember { mutableStateOf(false) }
@@ -131,6 +151,11 @@ fun SettingsScreen(
             }
 
             item {
+                SectionTitle("TVFlow Premium")
+                SettingsButton(onClick = { showPremium = true }, modifier = Modifier.fillMaxWidth()) {
+                    Text("Premium à vie · 4,99 €  ›")
+                }
+                Spacer(Modifier.height(8.dp))
                 SectionTitle("Serveurs Xtream")
                 state.profiles.forEach { profile ->
                     ProfileRow(
