@@ -43,6 +43,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.tvflow.app.BuildConfig
 import com.tvflow.app.premium.PremiumPlan
+import com.tvflow.app.premium.PlayBillingGateway
+import androidx.compose.runtime.DisposableEffect
 import com.tvflow.app.domain.LiveCategory
 import com.tvflow.app.domain.LiveChannel
 import com.tvflow.app.domain.MediaCategory
@@ -63,6 +65,12 @@ fun SettingsScreen(
     val isTv = context.isTelevisionUi()
     var pin by remember { mutableStateOf("") }
     var showPremium by remember { mutableStateOf(false) }
+    val billing = remember(context) { PlayBillingGateway(context) }
+    val billingState by billing.state.collectAsState()
+    DisposableEffect(billing) {
+        if (BuildConfig.IS_PLAY_STORE) billing.connect()
+        onDispose { billing.close() }
+    }
     if (showPremium) {
         AlertDialog(
             onDismissRequest = { showPremium = false },
@@ -71,6 +79,13 @@ fun SettingsScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text("4,99 € · Achat unique, sans abonnement", style = MaterialTheme.typography.titleMedium)
                     Text("Votre formule actuelle : TVFlow Free")
+                    if (BuildConfig.IS_PLAY_STORE) {
+                        Text("Google Play : ${billingState.message}")
+                        billingState.displayedPrice?.let { Text("Prix affiché par Google Play : $it") }
+                        Button(onClick = { billing.restore() }) { Text("Restaurer mes achats") }
+                    } else {
+                        Text("Les achats Premium sont réservés à la future version Google Play.")
+                    }
                     PremiumPlan.benefits.forEach { Text("• $it") }
                     Text(
                         "L’achat et la restauration seront disponibles après la configuration et la vérification sécurisée de Google Play Billing. Aucun paiement n’est effectué ici.",

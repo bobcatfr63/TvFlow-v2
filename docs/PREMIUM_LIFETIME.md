@@ -22,3 +22,9 @@ Xtream Codes, Live, EPG, VOD et séries, favoris, recherche, audio/sous-titres, 
 
 ## Critères de lancement
 Tester via piste interne Google Play avec comptes testeurs, achats test, restauration après réinstallation, annulation/remboursement, changement de compte, perte du réseau, compatibilité Mi Box et Android mobile. Vérifier les prix localisés sur la fiche produit.
+## Avancement Google Play Billing
+- Client Billing 9.1.0 integre : connexion, produit INAPP, prix localise et interrogation des achats possedes.
+- Bouton de restauration disponible pour les installations Play Store.
+- Un achat detecte n'est pas une licence valide : la verification serveur est obligatoire.
+- Checkout bloque tant que verification serveur, acquittement et revocation ne sont pas actifs.
+- A finaliser : produit Play Console a 4,99 EUR, service Google Play Developer API, gestion des remboursements, tests par piste interne avec comptes testeurs.

@@ -186,6 +186,7 @@ dependencies {
     implementation("androidx.media3:media3-exoplayer-dash:1.11.1")
     implementation("androidx.media3:media3-ui:1.11.1")
     implementation("com.google.android.gms:play-services-cast-framework:22.3.1")
+    implementation("com.android.billingclient:billing:9.1.0")
     implementation("org.videolan.android:libvlc-all:3.7.6")
 
     implementation("io.coil-kt.coil3:coil-compose:3.3.0")
