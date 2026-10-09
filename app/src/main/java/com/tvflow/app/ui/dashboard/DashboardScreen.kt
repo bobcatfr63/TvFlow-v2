@@ -1132,7 +1132,7 @@ private fun MomentPopup(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(max = if (isTv) 540.dp else 470.dp)
+                    .heightIn(max = if (isTv) 420.dp else 295.dp)
                     .verticalScroll(scroll),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
@@ -1424,7 +1424,7 @@ private fun InstalledReleaseNotesPopup(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(max = 360.dp)
+                    .heightIn(max = if (isTv) 230.dp else 170.dp)
                     .verticalScroll(scrollState)
                     .then(
                         if (isTv) {

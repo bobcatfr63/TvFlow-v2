@@ -26,6 +26,14 @@ object InstalledReleaseNotes {
         "silent focused film" in subject -> "Aperçus silencieux des films et séries après deux secondes de sélection."
         "remove duplicate continue" in subject -> "Accueil simplifié : suppression d'un bandeau en doublon."
         "sync cast actions" in subject -> "Lecteur : commandes Cast et épisode suivant plus discrètes."
-        else -> subject.replaceFirstChar { it.uppercaseChar() }
+        "balance movies and series across release eras" in subject -> "Pulse et Mon moment proposent désormais des films et séries de toutes les époques."
+        "integrate Google Play billing" in subject -> "Préparation du paiement Premium et de la restauration des achats Google Play."
+        "prepare lifetime offer" in subject -> "Préparation de TVFlow Premium, disponible à terme par achat unique."
+        "premium" in subject.lowercase() -> "Améliorations de l'expérience TVFlow Premium."
+        else -> if (subject.any { it in "éèêàùçôîû" } || subject.startsWith("Correction") || subject.startsWith("Rendre")) {
+            subject.replaceFirstChar { it.uppercaseChar() }
+        } else {
+            "Améliorations de l'application et de sa stabilité."
+        }
     }
 }
