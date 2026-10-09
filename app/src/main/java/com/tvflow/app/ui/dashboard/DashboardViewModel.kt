@@ -199,8 +199,8 @@ class DashboardViewModel @Inject constructor(
         val pulseSeries: List<SeriesItem>
     )
 
-    private val recentVodForTaste = repository.observeRecentFrenchVodReleases(30)
-    private val recentSeriesForTaste = repository.observeRecentFrenchSeriesReleases(30)
+    private val recentVodForTaste = repository.observeFrenchVodForPulse()
+    private val recentSeriesForTaste = repository.observeFrenchSeriesForPulse()
     private val learnedThemes = repository.observeWatchHistory(40).map {
         runCatching { repository.learnedMediaCategoryNames(40) }
             .getOrDefault(emptyList())

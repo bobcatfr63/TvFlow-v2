@@ -181,6 +181,12 @@ interface TVFlowDao {
         limit: Int = 80
     ): List<VodItemEntity>
 
+    // Balanced sample across eras for Pulse; never load the full Xtream catalog into memory.
+    @Query("SELECT * FROM vod_items WHERE profileId = :profileId AND categoryId IN (:categoryIds) AND ((:startYear IS NULL AND releaseYear IS NULL) OR (releaseYear >= :startYear AND releaseYear <= :endYear)) ORDER BY (ABS(CAST(streamId AS INTEGER) * 37 + 17) % 1009), name LIMIT :limit")
+    fun observePulseVodEra(profileId: String, categoryIds: List<String>, startYear: Int?, endYear: Int?, limit: Int): Flow<List<VodItemEntity>>
+
+    @Query("SELECT * FROM series_items WHERE profileId = :profileId AND categoryId IN (:categoryIds) AND ((:startYear IS NULL AND releaseYear IS NULL) OR (releaseYear >= :startYear AND releaseYear <= :endYear)) ORDER BY (ABS(seriesId * 37 + 17) % 1009), name LIMIT :limit")
+    fun observePulseSeriesEra(profileId: String, categoryIds: List<String>, startYear: Int?, endYear: Int?, limit: Int): Flow<List<SeriesItemEntity>>
     @Query("SELECT * FROM vod_items WHERE profileId = :profileId AND releaseYear IS NOT NULL ORDER BY releaseYear DESC, COALESCE(releaseMonth, 0) DESC, name LIMIT :limit")
     fun observeRecentVodReleases(profileId: String, limit: Int): Flow<List<VodItemEntity>>
 

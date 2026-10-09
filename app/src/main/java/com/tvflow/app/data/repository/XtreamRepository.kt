@@ -571,6 +571,43 @@ class XtreamRepository @Inject constructor(
               }
         }.map { list -> list.map { it.toDomain() } }
 
+    /** Bounded, era-balanced candidates for Pulse and Mon moment (not the new-releases rail). */
+    fun observeFrenchVodForPulse(): Flow<List<VodItem>> = activeProfileId.flatMapLatest { profileId ->
+        if (profileId == null) flowOf(emptyList()) else
+            dao.observeMediaCategories(profileId, MediaType.VOD.name).flatMapLatest { categories ->
+                val ids = categories.filter { classifyMediaSection(it.name) == MediaSection.FRANCE }.map { it.id }
+                if (ids.isEmpty()) flowOf(emptyList()) else {
+                    val eras = listOf(2023 to 2100, 2015 to 2022, 2000 to 2014, 1800 to 1999)
+                    val flows = eras.map { (from, to) -> dao.observePulseVodEra(profileId, ids, from, to, 60) } +
+                        dao.observePulseVodEra(profileId, ids, null, null, 30)
+                    combine(flows) { buckets ->
+                        buckets.map { it.toList() }.let { lists ->
+                            (0 until (lists.maxOfOrNull { it.size } ?: 0)).flatMap { index ->
+                                lists.mapNotNull { it.getOrNull(index) }
+                            }.distinctBy { it.streamId }.map { it.toDomain() }
+                        }
+                    }
+                }
+            }
+    }
+
+    fun observeFrenchSeriesForPulse(): Flow<List<SeriesItem>> = activeProfileId.flatMapLatest { profileId ->
+        if (profileId == null) flowOf(emptyList()) else
+            dao.observeMediaCategories(profileId, MediaType.SERIES.name).flatMapLatest { categories ->
+                val ids = categories.filter { classifyMediaSection(it.name) == MediaSection.FRANCE }.map { it.id }
+                if (ids.isEmpty()) flowOf(emptyList()) else {
+                    val eras = listOf(2023 to 2100, 2015 to 2022, 2000 to 2014, 1800 to 1999)
+                    val flows = eras.map { (from, to) -> dao.observePulseSeriesEra(profileId, ids, from, to, 60) } +
+                        dao.observePulseSeriesEra(profileId, ids, null, null, 30)
+                    combine(flows) { buckets ->
+                        val lists = buckets.map { it.toList() }
+                        (0 until (lists.maxOfOrNull { it.size } ?: 0)).flatMap { index ->
+                            lists.mapNotNull { it.getOrNull(index) }
+                        }.distinctBy { it.seriesId }.map { it.toDomain() }
+                    }
+                }
+            }
+    }
     suspend fun randomVodPreview(excludeStreamId: Int? = null): Pair<VodItem, String>? {
         val profileId = activeProfileId.filterNotNull().first()
         val frenchCategoryIds = dao.observeMediaCategories(profileId, MediaType.VOD.name)
