@@ -36,6 +36,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -211,7 +212,7 @@ class DashboardViewModel @Inject constructor(
             .sortedByDescending { it.value }
             .map { it.key }
             .take(5)
-    }
+    }.flowOn(Dispatchers.Default)
 
     private val tasteState = combine(
         settingsStore.tastePreferences,
@@ -225,43 +226,29 @@ class DashboardViewModel @Inject constructor(
             .associate { it.id to it.name }
         val activeThemes = (preferences.themes + learned).toSet()
 
-        val pulseVod = vodItems
-            .sortedByDescending { item ->
-                recommendationScore(
-                    text = listOfNotNull(categoryNames[item.categoryId], item.name, item.synopsis).joinToString(" "),
-                    explicitThemes = preferences.themes,
-                    learnedThemes = learned
-                )
-            }
-            .let { scored ->
-                val matched = scored.filter {
-                    recommendationScore(
-                        listOfNotNull(categoryNames[it.categoryId], it.name, it.synopsis).joinToString(" "),
-                        preferences.themes,
-                        learned
-                    ) > 0
-                }
-                (if (matched.isNotEmpty()) matched else scored).take(12)
-            }
+        val scoredVod = vodItems.map { item ->
+            item to recommendationScore(
+                text = listOfNotNull(categoryNames[item.categoryId], item.name, item.synopsis).joinToString(" "),
+                explicitThemes = preferences.themes,
+                learnedThemes = learned
+            )
+        }.sortedByDescending { it.second }
+        val pulseVod = scoredVod.let { scored ->
+            val matched = scored.filter { it.second > 0 }
+            (if (matched.isNotEmpty()) matched else scored).take(12).map { it.first }
+        }
 
-        val pulseSeries = seriesItems
-            .sortedByDescending { item ->
-                recommendationScore(
-                    text = listOfNotNull(seriesCategoryNames[item.categoryId], item.name, item.plot).joinToString(" "),
-                    explicitThemes = preferences.themes,
-                    learnedThemes = learned
-                )
-            }
-            .let { scored ->
-                val matched = scored.filter {
-                    recommendationScore(
-                        listOfNotNull(seriesCategoryNames[it.categoryId], it.name, it.plot).joinToString(" "),
-                        preferences.themes,
-                        learned
-                    ) > 0
-                }
-                (if (matched.isNotEmpty()) matched else scored).take(12)
-            }
+        val scoredSeries = seriesItems.map { item ->
+            item to recommendationScore(
+                text = listOfNotNull(seriesCategoryNames[item.categoryId], item.name, item.plot).joinToString(" "),
+                explicitThemes = preferences.themes,
+                learnedThemes = learned
+            )
+        }.sortedByDescending { it.second }
+        val pulseSeries = scoredSeries.let { scored ->
+            val matched = scored.filter { it.second > 0 }
+            (if (matched.isNotEmpty()) matched else scored).take(12).map { it.first }
+        }
 
         TasteState(
             preferences = preferences,
@@ -269,7 +256,7 @@ class DashboardViewModel @Inject constructor(
             pulseVod = if (activeThemes.isEmpty()) emptyList() else pulseVod,
             pulseSeries = if (activeThemes.isEmpty()) emptyList() else pulseSeries
         )
-    }
+    }.flowOn(Dispatchers.Default)
 
     private val supplementalState = combine(
         updateInfo,
