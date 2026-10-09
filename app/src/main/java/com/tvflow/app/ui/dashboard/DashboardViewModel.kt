@@ -125,7 +125,9 @@ class DashboardViewModel @Inject constructor(
                 )
             }
         }
-        viewModelScope.launch { updateInfo.value = updateChecker.check() }
+        if (!BuildConfig.IS_PLAY_STORE) {
+            viewModelScope.launch { updateInfo.value = updateChecker.check() }
+        }
         viewModelScope.launch {
             var currentStreamId: Int? = null
             while (true) {
@@ -364,6 +366,7 @@ class DashboardViewModel @Inject constructor(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DashboardUiState())
 
     fun downloadUpdate() {
+        if (BuildConfig.IS_PLAY_STORE) return
         val info = updateInfo.value ?: return
         if (updateDownloadState.value is UpdateDownloadState.Downloading) return
         viewModelScope.launch {

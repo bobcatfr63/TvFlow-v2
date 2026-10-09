@@ -76,6 +76,7 @@ extensions.configure<ApplicationExtension>("android") {
             }
         }
         buildConfigField("String", "GIT_SHA", "\"$gitSha\"")
+        buildConfigField("boolean", "IS_PLAY_STORE", "false")
         buildConfigField("String", "RELEASE_NOTES", "\"$releaseNotesBuildConfig\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -107,6 +108,12 @@ extensions.configure<ApplicationExtension>("android") {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+        }
+        create("playRelease") {
+            initWith(getByName("release"))
+            matchingFallbacks += listOf("release")
+            buildConfigField("boolean", "IS_PLAY_STORE", "true")
+            buildConfigField("String", "BUILD_CHANNEL", "\"Google Play\"")
         }
     }
 
