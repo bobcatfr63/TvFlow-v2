@@ -25,7 +25,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import com.tvflow.app.ui.search.SearchViewModel
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -66,11 +65,9 @@ fun MediaLibraryScreen(
     val selectedMonth by viewModel.selectedMonth.collectAsState()
     val vod = viewModel.vod.collectAsLazyPagingItems()
     val series = viewModel.series.collectAsLazyPagingItems()
-    val searchViewModel: SearchViewModel = hiltViewModel()
-    var searchText by remember { mutableStateOf("") }
-    val searchResults by searchViewModel.results.collectAsState()
-    val matchingVod = searchResults.vod
-    val matchingSeries = searchResults.series
+    val searchText by viewModel.searchQuery.collectAsState()
+    val matchingVod by viewModel.vodSearchResults.collectAsState()
+    val matchingSeries by viewModel.seriesSearchResults.collectAsState()
     val searching = searchText.trim().length >= 2
     val context = LocalContext.current
     val isTv = remember(context) {
@@ -111,7 +108,7 @@ fun MediaLibraryScreen(
         )
         OutlinedTextField(
             value = searchText,
-            onValueChange = { searchText = it; searchViewModel.query.value = it },
+            onValueChange = viewModel::setSearchQuery,
             label = { Text(if (viewModel.type == MediaType.VOD) "Rechercher un film" else "Rechercher une série") },
             singleLine = true,
             modifier = Modifier.fillMaxWidth().padding(horizontal = screenHorizontalPadding)

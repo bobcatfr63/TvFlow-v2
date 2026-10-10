@@ -12,8 +12,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
 
 @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
@@ -26,10 +29,19 @@ class SearchViewModel @Inject constructor(
     val results: StateFlow<GlobalSearchResults> = query
         .debounce(180)
         .distinctUntilChanged()
-        .mapLatest { raw ->
+        .flatMapLatest { raw ->
             val q = raw.trim()
-            if (q.length < 2) GlobalSearchResults()
-            else runCatching { repository.searchGlobal(q) }.getOrDefault(GlobalSearchResults())
+            if (q.length < 2) {
+                flowOf(GlobalSearchResults())
+            } else {
+                combine(
+                    repository.searchLive(q),
+                    repository.searchVod(q),
+                    repository.searchSeries(q)
+                ) { live, vod, series ->
+                    GlobalSearchResults(live = live, vod = vod, series = series)
+                }.catch { emit(GlobalSearchResults()) }
+            }
         }
         .stateIn(
             viewModelScope,

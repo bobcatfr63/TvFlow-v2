@@ -14,11 +14,14 @@ import com.tvflow.app.domain.VodItem
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.flowOf
@@ -31,7 +34,7 @@ private data class MediaFilter(
     val month: Int?
 )
 
-@OptIn(ExperimentalCoroutinesApi::class)
+@OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
 @HiltViewModel
 class MediaLibraryViewModel @Inject constructor(
     private val repository: XtreamRepository,
@@ -40,6 +43,26 @@ class MediaLibraryViewModel @Inject constructor(
     val type: MediaType = runCatching {
         MediaType.valueOf(savedStateHandle.get<String>("type") ?: MediaType.VOD.name)
     }.getOrDefault(MediaType.VOD)
+
+    val searchQuery = MutableStateFlow("")
+    private val normalizedSearchQuery = searchQuery
+        .debounce(250)
+        .map { it.trim() }
+        .distinctUntilChanged()
+
+    val vodSearchResults: StateFlow<List<VodItem>> = normalizedSearchQuery
+        .flatMapLatest { query ->
+            if (type == MediaType.VOD && query.length >= 2) repository.searchVod(query)
+            else flowOf(emptyList())
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val seriesSearchResults: StateFlow<List<SeriesItem>> = normalizedSearchQuery
+        .flatMapLatest { query ->
+            if (type == MediaType.SERIES && query.length >= 2) repository.searchSeries(query)
+            else flowOf(emptyList())
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    fun setSearchQuery(value: String) { searchQuery.value = value }
 
     private val allCategories: StateFlow<List<MediaCategory>> = repository.observeMediaCategories(type)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())

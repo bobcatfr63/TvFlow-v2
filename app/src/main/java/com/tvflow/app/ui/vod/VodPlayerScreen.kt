@@ -198,8 +198,9 @@ fun VodPlayerScreen(
             state.nextEpisode != null -> runCatching { nextEpisodeFocusRequester.requestFocus() }
             state.previousEpisode != null -> runCatching { previousEpisodeFocusRequester.requestFocus() }
         }
-        // Keep episode buttons available while the remote user navigates.
-        // The player controller visibility callback closes them when controls hide.
+        // Leave enough time to navigate with a D-pad without leaving a permanent overlay.
+        delay(12_000L)
+        episodeNavigationVisible = false
     }
 
     Box(
@@ -275,9 +276,10 @@ fun VodPlayerScreen(
                         useController = true
                         setControllerVisibilityListener(PlayerView.ControllerVisibilityListener { visibility ->
                             playbackControlsVisible = visibility == View.VISIBLE
-                            episodeNavigationVisible = visibility == View.VISIBLE &&
-                                state.seriesId != null &&
-                                (state.nextEpisode != null || state.previousEpisode != null)
+                            if (visibility == View.VISIBLE && state.seriesId != null &&
+                                (state.nextEpisode != null || state.previousEpisode != null)) {
+                                episodeNavigationVisible = true
+                            }
                         })
                         keepScreenOn = true
                         isFocusable = true
