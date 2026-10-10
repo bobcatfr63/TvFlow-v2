@@ -198,8 +198,8 @@ fun VodPlayerScreen(
             state.nextEpisode != null -> runCatching { nextEpisodeFocusRequester.requestFocus() }
             state.previousEpisode != null -> runCatching { previousEpisodeFocusRequester.requestFocus() }
         }
-        delay(4_500L)
-        episodeNavigationVisible = false
+        // Keep episode buttons available while the remote user navigates.
+        // The player controller visibility callback closes them when controls hide.
     }
 
     Box(

@@ -68,8 +68,9 @@ fun MediaLibraryScreen(
     val series = viewModel.series.collectAsLazyPagingItems()
     val searchViewModel: SearchViewModel = hiltViewModel()
     var searchText by remember { mutableStateOf("") }
-    val matchingVod by searchViewModel.vod.collectAsState()
-    val matchingSeries by searchViewModel.series.collectAsState()
+    val searchResults by searchViewModel.results.collectAsState()
+    val matchingVod = searchResults.vod
+    val matchingSeries = searchResults.series
     val searching = searchText.trim().length >= 2
     val context = LocalContext.current
     val isTv = remember(context) {
