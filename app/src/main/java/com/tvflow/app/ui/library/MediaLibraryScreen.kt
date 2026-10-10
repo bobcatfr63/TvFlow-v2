@@ -22,6 +22,10 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import com.tvflow.app.ui.search.SearchViewModel
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -62,6 +66,11 @@ fun MediaLibraryScreen(
     val selectedMonth by viewModel.selectedMonth.collectAsState()
     val vod = viewModel.vod.collectAsLazyPagingItems()
     val series = viewModel.series.collectAsLazyPagingItems()
+    val searchViewModel: SearchViewModel = hiltViewModel()
+    var searchText by remember { mutableStateOf("") }
+    val matchingVod by searchViewModel.vod.collectAsState()
+    val matchingSeries by searchViewModel.series.collectAsState()
+    val searching = searchText.trim().length >= 2
     val context = LocalContext.current
     val isTv = remember(context) {
         context.packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK)
@@ -99,7 +108,14 @@ fun MediaLibraryScreen(
                 vertical = titleVerticalPadding
             )
         )
-        Column(
+        OutlinedTextField(
+            value = searchText,
+            onValueChange = { searchText = it; searchViewModel.query.value = it },
+            label = { Text(if (viewModel.type == MediaType.VOD) "Rechercher un film" else "Rechercher une série") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = screenHorizontalPadding)
+        )
+        if (!searching) Column(
             modifier = Modifier.fillMaxWidth().padding(horizontal = screenHorizontalPadding),
             verticalArrangement = Arrangement.spacedBy(filterSpacing)
         ) {
@@ -166,7 +182,26 @@ fun MediaLibraryScreen(
                 }
             }
         }
-        Row(Modifier.fillMaxSize().padding(top = contentTopPadding)) {
+        if (searching) {
+            LazyVerticalGrid(
+                columns = GridCells.Adaptive(minSize = if (compactMobile) 104.dp else 112.dp),
+                modifier = Modifier.fillMaxSize().padding(horizontal = screenHorizontalPadding, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                if (viewModel.type == MediaType.VOD) {
+                    items(matchingVod.size) { index ->
+                        val item = matchingVod[index]
+                        MediaPoster(item.name, item.posterUrl, item.rating, item.releaseYear, item.releaseMonth, item.synopsis, compactMobile) { onVodSelected(item) }
+                    }
+                } else {
+                    items(matchingSeries.size) { index ->
+                        val item = matchingSeries[index]
+                        MediaPoster(item.name, item.coverUrl, item.rating, item.releaseYear, item.releaseMonth, item.plot, compactMobile) { onSeriesSelected(item) }
+                    }
+                }
+            }
+        } else Row(Modifier.fillMaxSize().padding(top = contentTopPadding)) {
             Column(
                 modifier = Modifier
                     .width(categoryWidth)
