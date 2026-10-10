@@ -1,6 +1,9 @@
 package com.tvflow.app.ui.search
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.background
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -35,8 +38,8 @@ fun SearchScreen(
     val vod = results.vod
     val series = results.series
 
-    Column(Modifier.fillMaxSize().padding(32.dp)) {
-        Text("Recherche globale", style = MaterialTheme.typography.headlineLarge)
+    Column(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xFF0A3554), Color(0xFF06111B), Color(0xFF03080D)))).padding(32.dp)) {
+        Text("Recherche globale", style = MaterialTheme.typography.headlineLarge, color = MaterialTheme.colorScheme.onBackground)
         OutlinedTextField(
             value = query,
             onValueChange = { viewModel.query.value = it },
@@ -45,11 +48,11 @@ fun SearchScreen(
             singleLine = true
         )
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (live.isNotEmpty()) item { Text("TV en direct", style = MaterialTheme.typography.titleLarge) }
+            if (live.isNotEmpty()) item { Text("TV en direct", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onBackground) }
             items(live, key = { "live:${it.streamId}" }) { item -> ResultRow(item.name, "TV") { onLive(item) } }
-            if (vod.isNotEmpty()) item { Text("Films", style = MaterialTheme.typography.titleLarge) }
+            if (vod.isNotEmpty()) item { Text("Films", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onBackground) }
             items(vod, key = { "vod:${it.streamId}" }) { item -> ResultRow(item.name, "Film") { onVod(item) } }
-            if (series.isNotEmpty()) item { Text("Séries", style = MaterialTheme.typography.titleLarge) }
+            if (series.isNotEmpty()) item { Text("Séries", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onBackground) }
             items(series, key = { "series:${it.seriesId}" }) { item -> ResultRow(item.name, "Série") { onSeries(item) } }
         }
     }
@@ -59,8 +62,8 @@ fun SearchScreen(
 private fun ResultRow(title: String, type: String, onClick: () -> Unit) {
     Card(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
         Row(Modifier.fillMaxWidth().padding(14.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(title)
-            Text(type, style = MaterialTheme.typography.bodySmall)
+            Text(title, color = MaterialTheme.colorScheme.onSurface)
+            Text(type, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
