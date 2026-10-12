@@ -2,7 +2,7 @@ package com.tvflow.app.ui.startup
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.tvflow.app.data.repository.XtreamRepository
+import com.tvflow.app.data.local.CredentialsStore
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -19,14 +19,14 @@ sealed interface StartupState {
 
 @HiltViewModel
 class StartupViewModel @Inject constructor(
-    repository: XtreamRepository
+    credentialsStore: CredentialsStore
 ) : ViewModel() {
     private val _state = MutableStateFlow<StartupState>(StartupState.Loading)
     val state: StateFlow<StartupState> = _state.asStateFlow()
 
     init {
         viewModelScope.launch {
-            _state.value = if (repository.savedCredentials.first() == null) {
+            _state.value = if (credentialsStore.credentials.first() == null) {
                 StartupState.LoggedOut
             } else {
                 StartupState.LoggedIn

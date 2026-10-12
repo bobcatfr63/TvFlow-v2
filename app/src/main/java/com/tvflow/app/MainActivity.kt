@@ -4,11 +4,15 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.os.SystemClock
+import android.util.Log
+import android.view.ViewTreeObserver
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
@@ -31,7 +35,9 @@ class MainActivity : FragmentActivity() {
     ) { }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        val activityStart = SystemClock.uptimeMillis()
         super.onCreate(savedInstanceState)
+        Log.i("TVFlowStartup", "Activity super.onCreate ${SystemClock.uptimeMillis() - activityStart}ms")
         enableEdgeToEdge()
         applyImmersiveMode()
         requestNotificationPermissionIfNeeded()
@@ -49,12 +55,28 @@ class MainActivity : FragmentActivity() {
                 }
             }
 
+        Log.i("TVFlowStartup", "Activity before setContent ${SystemClock.uptimeMillis() - activityStart}ms")
+        var compositionLogged = false
         setContent {
             val accent by themeViewModel.accent.collectAsState()
             TVFlowTheme(accent = accent) {
                 TVFlowNavHost(bootLiveTarget = bootLiveTarget)
             }
+            SideEffect {
+                if (!compositionLogged) {
+                    compositionLogged = true
+                    Log.i("TVFlowStartup", "First Compose commit ${SystemClock.uptimeMillis() - activityStart}ms")
+                }
+            }
         }
+        Log.i("TVFlowStartup", "Activity after setContent ${SystemClock.uptimeMillis() - activityStart}ms")
+        window.decorView.viewTreeObserver.addOnPreDrawListener(object : ViewTreeObserver.OnPreDrawListener {
+            override fun onPreDraw(): Boolean {
+                window.decorView.viewTreeObserver.removeOnPreDrawListener(this)
+                Log.i("TVFlowStartup", "First pre-draw ${SystemClock.uptimeMillis() - activityStart}ms")
+                return true
+            }
+        })
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {

@@ -43,6 +43,7 @@ fun HomeScreen(
 ) {
     val categories by viewModel.categories.collectAsState()
     val channels by viewModel.channels.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
     val selectedSource by viewModel.selectedSource.collectAsState()
     val selectedSort by viewModel.selectedSort.collectAsState()
     val selectedSubFilterId by viewModel.selectedSubFilterId.collectAsState()
@@ -99,7 +100,7 @@ fun HomeScreen(
                     ChannelSource.Favorites -> "Aucune chaîne favorite"
                     ChannelSource.Recent -> "Aucune chaîne regardée récemment"
                     null -> "Chargement du catalogue…"
-                    is ChannelSource.Category -> "Aucune chaîne dans cette catégorie"
+                    is ChannelSource.Category -> if (isLoading) "Chargement des chaînes…" else "Aucune chaîne dans cette catégorie"
                 }
                 Text(
                     message,

@@ -1,5 +1,6 @@
 package com.tvflow.app.ui.library
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -21,10 +22,8 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -65,10 +64,14 @@ fun MediaLibraryScreen(
     val selectedMonth by viewModel.selectedMonth.collectAsState()
     val vod = viewModel.vod.collectAsLazyPagingItems()
     val series = viewModel.series.collectAsLazyPagingItems()
-    val searchText by viewModel.searchQuery.collectAsState()
-    val matchingVod by viewModel.vodSearchResults.collectAsState()
-    val matchingSeries by viewModel.seriesSearchResults.collectAsState()
-    val searching = searchText.trim().length >= 2
+    val query by viewModel.searchQuery.collectAsState()
+    val searchedVod by viewModel.searchedVod.collectAsState()
+    val searchedSeries by viewModel.searchedSeries.collectAsState()
+    var searchMode by remember(viewModel.type) { mutableStateOf(false) }
+    BackHandler(enabled = searchMode) {
+        searchMode = false
+        viewModel.searchQuery.value = ""
+    }
     val context = LocalContext.current
     val isTv = remember(context) {
         context.packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK)
@@ -106,14 +109,42 @@ fun MediaLibraryScreen(
                 vertical = titleVerticalPadding
             )
         )
-        OutlinedTextField(
-            value = searchText,
-            onValueChange = viewModel::setSearchQuery,
-            label = { Text(if (viewModel.type == MediaType.VOD) "Rechercher un film" else "Rechercher une série") },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth().padding(horizontal = screenHorizontalPadding)
+        ReleaseFilterChip(
+            label = if (searchMode) "← Retour aux catégories" else "⌕ Rechercher dans les ${if (viewModel.type == MediaType.VOD) "films" else "séries"}",
+            selected = searchMode,
+            onClick = { searchMode = !searchMode; viewModel.searchQuery.value = "" },
+            compact = compactMobile
         )
-        if (!searching) Column(
+        if (searchMode) {
+            OutlinedTextField(
+                value = query,
+                onValueChange = { viewModel.searchQuery.value = it },
+                label = { Text("Rechercher ${if (viewModel.type == MediaType.VOD) "un film" else "une série"}") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = screenHorizontalPadding)
+            )
+            LazyVerticalGrid(
+                columns = GridCells.Adaptive(minSize = if (compactMobile) 104.dp else 160.dp),
+                modifier = Modifier.fillMaxSize().padding(horizontal = screenHorizontalPadding),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                if (viewModel.type == MediaType.VOD) {
+                    items(searchedVod.size) { index ->
+                        val item = searchedVod[index]
+                        MediaPoster(item.name, item.posterUrl, item.rating, item.releaseYear, item.releaseMonth,
+                            item.synopsis, compactMobile) { onVodSelected(item) }
+                    }
+                } else {
+                    items(searchedSeries.size) { index ->
+                        val item = searchedSeries[index]
+                        MediaPoster(item.name, item.coverUrl, item.rating, item.releaseYear, item.releaseMonth,
+                            item.plot, compactMobile) { onSeriesSelected(item) }
+                    }
+                }
+            }
+        } else {
+        Column(
             modifier = Modifier.fillMaxWidth().padding(horizontal = screenHorizontalPadding),
             verticalArrangement = Arrangement.spacedBy(filterSpacing)
         ) {
@@ -154,7 +185,7 @@ fun MediaLibraryScreen(
             }
             if (releaseYears.isEmpty()) {
                 Text(
-                    "Dates en cours d’enrichissement. Xtream est utilisé d’abord, puis TMDb complète les informations manquantes.",
+                    "Les dates de sortie s’afficheront dès qu’elles seront disponibles.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -180,26 +211,7 @@ fun MediaLibraryScreen(
                 }
             }
         }
-        if (searching) {
-            LazyVerticalGrid(
-                columns = GridCells.Adaptive(minSize = if (compactMobile) 104.dp else 112.dp),
-                modifier = Modifier.fillMaxSize().padding(horizontal = screenHorizontalPadding, vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                if (viewModel.type == MediaType.VOD) {
-                    items(matchingVod.size) { index ->
-                        val item = matchingVod[index]
-                        MediaPoster(item.name, item.posterUrl, item.rating, item.releaseYear, item.releaseMonth, item.synopsis, compactMobile) { onVodSelected(item) }
-                    }
-                } else {
-                    items(matchingSeries.size) { index ->
-                        val item = matchingSeries[index]
-                        MediaPoster(item.name, item.coverUrl, item.rating, item.releaseYear, item.releaseMonth, item.plot, compactMobile) { onSeriesSelected(item) }
-                    }
-                }
-            }
-        } else Row(Modifier.fillMaxSize().padding(top = contentTopPadding)) {
+        Row(Modifier.fillMaxSize().padding(top = contentTopPadding)) {
             Column(
                 modifier = Modifier
                     .width(categoryWidth)
@@ -210,6 +222,7 @@ fun MediaLibraryScreen(
                 if (isTv) {
                     MediaPreviewPanel(
                         preview = preview,
+                        isSeries = viewModel.type == MediaType.SERIES,
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
@@ -262,7 +275,7 @@ fun MediaLibraryScreen(
             }
 
             LazyVerticalGrid(
-                columns = GridCells.Adaptive(minSize = if (compactMobile) 104.dp else 112.dp),
+                columns = GridCells.Adaptive(minSize = if (compactMobile) 104.dp else 160.dp),
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(
@@ -324,6 +337,7 @@ fun MediaLibraryScreen(
                 }
             }
         }
+        }
     }
 }
 
@@ -339,6 +353,7 @@ private data class MediaPreview(
 @Composable
 private fun MediaPreviewPanel(
     preview: MediaPreview?,
+    isSeries: Boolean,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -357,7 +372,7 @@ private fun MediaPreviewPanel(
                     color = MaterialTheme.colorScheme.primary
                 )
                 Text(
-                    "Sélectionne un film ou une série pour afficher ses informations.",
+                    if (isSeries) "Sélectionne une série pour découvrir son histoire." else "Sélectionne un film pour découvrir son histoire.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -456,7 +471,7 @@ private fun MediaPoster(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(if (compact) 146.dp else 164.dp)
+                    .height(if (compact) 160.dp else 184.dp)
             )
             Text(
                 name,
@@ -478,7 +493,7 @@ private fun MediaPoster(
                     style = MaterialTheme.typography.labelMedium
                 )
             }
-            if (!rating.isNullOrBlank()) {
+            if (!rating.isNullOrBlank() && rating != "0" && rating != "0.0") {
                 Text(
                     "★ $rating",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -486,7 +501,7 @@ private fun MediaPoster(
                     style = MaterialTheme.typography.bodySmall
                 )
             }
-            if (!synopsis.isNullOrBlank()) {
+            if (compact && !synopsis.isNullOrBlank()) {
                 Text(
                     synopsis,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,

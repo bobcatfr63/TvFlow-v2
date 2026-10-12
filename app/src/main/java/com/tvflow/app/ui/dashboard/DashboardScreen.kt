@@ -13,6 +13,8 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -524,29 +526,29 @@ private fun TvHeroHeader(
     onMoment: () -> Unit,
     onSettings: () -> Unit
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            TvTopAction("⌕  Rechercher", onSearch)
+            TvTopAction("⌕ Recherche", onSearch)
             TvTopSelected("Accueil")
             TvTopAction("Direct", onLive)
-            TvTopAction("Guide TV", onGuide)
+            TvTopAction("Guide", onGuide)
             TvTopAction("Films", onVod)
             TvTopAction("Séries", onSeries)
-            TvTopAction("✦  Mon moment", onMoment)
+            TvTopAction("✦ Moment", onMoment)
             TvTopAction("Pulse", onPulse)
             if (appsSelected) TvTopSelected("Apps") else TvTopAction("Apps", onApps)
-            TvTopAction("⚙  Réglages", onSettings)
+            TvTopAction("⚙ Réglages", onSettings)
         }
 
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(92.dp)
-                .clip(RoundedCornerShape(24.dp))
+                .height(76.dp)
+                .clip(RoundedCornerShape(20.dp))
                 .background(
                     Brush.horizontalGradient(
                         listOf(
@@ -559,9 +561,9 @@ private fun TvHeroHeader(
                 .border(
                     1.dp,
                     MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
-                    RoundedCornerShape(24.dp)
+                    RoundedCornerShape(20.dp)
                 )
-                .padding(horizontal = 22.dp, vertical = 14.dp)
+                .padding(horizontal = 22.dp, vertical = 10.dp)
         ) {
             Row(
                 modifier = Modifier.align(Alignment.CenterStart),
@@ -579,9 +581,7 @@ private fun TvHeroHeader(
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.primary
                 )
-                serverName?.takeUnless { it.equals("ok", true) || it.equals("true", true) }?.let {
-                    Text(it, style = MaterialTheme.typography.bodyMedium, color = Color.White.copy(alpha = 0.72f))
-                }
+
             }
             Text(
                 "v${BuildConfig.VERSION_NAME}",
@@ -611,9 +611,13 @@ private fun TvTopSelected(text: String) {
 private fun TvTopAction(text: String, onClick: () -> Unit) {
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
+    val bringIntoView = remember { BringIntoViewRequester() }
+    val scope = rememberCoroutineScope()
     Text(
         text = text,
         modifier = Modifier
+            .bringIntoViewRequester(bringIntoView)
+            .onFocusChanged { if (it.isFocused) scope.launch { bringIntoView.bringIntoView() } }
             .clip(RoundedCornerShape(10.dp))
             .background(
                 if (focused) MaterialTheme.colorScheme.onBackground

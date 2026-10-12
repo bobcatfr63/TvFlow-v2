@@ -196,7 +196,7 @@ class VodPlayerViewModel @Inject constructor(
                     error = null
                 )
             }.onFailure { error ->
-                _state.value = _state.value.copy(error = error.message ?: "Lecture impossible")
+                _state.value = _state.value.copy(error = "Lecture indisponible. Vérifiez la connexion au serveur IPTV puis réessayez.")
             }
         }
     }

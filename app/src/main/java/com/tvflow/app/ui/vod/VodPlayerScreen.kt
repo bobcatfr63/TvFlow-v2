@@ -37,6 +37,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
@@ -198,13 +199,26 @@ fun VodPlayerScreen(
             state.nextEpisode != null -> runCatching { nextEpisodeFocusRequester.requestFocus() }
             state.previousEpisode != null -> runCatching { previousEpisodeFocusRequester.requestFocus() }
         }
-        // Leave enough time to navigate with a D-pad without leaving a permanent overlay.
-        delay(12_000L)
+        delay(4_500L)
         episodeNavigationVisible = false
     }
 
     Box(
         Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
+            .onPreviewKeyEvent { event ->
+                val seriesId = state.seriesId
+                if (event.nativeKeyEvent.action != KeyEvent.ACTION_DOWN || seriesId == null) {
+                    false
+                } else when (event.nativeKeyEvent.keyCode) {
+                    KeyEvent.KEYCODE_MEDIA_NEXT, KeyEvent.KEYCODE_PAGE_DOWN -> {
+                        state.nextEpisode?.let { onPlayEpisode(it, seriesId) } != null
+                    }
+                    KeyEvent.KEYCODE_MEDIA_PREVIOUS, KeyEvent.KEYCODE_PAGE_UP -> {
+                        state.previousEpisode?.let { onPlayEpisode(it, seriesId) } != null
+                    }
+                    else -> false
+                }
+            }
             .pointerInput(state.seriesId, state.nextEpisode?.id, state.previousEpisode?.id) {
                 detectTapGestures(onTap = {
                     infoVisible = !infoVisible
@@ -276,10 +290,9 @@ fun VodPlayerScreen(
                         useController = true
                         setControllerVisibilityListener(PlayerView.ControllerVisibilityListener { visibility ->
                             playbackControlsVisible = visibility == View.VISIBLE
-                            if (visibility == View.VISIBLE && state.seriesId != null &&
-                                (state.nextEpisode != null || state.previousEpisode != null)) {
-                                episodeNavigationVisible = true
-                            }
+                            episodeNavigationVisible = visibility == View.VISIBLE &&
+                                state.seriesId != null &&
+                                (state.nextEpisode != null || state.previousEpisode != null)
                         })
                         keepScreenOn = true
                         isFocusable = true
@@ -314,20 +327,10 @@ fun VodPlayerScreen(
                             return@setOnKeyListener true
                         }
 
-                        if (event.action != KeyEvent.ACTION_UP) return@setOnKeyListener false
-                        when (keyCode) {
-                            KeyEvent.KEYCODE_MEDIA_NEXT, KeyEvent.KEYCODE_PAGE_DOWN -> {
-                                val next = nextEpisode ?: return@setOnKeyListener false
-                                onPlayEpisode(next, seriesId)
-                                true
-                            }
-                            KeyEvent.KEYCODE_MEDIA_PREVIOUS, KeyEvent.KEYCODE_PAGE_UP -> {
-                                val previous = previousEpisode ?: return@setOnKeyListener false
-                                onPlayEpisode(previous, seriesId)
-                                true
-                            }
-                            else -> false
-                        }
+                        // The Compose screen dispatches media next/previous once.
+                        // Letting the embedded PlayerView dispatch them on key-up
+                        // would make a single press advance twice when focus moves.
+                        false
                     }
                 },
                 modifier = Modifier.fillMaxSize()

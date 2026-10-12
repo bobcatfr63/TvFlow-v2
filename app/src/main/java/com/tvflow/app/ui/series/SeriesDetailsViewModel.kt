@@ -51,20 +51,20 @@ class SeriesDetailsViewModel @Inject constructor(
             _state.value = _state.value.copy(loading = true, error = null)
             runCatching {
                 val episodes = repository.getSeriesEpisodes(seriesId)
-                val suggestions = if (categoryId.isBlank()) {
-                    emptyList()
-                } else {
-                    repository.observeSeries(categoryId)
-                        .first()
-                        .asSequence()
-                        .filter { it.seriesId != seriesId }
-                        .sortedWith(
-                            compareByDescending<SeriesItem> { it.releaseYear ?: 0 }
-                                .thenByDescending { it.releaseMonth ?: 0 }
-                        )
-                        .take(10)
-                        .toList()
-                }
+                val suggestions = runCatching {
+                    if (categoryId.isBlank()) emptyList() else {
+                        repository.observeSeries(categoryId)
+                            .first()
+                            .asSequence()
+                            .filter { it.seriesId != seriesId }
+                            .sortedWith(
+                                compareByDescending<SeriesItem> { it.releaseYear ?: 0 }
+                                    .thenByDescending { it.releaseMonth ?: 0 }
+                            )
+                            .take(10)
+                            .toList()
+                    }
+                }.getOrDefault(emptyList())
                 episodes to suggestions
             }.onSuccess { (episodes, suggestions) ->
                 _state.value = _state.value.copy(
@@ -77,7 +77,7 @@ class SeriesDetailsViewModel @Inject constructor(
             }.onFailure { error ->
                 _state.value = _state.value.copy(
                     loading = false,
-                    error = error.message ?: "Impossible de charger la série"
+                    error = "Impossible de charger les épisodes. Vérifiez la connexion au serveur IPTV, puis réessayez."
                 )
             }
         }

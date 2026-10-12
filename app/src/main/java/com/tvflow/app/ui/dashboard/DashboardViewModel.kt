@@ -115,7 +115,10 @@ class DashboardViewModel @Inject constructor(
     }
 
     init {
-        viewModelScope.launch { runCatching { repository.prewarmLivePresentation() } }
+        viewModelScope.launch(Dispatchers.Default) {
+            runCatching { repository.prewarmLivePresentation() }
+                .onFailure { Log.w("TVFlowHome", "Live prewarm failed", it) }
+        }
         viewModelScope.launch {
             val lastShown = settingsStore.lastReleaseNotesVersion.first()
             val currentVersion = InstalledReleaseNotes.versionName

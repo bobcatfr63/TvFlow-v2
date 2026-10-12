@@ -28,6 +28,10 @@ class TmdbMetadataClient @Inject constructor(
     private val client: OkHttpClient,
     private val settingsStore: SettingsStore
 ) {
+    // Prevent repeated enrichment requests when TMDB rejects the configured token.
+    // A different token is allowed immediately, without app restart.
+    @Volatile private var rejectedCredential: String? = null
+
     suspend fun validateCredential(rawCredential: String): Int? = withContext(Dispatchers.IO) {
         val credential = normalizeCredential(rawCredential)
         if (credential.isBlank()) return@withContext null
@@ -47,6 +51,7 @@ class TmdbMetadataClient @Inject constructor(
         knownYear: Int?
     ): ExternalMediaMetadata? = withContext(Dispatchers.IO) {
         val credential = settingsStore.currentTmdbToken()?.let(::normalizeCredential)?.takeIf { it.isNotBlank() } ?: return@withContext null
+        if (credential == rejectedCredential) return@withContext null
         val inferredYear = knownYear ?: extractYear(rawTitle)
         val query = cleanTitle(rawTitle)
         if (query.length < 2) return@withContext null
@@ -75,6 +80,7 @@ class TmdbMetadataClient @Inject constructor(
 
         client.newCall(request).execute().use { response ->
             if (!response.isSuccessful) {
+                if (response.code == 401) rejectedCredential = credential
                 Log.w("TVFlowTmdb", "type=$type query=$query year=$inferredYear http=${response.code}")
                 return@withContext null
             }

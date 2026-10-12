@@ -2,6 +2,7 @@ package com.tvflow.app
 
 import android.app.Application
 import android.util.Log
+import android.os.SystemClock
 import com.tvflow.app.connect.FavoriteSync
 import com.tvflow.app.connect.TvFlowConnect
 import com.tvflow.app.data.local.SettingsStore
@@ -31,10 +32,15 @@ class TVFlowApplication : Application() {
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     override fun onCreate() {
+        val bootStart = SystemClock.uptimeMillis()
         super.onCreate()
+        Log.i("TVFlowStartup", "Application super.onCreate ${SystemClock.uptimeMillis() - bootStart}ms")
         TvFlowConnect.startReceiverIfTv(this)
+        Log.i("TVFlowStartup", "Receiver ready ${SystemClock.uptimeMillis() - bootStart}ms")
         UpdateNotificationWorker.schedule(this)
+        Log.i("TVFlowStartup", "WorkManager scheduled ${SystemClock.uptimeMillis() - bootStart}ms")
         startFavoriteSync()
+        Log.i("TVFlowStartup", "Application initialized ${SystemClock.uptimeMillis() - bootStart}ms")
 
         if (isTelevisionUi()) {
             appScope.launch {

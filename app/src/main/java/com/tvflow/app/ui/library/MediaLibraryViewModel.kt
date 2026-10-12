@@ -20,9 +20,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
@@ -44,26 +44,6 @@ class MediaLibraryViewModel @Inject constructor(
         MediaType.valueOf(savedStateHandle.get<String>("type") ?: MediaType.VOD.name)
     }.getOrDefault(MediaType.VOD)
 
-    val searchQuery = MutableStateFlow("")
-    private val normalizedSearchQuery = searchQuery
-        .debounce(250)
-        .map { it.trim() }
-        .distinctUntilChanged()
-
-    val vodSearchResults: StateFlow<List<VodItem>> = normalizedSearchQuery
-        .flatMapLatest { query ->
-            if (type == MediaType.VOD && query.length >= 2) repository.searchVod(query)
-            else flowOf(emptyList())
-        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
-
-    val seriesSearchResults: StateFlow<List<SeriesItem>> = normalizedSearchQuery
-        .flatMapLatest { query ->
-            if (type == MediaType.SERIES && query.length >= 2) repository.searchSeries(query)
-            else flowOf(emptyList())
-        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
-
-    fun setSearchQuery(value: String) { searchQuery.value = value }
-
     private val allCategories: StateFlow<List<MediaCategory>> = repository.observeMediaCategories(type)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
@@ -81,6 +61,19 @@ class MediaLibraryViewModel @Inject constructor(
         selectedSectionState
     ) { categories, section ->
         categories.filter { it.section == section }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val searchQuery = MutableStateFlow("")
+    private val searched = searchQuery.debounce(300).map { it.trim() }.distinctUntilChanged()
+
+    val searchedVod: StateFlow<List<VodItem>> = searched.flatMapLatest { query ->
+        if (type == MediaType.VOD && query.length >= 2) repository.searchVod(query)
+        else flowOf(emptyList())
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val searchedSeries: StateFlow<List<SeriesItem>> = searched.flatMapLatest { query ->
+        if (type == MediaType.SERIES && query.length >= 2) repository.searchSeries(query)
+        else flowOf(emptyList())
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     private val selectedCategory = MutableStateFlow<String?>(null)

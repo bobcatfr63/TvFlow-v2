@@ -15,6 +15,8 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -53,19 +55,25 @@ class HomeViewModel @Inject constructor(
     private val subFilterId = MutableStateFlow<String?>(null)
     val selectedSubFilterId: StateFlow<String?> = subFilterId
 
-    private val rawChannels = combine(source, subFilterId) { selected, filterId ->
+    private val channelLoadState = combine(source, subFilterId) { selected, filterId ->
         selected to filterId
     }.flatMapLatest { (selected, filterId) ->
-        when (selected) {
+        val stream = when (selected) {
             ChannelSource.Favorites -> repository.observeFavorites()
             ChannelSource.Recent -> repository.observeRecentChannels()
             is ChannelSource.Category -> repository.observeChannels(filterId ?: selected.id)
             null -> flowOf(emptyList())
         }
-    }
+        stream.map { it as List<LiveChannel>? }
+            .onStart { emit(null) }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
-    val channels: StateFlow<List<LiveChannel>> = combine(rawChannels, sort, ::sortHomeChannels)
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    val isLoading: StateFlow<Boolean> = channelLoadState.map { it == null }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+
+    val channels: StateFlow<List<LiveChannel>> = combine(channelLoadState, sort) { list, order ->
+        sortHomeChannels(list.orEmpty(), order)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
 
     init {
