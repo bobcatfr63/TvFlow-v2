@@ -270,7 +270,7 @@ fun DashboardScreen(
                     RecentVodRail(
                         items = state.pulseVod,
                         onItem = onVodItem,
-                        title = "TVFlow Pulse • Films pour toi",
+                        title = "TVFlow AI - Films pour toi",
                         subtitle = pulseSubtitle(state.tasteThemes, state.learnedThemes),
                         onFocused = { selectedPreviewVod = it; selectedPreviewSeries = null }
                     )
@@ -281,7 +281,7 @@ fun DashboardScreen(
                     RecentSeriesRail(
                         items = state.pulseSeries,
                         onItem = onSeriesItem,
-                        title = "TVFlow Pulse • Séries pour toi",
+                        title = "TVFlow AI - Series pour toi",
                         onFocused = { selectedPreviewSeries = it; selectedPreviewVod = null }
                     )
                 }
@@ -311,15 +311,7 @@ fun DashboardScreen(
             }
         }
 
-        if (state.showTasteOnboarding) {
-            TasteProfilePopup(
-                initialThemes = state.tasteThemes,
-                learnedThemes = state.learnedThemes,
-                firstTime = true,
-                onSave = viewModel::saveTasteProfile,
-                onDismiss = viewModel::skipTasteProfile
-            )
-        } else if (showTasteEditor) {
+        if (showTasteEditor) {
             TasteProfilePopup(
                 initialThemes = state.tasteThemes,
                 learnedThemes = state.learnedThemes,
@@ -532,14 +524,12 @@ private fun TvHeroHeader(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            TvTopAction("⌕ Recherche", onSearch)
+            TvTopAction("TVFlow AI", onSearch)
             TvTopSelected("Accueil")
             TvTopAction("Direct", onLive)
             TvTopAction("Guide", onGuide)
             TvTopAction("Films", onVod)
             TvTopAction("Séries", onSeries)
-            TvTopAction("✦ Moment", onMoment)
-            TvTopAction("Pulse", onPulse)
             if (appsSelected) TvTopSelected("Apps") else TvTopAction("Apps", onApps)
             TvTopAction("⚙ Réglages", onSettings)
         }
@@ -761,9 +751,7 @@ private fun HeroHeader(
             MobileFeatureTile("▦", "Guide TV", onGuide)
             MobileFeatureTile("▶", "Films", onVod)
             MobileFeatureTile("S", "Séries", onSeries)
-            MobileFeatureTile("✦", "Mon moment", onMoment, primary = true)
-            MobileFeatureTile("P", "Pulse", onPulse)
-            MobileFeatureTile("⌕", "Recherche", onSearch)
+            MobileFeatureTile("⌕", "TVFlow AI", onSearch)
             MobileFeatureTile("▦", if (appsSelected) "Apps ✓" else "Apps", onApps)
             MobileFeatureTile("⚙", "Réglages", onSettings)
         }

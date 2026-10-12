@@ -23,6 +23,7 @@ import com.tvflow.app.ui.login.DemoScreen
 import com.tvflow.app.ui.login.LoginScreen
 import com.tvflow.app.ui.player.PlayerScreen
 import com.tvflow.app.ui.search.SearchScreen
+import com.tvflow.app.ui.search.TvFlowAiScreen
 import com.tvflow.app.ui.settings.SettingsScreen
 import com.tvflow.app.ui.series.SeriesDetailsScreen
 import com.tvflow.app.ui.startup.StartupScreen
@@ -122,7 +123,7 @@ fun TVFlowNavHost(
                 onGuide = { navController.navigate("guide") },
                 onVod = { navController.navigate("library/${MediaType.VOD.name}") },
                 onSeries = { navController.navigate("library/${MediaType.SERIES.name}") },
-                onSearch = { navController.navigate("search") },
+                onSearch = { navController.navigate("tvflowAi") },
                 onSettings = { navController.navigate("settings") },
                 onChannel = { channel -> openLive(channel.streamId, channel.name, channel.categoryId) },
                 onVodItem = ::openVodDetails,
@@ -199,6 +200,9 @@ fun TVFlowNavHost(
                 onBack = { navController.popBackStack() },
                 onSuggestion = ::openVodDetails
             )
+        }
+        composable("tvflowAi") {
+            TvFlowAiScreen(onVod = ::openVodDetails, onSeries = ::openSeriesDetails)
         }
         composable("search") {
             SearchScreen(

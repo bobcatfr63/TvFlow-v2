@@ -1,0 +1,35 @@
+package com.tvflow.app.ui.search
+
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class TvFlowIntentTest {
+    @Test fun frenchRequestFindsGenreAndPeriod() {
+        val intent = TvFlowIntent.parse("Je veux un film d'action récent avec beaucoup de suspense")
+        assertTrue(intent.filmOnly)
+        assertTrue(intent.recent)
+        assertTrue(intent.terms.contains("action"))
+        assertTrue(intent.terms.contains("thriller"))
+    }
+    @Test fun detectsSeriesAndAccents() {
+        val intent = TvFlowIntent.parse("Une série policière avec plusieurs saisons")
+        assertTrue(intent.seriesOnly)
+        assertTrue(intent.terms.contains("police"))
+    }
+    @Test fun preservesActorAndTitle() {
+        val intent = TvFlowIntent.parse("Un film avec Leonardo DiCaprio")
+        assertEquals(listOf("leonardo", "dicaprio"), intent.terms)
+    }
+    @Test fun prefersCatalogMatches() {
+        val intent = TvFlowIntent.parse("film invasion extraterrestre")
+        assertTrue(TvFlowIntent.score(intent, "Alien Invasion", "alien", 2024) > 0)
+        assertEquals(0, TvFlowIntent.score(intent, "Comédie romantique", null, null))
+    }
+    @Test fun emptyRequestCannotReturnInventedRecommendations() {
+        val intent = TvFlowIntent.parse("je veux un film")
+        assertTrue(intent.terms.isEmpty())
+        assertFalse(intent.seriesOnly)
+    }
+}
