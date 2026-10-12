@@ -47,21 +47,9 @@ class MediaLibraryViewModel @Inject constructor(
     private val allCategories: StateFlow<List<MediaCategory>> = repository.observeMediaCategories(type)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    private val selectedSectionState = MutableStateFlow(MediaSection.FRANCE)
-    val selectedSection: StateFlow<MediaSection> = selectedSectionState
-
-    val availableSections: StateFlow<List<MediaSection>> = allCategories
-        .map { categories ->
-            MediaSection.entries.filter { section -> categories.any { it.section == section } }
-        }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
-
-    val categories: StateFlow<List<MediaCategory>> = combine(
-        allCategories,
-        selectedSectionState
-    ) { categories, section ->
-        categories.filter { it.section == section }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    // Categories already reflect the user's choices in Settings.
+    // Show all visible categories directly, without a second France/Kids/Other filter.
+    val categories: StateFlow<List<MediaCategory>> = allCategories
 
     val searchQuery = MutableStateFlow("")
     private val searched = searchQuery.debounce(300).map { it.trim() }.distinctUntilChanged()
@@ -126,21 +114,14 @@ class MediaLibraryViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            availableSections.collect { sections ->
-                if (sections.isNotEmpty() && selectedSectionState.value !in sections) {
-                    selectedSectionState.value = sections.first()
-                    selectedCategory.value = null
+            categories.collect { visible ->
+                if (selectedCategory.value != null && visible.none { it.id == selectedCategory.value }) {
+                    selectedCategory.value = visible.firstOrNull()?.id
+                    selectedYearState.value = null
+                    selectedMonthState.value = null
                 }
             }
         }
-    }
-
-    fun selectSection(section: MediaSection) {
-        if (selectedSectionState.value == section) return
-        selectedSectionState.value = section
-        selectedCategory.value = null
-        selectedYearState.value = null
-        selectedMonthState.value = null
     }
 
     fun selectCategory(id: String) {

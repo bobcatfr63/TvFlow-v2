@@ -55,8 +55,6 @@ fun MediaLibraryScreen(
     viewModel: MediaLibraryViewModel = hiltViewModel()
 ) {
     val categories by viewModel.categories.collectAsState()
-    val availableSections by viewModel.availableSections.collectAsState()
-    val selectedSection by viewModel.selectedSection.collectAsState()
     val selectedId by viewModel.selectedCategoryId.collectAsState()
     val releaseYears by viewModel.releaseYears.collectAsState()
     val releaseMonths by viewModel.releaseMonths.collectAsState()
@@ -85,7 +83,7 @@ fun MediaLibraryScreen(
     val titleVerticalPadding = if (compactMobile) 4.dp else 12.dp
     val filterSpacing = if (compactMobile) 4.dp else 8.dp
     val contentTopPadding = if (compactMobile) 4.dp else 10.dp
-    val categoryWidth = if (compactMobile) 220.dp else 280.dp
+    val categoryWidth = if (compactMobile) 154.dp else 280.dp
 
     LaunchedEffect(categories, selectedId) {
         if (selectedId == null && categories.isNotEmpty()) viewModel.selectCategory(categories.first().id)
@@ -149,18 +147,6 @@ fun MediaLibraryScreen(
             modifier = Modifier.fillMaxWidth().padding(horizontal = screenHorizontalPadding),
             verticalArrangement = Arrangement.spacedBy(filterSpacing)
         ) {
-            if (availableSections.isNotEmpty()) {
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(filterSpacing)) {
-                    items(availableSections, key = { it.name }) { section ->
-                        ReleaseFilterChip(
-                            label = mediaSectionLabel(section),
-                            selected = selectedSection == section,
-                            onClick = { viewModel.selectSection(section) },
-                            compact = compactMobile
-                        )
-                    }
-                }
-            }
             ReleaseFilterChip(
                 label = when {
                     expandedDateFilters -> "▴ Masquer les filtres de dates"
@@ -248,8 +234,8 @@ fun MediaLibraryScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .graphicsLayer {
-                                    scaleX = if (focused) 1.04f else 1f
-                                    scaleY = if (focused) 1.04f else 1f
+                                    scaleX = 1f
+                                    scaleY = 1f
                                 },
                             colors = CardDefaults.cardColors(
                                 containerColor = when {
@@ -275,6 +261,7 @@ fun MediaLibraryScreen(
                                     vertical = if (compactMobile) 8.dp else 14.dp
                                 ),
                                 maxLines = 1,
+                                style = if (compactMobile) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyLarge,
                                 overflow = TextOverflow.Ellipsis
                             )
                         }
@@ -463,8 +450,8 @@ private fun MediaPoster(
         modifier = Modifier
             .fillMaxWidth()
             .graphicsLayer {
-                scaleX = if (focused) 1.05f else 1f
-                scaleY = if (focused) 1.05f else 1f
+                scaleX = 1f
+                scaleY = 1f
             },
         colors = CardDefaults.cardColors(
             containerColor = if (focused) MaterialTheme.colorScheme.primaryContainer else Color(0xFF0B2033)
@@ -479,14 +466,16 @@ private fun MediaPoster(
                 model = image,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
+                filterQuality = androidx.compose.ui.graphics.FilterQuality.High,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(if (compact) 160.dp else 184.dp)
             )
             Text(
-                name,
+                name.replace(Regex("""(?i)^\s*(?:FR|VF|VOSTFR)\s*[-:|]\s*"""), ""),
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 7.dp),
+                style = if (compact) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyLarge,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )

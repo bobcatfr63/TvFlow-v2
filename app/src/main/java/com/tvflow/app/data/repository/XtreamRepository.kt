@@ -1,6 +1,11 @@
 package com.tvflow.app.data.repository
 
 import android.util.Base64
+import android.content.Context
+import dagger.hilt.android.qualifiers.ApplicationContext
+import com.tvflow.app.domain.M3uPlaylistParser
+import java.io.File
+import java.security.MessageDigest
 import android.util.Log
 import com.tvflow.app.data.local.CredentialsStore
 import com.tvflow.app.data.local.EpgProgramEntity
@@ -124,12 +129,25 @@ class XtreamRepository @Inject constructor(
     private val credentialsStore: CredentialsStore,
     private val settingsStore: SettingsStore,
     private val okHttpClient: OkHttpClient,
-    private val tmdbMetadataClient: TmdbMetadataClient
+    private val tmdbMetadataClient: TmdbMetadataClient,
+    @ApplicationContext private val context: Context
 ) {
     val savedCredentials = credentialsStore.credentials
     val profiles = credentialsStore.profiles
     val activeProfile = credentialsStore.activeProfile
     val activeProfileId = credentialsStore.activeProfileId
+
+    private val playlistUrls = mutableMapOf<String, Map<Int, String>>()
+    private val playlistLock = Any()
+
+    private fun isPlaylist(credentials: XtreamCredentials) = credentials.username == "__tvflow_m3u__"
+
+    private fun playlistKey(credentials: XtreamCredentials): String = "p_" +
+        MessageDigest.getInstance("SHA-256")
+            .digest("${credentials.serverUrl.trim().lowercase()}|${credentials.username}".toByteArray())
+            .take(8).joinToString("") { "%02x".format(it) }
+
+    private fun playlistFile(profileId: String) = File(context.filesDir, "m3u_${profileId}.m3u")
 
     private val liveResultCache = object : LinkedHashMap<String, List<LiveChannel>>(12, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, List<LiveChannel>>?): Boolean = size > 12
@@ -140,6 +158,77 @@ class XtreamRepository @Inject constructor(
     private val catchupProbeCache = LinkedHashMap<String, Boolean>(32, 0.75f, true)
     @Volatile private var lastXmltvRefreshAtMs = 0L
     @Volatile private var lastXmltvAttemptAtMs = 0L
+
+    suspend fun loginM3uUrl(url: String, displayName: String? = null) {
+        require(url.startsWith("https://") || url.startsWith("http://")) { "Adresse M3U HTTP(S) invalide" }
+        val source = XtreamCredentials(url.trim(), "__tvflow_m3u__", "playlist")
+        val contents = loadM3uUrl(url)
+        importPlaylist(source, contents, displayName ?: "Playlist M3U")
+    }
+
+    suspend fun loginM3uFile(bytes: ByteArray, displayName: String? = null) {
+        require(bytes.size <= 12_000_000) { "Fichier M3U trop volumineux" }
+        val source = XtreamCredentials("m3u-local:" + java.util.UUID.randomUUID().toString(),
+            "__tvflow_m3u__", "playlist")
+        importPlaylist(source, bytes.toString(Charsets.UTF_8), displayName ?: "Fichier M3U")
+    }
+
+    private suspend fun loadM3uUrl(url: String): String = withContext(Dispatchers.IO) {
+        val request = Request.Builder().url(url).get().build()
+        okHttpClient.newCall(request).execute().use { response ->
+            require(response.isSuccessful) { "Impossible de télécharger la playlist M3U (" + response.code + ")" }
+            val stream = response.body?.byteStream() ?: error("Playlist M3U vide")
+            val bytes = stream.use { input ->
+                val output = java.io.ByteArrayOutputStream()
+                val buffer = ByteArray(8192)
+                while (true) {
+                    val count = input.read(buffer)
+                    if (count < 0) break
+                    require(output.size() + count <= 12_000_000) { "Playlist M3U trop volumineuse" }
+                    output.write(buffer, 0, count)
+                }
+                output.toByteArray()
+            }
+            bytes.toString(Charsets.UTF_8)
+        }
+    }
+
+    private suspend fun importPlaylist(source: XtreamCredentials, contents: String, name: String) {
+        M3uPlaylistParser.parse(contents)
+        credentialsStore.save(source, name)
+        val id = currentProfileId()
+        withContext(Dispatchers.IO) { playlistFile(id).writeText(contents, Charsets.UTF_8) }
+        storePlaylist(id, contents)
+    }
+
+    private suspend fun storePlaylist(id: String, contents: String) {
+        val stations = M3uPlaylistParser.parse(contents)
+        val groups = stations.map { it.group }.distinct()
+        dao.replaceCatalog(
+            profileId = id,
+            categories = groups.mapIndexed { idx, group -> LiveCategoryEntity(id, "m3u_" + idx, group, idx) },
+            channels = stations.mapIndexed { idx, station ->
+                LiveChannelEntity(
+                    profileId = id, streamId = idx + 1, name = station.name,
+                    categoryId = "m3u_" + groups.indexOf(station.group), logoUrl = station.logo,
+                    epgChannelId = station.tvgId, streamType = "live"
+                )
+            }
+        )
+        synchronized(playlistLock) { playlistUrls[id] = stations.mapIndexed { i, entry -> i + 1 to entry.url }.toMap() }
+        invalidateSearchCache(id)
+    }
+
+    private suspend fun refreshPlaylist(source: XtreamCredentials, id: String) {
+        val contents = if (source.serverUrl.startsWith("m3u-local:")) {
+            withContext(Dispatchers.IO) { playlistFile(id).readText(Charsets.UTF_8) }
+        } else {
+            loadM3uUrl(source.serverUrl).also { fresh ->
+                withContext(Dispatchers.IO) { playlistFile(id).writeText(fresh, Charsets.UTF_8) }
+            }
+        }
+        storePlaylist(id, contents)
+    }
 
     suspend fun login(credentials: XtreamCredentials, displayName: String? = null) {
         val source = parseXtreamM3uUrl(credentials.serverUrl) ?: credentials
@@ -162,8 +251,13 @@ class XtreamRepository @Inject constructor(
 
     suspend fun deleteProfile(profileId: String) {
         val wasActive = activeProfileId.first() == profileId
+        val wasPlaylist = profiles.first().any { it.id == profileId && isPlaylist(it.credentials) }
         dao.deleteProfileData(profileId)
         credentialsStore.deleteProfile(profileId)
+        if (wasPlaylist) {
+            withContext(Dispatchers.IO) { playlistFile(profileId).delete() }
+            synchronized(playlistLock) { playlistUrls.remove(profileId) }
+        }
         if (wasActive && savedCredentials.first() != null) {
             refreshCatalog()
             runCatching { refreshMediaCatalog() }
@@ -172,17 +266,25 @@ class XtreamRepository @Inject constructor(
 
     suspend fun refreshCatalog() {
         val credentials = savedCredentials.first() ?: error("Aucun serveur IPTV configuré")
-        refreshCatalog(credentials, currentProfileId())
+        if (isPlaylist(credentials)) refreshPlaylist(credentials, currentProfileId())
+        else refreshCatalog(credentials, currentProfileId())
     }
 
     suspend fun refreshMediaCatalog() {
         val credentials = savedCredentials.first() ?: error("Aucun serveur IPTV configuré")
+        if (isPlaylist(credentials)) return
         refreshMediaCatalog(credentials, currentProfileId())
     }
 
     suspend fun refreshAllWithProgress(onProgress: (Int, String) -> Unit) = coroutineScope {
         val credentials = savedCredentials.first() ?: error("Aucun serveur IPTV configuré")
         val profileId = currentProfileId()
+        if (isPlaylist(credentials)) {
+            onProgress(10, "Chargement de la playlist M3U")
+            refreshPlaylist(credentials, profileId)
+            onProgress(100, "Playlist M3U actualisée")
+            return@coroutineScope
+        }
         val apiUrl = playerApi(credentials.serverUrl)
 
         onProgress(5, "Connexion au serveur")
@@ -280,6 +382,7 @@ class XtreamRepository @Inject constructor(
     }
 
     private suspend fun refreshCatalog(credentials: XtreamCredentials, profileId: String) {
+        if (isPlaylist(credentials)) return refreshPlaylist(credentials, profileId)
         val apiUrl = playerApi(credentials.serverUrl)
         val categories = api.getLiveCategories(apiUrl, credentials.username, credentials.password)
         val channels = api.getLiveStreams(apiUrl, credentials.username, credentials.password)
@@ -306,6 +409,7 @@ class XtreamRepository @Inject constructor(
     }
 
     private suspend fun refreshMediaCatalog(credentials: XtreamCredentials, profileId: String) = coroutineScope {
+        if (isPlaylist(credentials)) return@coroutineScope
         val apiUrl = playerApi(credentials.serverUrl)
         val vodCategoriesDeferred = async { api.getVodCategories(apiUrl, credentials.username, credentials.password) }
         val seriesCategoriesDeferred = async { api.getSeriesCategories(apiUrl, credentials.username, credentials.password) }
@@ -395,11 +499,14 @@ class XtreamRepository @Inject constructor(
             if (id == null) {
                 flowOf(emptyList())
             } else {
-                combine(
-                    dao.observeCategories(id),
-                    settingsStore.categorySectionOverrides(id)
-                ) { categories, overrides ->
-                    buildPrimaryLiveCategories(categories, overrides)
+                // Use the actual provider categories and the user's visibility settings.
+                // The synthetic France/Kids/Other hierarchy is no longer used in Direct.
+                dao.observeCategories(id).map { categories ->
+                    categories.asSequence()
+                        .filterNot { it.isHidden || it.name.trim().matches(Regex("^#{3,}.*#{3,}$")) }
+                        .sortedBy { it.sortOrder }
+                        .map { LiveCategory(it.id, it.name, it.sortOrder, it.isHidden, it.isLocked) }
+                        .toList()
                 }
             }
         }
@@ -435,16 +542,26 @@ class XtreamRepository @Inject constructor(
     fun observeRecentChannels(limit: Int = 20): Flow<List<LiveChannel>> = applyStreamVisibility(activeProfileId.flatMapLatest { id -> if (id == null) flowOf(emptyList()) else dao.observeRecentChannels(id, limit) })
     fun searchLive(query: String): Flow<List<LiveChannel>> = applyStreamVisibility(activeProfileId.flatMapLatest { id -> if (id == null) flowOf(emptyList()) else dao.searchLive(id, query) })
 
-    fun observeMediaCategories(type: MediaType): Flow<List<MediaCategory>> =
+    fun observeHiddenMediaCategoryKeys(): Flow<Set<String>> =
+        activeProfileId.flatMapLatest { id ->
+            if (id == null) flowOf(emptySet()) else settingsStore.hiddenMediaCategories(id)
+        }
+
+    suspend fun setMediaCategoryHidden(type: MediaType, categoryId: String, hidden: Boolean) {
+        settingsStore.setMediaCategoryHidden(currentProfileId(), "${type.name}:$categoryId", hidden)
+    }
+
+    fun observeMediaCategories(type: MediaType, includeHidden: Boolean = false): Flow<List<MediaCategory>> =
         activeProfileId.flatMapLatest { id ->
             if (id == null) {
                 flowOf(emptyList())
             } else {
                 combine(
                     dao.observeMediaCategories(id, type.name),
-                    settingsStore.categorySectionOverrides(id)
-                ) { list, overrides ->
-                    list.map {
+                    settingsStore.categorySectionOverrides(id),
+                    settingsStore.hiddenMediaCategories(id)
+                ) { list, overrides, hidden ->
+                    list.filterNot { !includeHidden && "${type.name}:${it.id}" in hidden }.map {
                         val key = type.name + ":" + it.id
                         val overridden = overrides[key]?.let { value ->
                             runCatching { MediaSection.valueOf(value) }.getOrNull()
@@ -895,7 +1012,18 @@ class XtreamRepository @Inject constructor(
     }
 
     fun streamUrl(credentials: XtreamCredentials, channel: LiveChannel): String =
-        buildLiveStreamUrl(credentials, channel.streamId)
+        if (isPlaylist(credentials)) {
+            val id = playlistKey(credentials)
+            val urls = synchronized(playlistLock) {
+                playlistUrls.getOrPut(id) {
+                    runCatching {
+                        M3uPlaylistParser.parse(playlistFile(id).readText(Charsets.UTF_8))
+                            .mapIndexed { index, station -> index + 1 to station.url }.toMap()
+                    }.getOrDefault(emptyMap())
+                }
+            }
+            urls[channel.streamId] ?: error("Chaîne M3U introuvable")
+        } else buildLiveStreamUrl(credentials, channel.streamId)
 
     suspend fun resolveCatchupUrl(credentials: XtreamCredentials, channel: LiveChannel, program: EpgProgram): String? = withContext(Dispatchers.IO) {
         val now = System.currentTimeMillis() / 1000L

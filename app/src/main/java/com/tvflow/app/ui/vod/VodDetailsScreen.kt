@@ -168,8 +168,8 @@ private fun VodSuggestionCard(
         modifier = Modifier
             .width(112.dp)
             .graphicsLayer {
-                scaleX = if (focused) 1.06f else 1f
-                scaleY = if (focused) 1.06f else 1f
+                scaleX = 1f
+                scaleY = 1f
             },
         border = BorderStroke(
             if (focused) 3.dp else 1.dp,

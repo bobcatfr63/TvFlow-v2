@@ -153,12 +153,8 @@ private fun MenuCard(label: String, onClick: () -> Unit) {
     Card(
         onClick = onClick,
         interactionSource = interaction,
-        modifier = Modifier
-            .fillMaxWidth()
-            .graphicsLayer {
-                scaleX = if (focused) 1.04f else 1f
-                scaleY = if (focused) 1.04f else 1f
-            },
+        // Keep text on an integer-aligned raster: scaling the entire card blurs TV glyphs.
+        modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
             containerColor = if (focused) MaterialTheme.colorScheme.primaryContainer
             else MaterialTheme.colorScheme.surfaceVariant
@@ -171,7 +167,8 @@ private fun MenuCard(label: String, onClick: () -> Unit) {
         Text(
             label,
             color = if (focused) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(16.dp)
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(horizontal = 18.dp, vertical = 15.dp)
         )
     }
 }
@@ -202,10 +199,7 @@ private fun FilterChip(label: String, selected: Boolean, onClick: () -> Unit) {
     Card(
         onClick = onClick,
         interactionSource = interaction,
-        modifier = Modifier.graphicsLayer {
-            scaleX = if (focused) 1.06f else 1f
-            scaleY = if (focused) 1.06f else 1f
-        },
+        modifier = Modifier,
         colors = CardDefaults.cardColors(
             containerColor = when {
                 focused -> MaterialTheme.colorScheme.primaryContainer
@@ -252,8 +246,8 @@ private fun SortToolbar(
             onClick = onSort,
             interactionSource = interaction,
             modifier = Modifier.graphicsLayer {
-                scaleX = if (focused) 1.06f else 1f
-                scaleY = if (focused) 1.06f else 1f
+                scaleX = 1f
+                scaleY = 1f
             },
             colors = CardDefaults.cardColors(
                 containerColor = if (focused) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primaryContainer
@@ -286,8 +280,8 @@ private fun ChannelRow(channel: LiveChannel, onClick: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .graphicsLayer {
-                scaleX = if (focused) 1.015f else 1f
-                scaleY = if (focused) 1.015f else 1f
+                scaleX = 1f
+                scaleY = 1f
             },
         colors = CardDefaults.cardColors(
             containerColor = if (focused) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface

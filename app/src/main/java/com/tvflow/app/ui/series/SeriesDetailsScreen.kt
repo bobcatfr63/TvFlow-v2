@@ -148,8 +148,8 @@ fun SeriesDetailsScreen(
                             onClick = { viewModel.selectSeason(season) },
                             interactionSource = interaction,
                             modifier = Modifier.graphicsLayer {
-                                scaleX = if (focused) 1.06f else 1f
-                                scaleY = if (focused) 1.06f else 1f
+                                scaleX = 1f
+                                scaleY = 1f
                             },
                             colors = CardDefaults.cardColors(
                                 containerColor = when {
@@ -181,14 +181,15 @@ fun SeriesDetailsScreen(
             items(episodes, key = { it.id }) { episode ->
                 val interaction = remember { MutableInteractionSource() }
                 val focused by interaction.collectIsFocusedAsState()
+                val watched = episode.id in state.watchedEpisodeIds
                 Card(
                     onClick = { onPlayEpisode(episode) },
                     interactionSource = interaction,
                     modifier = Modifier
                         .fillMaxWidth()
                         .graphicsLayer {
-                            scaleX = if (focused) 1.015f else 1f
-                            scaleY = if (focused) 1.015f else 1f
+                            scaleX = 1f
+                            scaleY = 1f
                         },
                     colors = CardDefaults.cardColors(
                         containerColor = if (focused) {
@@ -204,7 +205,7 @@ fun SeriesDetailsScreen(
                     )
                 ) {
                     Row(
-                        Modifier.fillMaxWidth().padding(12.dp),
+                        Modifier.fillMaxWidth().padding(if (isTv) 12.dp else 9.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         episode.imageUrl?.takeIf { it.isNotBlank() }?.let { imageUrl ->
@@ -213,30 +214,27 @@ fun SeriesDetailsScreen(
                                 contentDescription = null,
                                 contentScale = ContentScale.Crop,
                                 modifier = Modifier
-                                    .width(132.dp)
-                                    .height(76.dp)
+                                    .width(if (isTv) 132.dp else 88.dp)
+                                    .height(if (isTv) 76.dp else 58.dp)
                                     .padding(end = 12.dp)
                             )
                         }
                         Column(Modifier.weight(1f)) {
                             Text(
                                 buildString {
-                                    if (episode.id in state.watchedEpisodeIds) append("✓ Vu  •  ")
                                     append("S")
                                     append(episode.season)
                                     append(" • E")
                                     append(episode.episodeNumber)
-                                    append("  ")
-                                    append(episode.title)
+                                    append("  ·  ")
+                                    append(cleanEpisodeTitle(episode.title))
                                 },
-                                style = MaterialTheme.typography.titleMedium,
-                                color = if (episode.id in state.watchedEpisodeIds) {
-                                    MaterialTheme.colorScheme.primary
-                                } else {
-                                    MaterialTheme.colorScheme.onSurface
-                                }
+                                style = if (isTv) MaterialTheme.typography.titleMedium else MaterialTheme.typography.bodyMedium,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                                color = if (watched) Color.White.copy(alpha = 0.78f) else Color.White
                             )
-                            episode.plot?.takeIf { it.isNotBlank() }?.let {
+                            episode.plot?.takeIf { it.isNotBlank() && isTv }?.let {
                                 Text(
                                     it,
                                     maxLines = 2,
@@ -246,9 +244,9 @@ fun SeriesDetailsScreen(
                             }
                         }
                         Text(
-                            "▶",
-                            style = MaterialTheme.typography.titleLarge,
-                            color = if (focused) MaterialTheme.colorScheme.primary else Color.White,
+                            if (watched) "✓ Vu" else "▶ Lire",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = if (focused) MaterialTheme.colorScheme.primary else if (watched) Color(0xFF92C9E8) else Color.White,
                             modifier = Modifier.padding(start = 12.dp, end = 6.dp)
                         )
                     }
@@ -291,8 +289,8 @@ private fun SeriesSuggestionCard(
         modifier = Modifier
             .width(150.dp)
             .graphicsLayer {
-                scaleX = if (focused) 1.06f else 1f
-                scaleY = if (focused) 1.06f else 1f
+                scaleX = 1f
+                scaleY = 1f
             },
         colors = CardDefaults.cardColors(
             containerColor = if (focused) MaterialTheme.colorScheme.primaryContainer
@@ -319,6 +317,13 @@ private fun SeriesSuggestionCard(
             )
         }
     }
+}
+
+/** Removes duplicate provider prefixes from the displayed episode title only. */
+private fun cleanEpisodeTitle(title: String): String {
+    val marker = Regex("""(?i)\bS\d{1,2}\s*E\d{1,3}\b\s*[-:–—•]?\s*""").find(title)
+    val cleaned = marker?.let { title.substring(it.range.last + 1).trim(' ', '-', ':', '–', '—', '•') }
+    return cleaned?.takeIf { it.isNotBlank() } ?: title
 }
 
 private fun monthName(month: Int): String = when (month) {

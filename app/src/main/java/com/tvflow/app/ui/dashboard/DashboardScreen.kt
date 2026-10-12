@@ -1744,15 +1744,38 @@ private fun RecentMediaCard(
             .onFocusChanged { onFocused(it.isFocused) }
             .focusable(interactionSource = interaction)
     ) {
-        AsyncImage(
-            model = imageUrl,
-            contentDescription = title,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxWidth().height(160.dp)
-        )
+        var imageFailed by remember(imageUrl) { mutableStateOf(imageUrl.isNullOrBlank()) }
+        Box(Modifier.fillMaxWidth().height(160.dp), contentAlignment = Alignment.Center) {
+            if (imageFailed) {
+                Box(
+                    Modifier.fillMaxSize().background(
+                        Brush.verticalGradient(listOf(Color(0xFF173A55), Color(0xFF091724)))
+                    ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        title.replace(Regex("""(?i)^\s*(?:FR|VF|VOSTFR)\s*[-:|]\s*"""), ""),
+                        color = Color.White.copy(alpha = 0.80f),
+                        style = MaterialTheme.typography.titleMedium,
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(14.dp)
+                    )
+                }
+            } else {
+                AsyncImage(
+                    model = imageUrl,
+                    contentDescription = title,
+                    contentScale = ContentScale.Crop,
+                    filterQuality = androidx.compose.ui.graphics.FilterQuality.High,
+                    onError = { imageFailed = true },
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+        }
         Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(
-                title,
+                title.replace(Regex("""(?i)^\s*(?:FR|VF|VOSTFR)\s*[-:|]\s*"""), ""),
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 style = MaterialTheme.typography.titleSmall,
@@ -1767,7 +1790,7 @@ private fun RecentMediaCard(
                     color = MaterialTheme.colorScheme.primary
                 )
             }
-            if (!rating.isNullOrBlank()) {
+            if (rating?.trim()?.replace(',', '.')?.toDoubleOrNull()?.let { it > 0.0 } == true) {
                 Text(
                     "★ " + rating,
                     style = MaterialTheme.typography.labelSmall,

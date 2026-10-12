@@ -30,7 +30,7 @@ import com.tvflow.app.R
 import com.tvflow.app.util.isTelevisionUi
 import kotlinx.coroutines.delay
 
-private const val INTRO_FAILSAFE_MS = 4_500L
+private const val INTRO_FAILSAFE_MS = 15_000L
 
 @Composable
 fun StartupScreen(
@@ -40,21 +40,6 @@ fun StartupScreen(
 ) {
     val context = LocalContext.current
     val state by viewModel.state.collectAsState()
-    // On low-memory Android TV boxes, initializing Media3 during the first frame
-    // blocks Compose and adds several seconds before the dashboard can appear.
-    // Returning TV users go straight to their catalog; keep the cinematic intro on mobile.
-    if (context.isTelevisionUi()) {
-        LaunchedEffect(state) {
-            when (state) {
-                StartupState.LoggedIn -> onLoggedIn()
-                StartupState.LoggedOut -> onLoggedOut()
-                StartupState.Loading -> Unit
-            }
-        }
-        Box(Modifier.fillMaxSize().background(Color.Black))
-        return
-    }
-
     var introFinished by rememberSaveable { mutableStateOf(false) }
 
     val exoPlayer = remember(context) {
@@ -64,7 +49,7 @@ fun StartupScreen(
             val introUri = "android.resource://${context.packageName}/${R.raw.tvflow_intro}"
             setMediaItem(MediaItem.fromUri(introUri))
             repeatMode = Player.REPEAT_MODE_OFF
-            volume = 0f
+            volume = 1f
             playWhenReady = true
         }.also {
             Log.i("TVFlowStartup", "Startup player created in ${SystemClock.uptimeMillis() - decoderStart}ms")

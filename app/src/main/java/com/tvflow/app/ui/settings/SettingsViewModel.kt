@@ -132,8 +132,8 @@ class SettingsViewModel @Inject constructor(
     }
 
     private val mediaCategories = combine(
-        repository.observeMediaCategories(MediaType.VOD),
-        repository.observeMediaCategories(MediaType.SERIES)
+        repository.observeMediaCategories(MediaType.VOD, includeHidden = true),
+        repository.observeMediaCategories(MediaType.SERIES, includeHidden = true)
     ) { vod, series -> vod to series }
 
     private val catalog = combine(liveCatalog, mediaCategories) { live, media ->
@@ -403,6 +403,16 @@ class SettingsViewModel @Inject constructor(
         launchBusy("Classement automatique réactivé") {
             repository.setMediaCategorySectionOverride(category.type, category.id, null)
         }
+
+    val hiddenMediaKeys = repository.observeHiddenMediaCategoryKeys()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptySet())
+
+    fun setMediaCategoriesHidden(categories: List<MediaCategory>, hidden: Boolean) {
+        if (categories.isEmpty()) return
+        launchBusy(if (hidden) "Catégories masquées" else "Catégories affichées") {
+            categories.forEach { repository.setMediaCategoryHidden(it.type, it.id, hidden) }
+        }
+    }
 
     fun classifyMediaCategories(categories: List<MediaCategory>, section: MediaSection?) {
         if (categories.isEmpty()) return

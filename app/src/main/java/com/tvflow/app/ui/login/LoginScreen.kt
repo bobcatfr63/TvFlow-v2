@@ -1,9 +1,13 @@
 package com.tvflow.app.ui.login
 
 import android.graphics.Bitmap
+import android.content.pm.PackageManager
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -16,6 +20,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.runtime.remember
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -44,6 +51,11 @@ fun LoginScreen(
     viewModel: LoginViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
+    val context = LocalContext.current
+    val isTv = remember(context) { context.packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK) }
+    val filePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) viewModel.importLocalM3u(uri)
+    }
 
     LaunchedEffect(state.success) {
         if (state.success) onLoggedIn()
@@ -66,20 +78,27 @@ fun LoginScreen(
         ) {
             Column(modifier = Modifier.fillMaxWidth().widthIn(max = 640.dp)) {
             Text("TVFlow", style = MaterialTheme.typography.displayMedium)
-            Text("Connexion Xtream Codes", style = MaterialTheme.typography.titleLarge)
-            state.pairingUrl?.let { pairingUrl ->
-                Spacer(Modifier.height(18.dp))
+            Text("Ajouter une source IPTV", style = MaterialTheme.typography.titleLarge)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("XTREAM" to "Xtream", "M3U_URL" to "M3U URL", "M3U_FILE" to "Fichier M3U").forEach { (type, title) ->
+                    if (state.sourceType == type) Button(onClick = { viewModel.setSourceType(type) }) { Text(title) }
+                    else OutlinedButton(onClick = { viewModel.setSourceType(type) }) { Text(title) }
+                }
+                OutlinedButton(onClick = viewModel::useFrenchTestPlaylist, enabled = !state.loading) { Text("Test") }
+            }
+            if (state.sourceType == "XTREAM") state.pairingUrl?.let { pairingUrl ->
+                Spacer(Modifier.height(if (isTv) 8.dp else 18.dp))
                 Text("Connexion rapide par téléphone", style = MaterialTheme.typography.titleMedium)
                 Text("Scanne ce QR code avec l’appareil photo de ton téléphone, puis colle ton lien Xtream. Téléphone et TV doivent être sur le même réseau.")
                 val qrBitmap = remember(pairingUrl) { createQrBitmap(pairingUrl) }
                 Image(
                     bitmap = qrBitmap.asImageBitmap(),
                     contentDescription = "QR code de connexion TVFlow",
-                    modifier = Modifier.size(240.dp).align(Alignment.CenterHorizontally)
+                    modifier = Modifier.size(if (isTv) 164.dp else 240.dp).align(Alignment.CenterHorizontally)
                 )
                 Text("Le lien reste sur ton réseau local et le QR code ne contient pas tes identifiants.", style = MaterialTheme.typography.bodySmall)
             }
-            Spacer(Modifier.height(28.dp))
+            Spacer(Modifier.height(if (isTv) 12.dp else 28.dp))
 
             OutlinedTextField(
                 value = state.profileName,
@@ -89,15 +108,15 @@ fun LoginScreen(
                 modifier = Modifier.fillMaxWidth()
             )
             Spacer(Modifier.height(12.dp))
-            OutlinedTextField(
+            if (state.sourceType != "M3U_FILE") OutlinedTextField(
                 value = state.server,
                 onValueChange = viewModel::setServer,
-                label = { Text("Serveur ou lien M3U get.php") },
+                label = { Text(if (state.sourceType == "M3U_URL") "URL de la playlist M3U" else "Serveur ou lien Xtream get.php") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
             Spacer(Modifier.height(12.dp))
-            OutlinedTextField(
+            if (state.sourceType == "XTREAM") OutlinedTextField(
                 value = state.username,
                 onValueChange = viewModel::setUsername,
                 label = { Text("Utilisateur") },
@@ -105,7 +124,7 @@ fun LoginScreen(
                 modifier = Modifier.fillMaxWidth()
             )
             Spacer(Modifier.height(12.dp))
-            OutlinedTextField(
+            if (state.sourceType == "XTREAM") OutlinedTextField(
                 value = state.password,
                 onValueChange = viewModel::setPassword,
                 label = { Text("Mot de passe") },
@@ -115,7 +134,17 @@ fun LoginScreen(
             )
             Spacer(Modifier.height(20.dp))
 
-            Button(
+            if (state.sourceType == "M3U_URL" && state.server == "https://iptv-org.github.io/iptv/countries/fr.m3u") {
+                Text("Source test : chaînes françaises publiques (iptv-org)", style = MaterialTheme.typography.bodySmall)
+                Spacer(Modifier.height(8.dp))
+            }
+            if (state.sourceType == "M3U_FILE") {
+                Button(
+                    onClick = { filePicker.launch(arrayOf("audio/x-mpegurl", "application/x-mpegURL", "text/plain", "application/octet-stream", "*/*")) },
+                    enabled = !state.loading,
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text("Choisir un fichier .m3u") }
+            } else Button(
                 onClick = viewModel::login,
                 enabled = !state.loading,
                 modifier = Modifier.fillMaxWidth()

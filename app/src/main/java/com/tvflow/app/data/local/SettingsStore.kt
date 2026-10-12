@@ -65,6 +65,7 @@ class SettingsStore @Inject constructor(@ApplicationContext private val context:
         val autoNextEpisode = booleanPreferencesKey("auto_next_episode")
         val nextEpisodeCountdownSeconds = intPreferencesKey("next_episode_countdown_seconds")
         val categorySectionOverrides = stringPreferencesKey("category_section_overrides")
+        val hiddenMediaCategories = stringPreferencesKey("hidden_media_categories")
         val tasteOnboardingCompleted = booleanPreferencesKey("taste_onboarding_completed")
         val tasteThemes = stringPreferencesKey("taste_themes")
         val mobileHomePreviewMode = stringPreferencesKey("mobile_home_preview_mode")
@@ -158,6 +159,21 @@ class SettingsStore @Inject constructor(@ApplicationContext private val context:
                 .distinct()
                 .sorted()
                 .joinToString("|")
+        }
+
+    fun hiddenMediaCategories(profileId: String): Flow<Set<String>> =
+        context.playerSettingsDataStore.data.map { prefs ->
+            decodeCategoryOverrides(prefs[Keys.hiddenMediaCategories])[profileId].orEmpty().keys
+        }
+
+    suspend fun setMediaCategoryHidden(profileId: String, categoryKey: String, hidden: Boolean) =
+        context.playerSettingsDataStore.edit { prefs ->
+            val all = decodeCategoryOverrides(prefs[Keys.hiddenMediaCategories]).toMutableMap()
+            val selected = all[profileId].orEmpty().toMutableMap()
+            if (hidden) selected[categoryKey] = "1" else selected.remove(categoryKey)
+            if (selected.isEmpty()) all.remove(profileId) else all[profileId] = selected
+            if (all.isEmpty()) prefs.remove(Keys.hiddenMediaCategories)
+            else prefs[Keys.hiddenMediaCategories] = encodeCategoryOverrides(all)
         }
 
     fun categorySectionOverrides(profileId: String): Flow<Map<String, String>> =

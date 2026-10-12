@@ -100,6 +100,7 @@ fun SettingsScreen(
     var showChannelOrganization by remember { mutableStateOf(false) }
     var showMediaOrganization by remember { mutableStateOf(false) }
     var selectedMediaIds by remember { mutableStateOf(setOf<String>()) }
+    val hiddenMediaKeys by viewModel.hiddenMediaKeys.collectAsState()
 
     refreshProgress?.let { progress ->
         AlertDialog(
@@ -171,7 +172,7 @@ fun SettingsScreen(
                     Text("Premium à vie · 4,99 €  ›")
                 }
                 Spacer(Modifier.height(8.dp))
-                SectionTitle("Serveurs Xtream")
+                SectionTitle("Sources IPTV")
                 state.profiles.forEach { profile ->
                     ProfileRow(
                         profile = profile,
@@ -400,7 +401,7 @@ fun SettingsScreen(
                         Text("← Réglages")
                     }
                 }
-                Text("Sélectionne les catégories à classer en France, Enfants ou Autres.")
+                Text("Choisis les catégories à afficher ou masquer dans Films et Séries.")
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     SettingsButton(
                         onClick = {
@@ -410,37 +411,13 @@ fun SettingsScreen(
                         }
                     ) { Text(if (selectedMediaIds.size == allMedia.size && allMedia.isNotEmpty()) "Désélectionner" else "Tout sélectionner") }
                     SettingsButton(
-                        onClick = {
-                            viewModel.classifyMediaCategories(
-                                allMedia.filter { mediaKey(it) in selectedMediaIds }, MediaSection.FRANCE
-                            )
-                        },
+                        onClick = { viewModel.setMediaCategoriesHidden(allMedia.filter { mediaKey(it) in selectedMediaIds }, true) },
                         enabled = selectedMediaIds.isNotEmpty() && !state.busy
-                    ) { Text("France") }
+                    ) { Text("Masquer") }
                     SettingsButton(
-                        onClick = {
-                            viewModel.classifyMediaCategories(
-                                allMedia.filter { mediaKey(it) in selectedMediaIds }, MediaSection.KIDS
-                            )
-                        },
+                        onClick = { viewModel.setMediaCategoriesHidden(allMedia.filter { mediaKey(it) in selectedMediaIds }, false) },
                         enabled = selectedMediaIds.isNotEmpty() && !state.busy
-                    ) { Text("Enfants") }
-                    SettingsButton(
-                        onClick = {
-                            viewModel.classifyMediaCategories(
-                                allMedia.filter { mediaKey(it) in selectedMediaIds }, MediaSection.OTHER
-                            )
-                        },
-                        enabled = selectedMediaIds.isNotEmpty() && !state.busy
-                    ) { Text("Autres") }
-                    SettingsButton(
-                        onClick = {
-                            viewModel.classifyMediaCategories(
-                                allMedia.filter { mediaKey(it) in selectedMediaIds }, null
-                            )
-                        },
-                        enabled = selectedMediaIds.isNotEmpty() && !state.busy
-                    ) { Text("Auto") }
+                    ) { Text("Afficher") }
                 }
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     item { SectionTitle("Films") }
@@ -453,7 +430,7 @@ fun SettingsScreen(
                                 selectedMediaIds = if (key in selectedMediaIds) selectedMediaIds - key
                                 else selectedMediaIds + key
                             }
-                        ) { Text("${if (key in selectedMediaIds) "☑" else "☐"}  ${category.name}") }
+                        ) { Text("${if (key in selectedMediaIds) "☑" else "☐"}  ${if (key in hiddenMediaKeys) "[Masqué] " else ""}${category.name}") }
                     }
                     item { SectionTitle("Séries") }
                     items(state.seriesCategories, key = { "series:" + it.id }) { category ->
@@ -465,7 +442,7 @@ fun SettingsScreen(
                                 selectedMediaIds = if (key in selectedMediaIds) selectedMediaIds - key
                                 else selectedMediaIds + key
                             }
-                        ) { Text("${if (key in selectedMediaIds) "☑" else "☐"}  ${category.name}") }
+                        ) { Text("${if (key in selectedMediaIds) "☑" else "☐"}  ${if (key in hiddenMediaKeys) "[Masqué] " else ""}${category.name}") }
                     }
                 }
             }
@@ -677,7 +654,12 @@ private fun ProfileRow(profile: ServerProfile, active: Boolean, onActivate: () -
     FocusRow(onClick = onActivate, selected = active) {
         Column(Modifier.weight(1f)) {
             Text((if (active) "● " else "○ ") + profile.name, fontWeight = if (active) FontWeight.Bold else FontWeight.Normal)
-            Text(profile.credentials.serverUrl, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            val sourceLabel = when {
+                profile.credentials.username == "__tvflow_m3u__" && profile.credentials.serverUrl.startsWith("m3u-local:") -> "Fichier M3U local"
+                profile.credentials.username == "__tvflow_m3u__" -> "M3U URL · " + android.net.Uri.parse(profile.credentials.serverUrl).host.orEmpty()
+                else -> profile.credentials.serverUrl
+            }
+            Text(sourceLabel, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         Text("Suppr.", modifier = Modifier.clickable(onClick = onDelete).padding(8.dp))
     }
