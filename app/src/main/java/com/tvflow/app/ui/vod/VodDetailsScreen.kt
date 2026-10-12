@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
@@ -58,8 +59,8 @@ fun VodDetailsScreen(
     val suggestions by viewModel.suggestions.collectAsState()
     val enrichedItem by viewModel.item.collectAsState()
     val isTv = LocalContext.current.isTelevisionUi()
-    val posterWidth = if (isTv) 230.dp else 104.dp
-    val posterHeight = if (isTv) 340.dp else 158.dp
+    val posterWidth = if (isTv) 220.dp else 96.dp
+    val posterHeight = if (isTv) 320.dp else 144.dp
     val effectiveTitle = enrichedItem?.name?.takeIf { it.isNotBlank() } ?: title
     val effectivePoster = enrichedItem?.posterUrl ?: posterUrl
     val effectiveSynopsis = enrichedItem?.synopsis?.takeIf { it.isNotBlank() } ?: synopsis
@@ -80,28 +81,30 @@ fun VodDetailsScreen(
             )))
         Column(
             modifier = Modifier.fillMaxSize().padding(if (isTv) 32.dp else 16.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+            verticalArrangement = Arrangement.spacedBy(if (isTv) 20.dp else 14.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(if (isTv) 28.dp else 18.dp)
+                horizontalArrangement = Arrangement.spacedBy(if (isTv) 28.dp else 12.dp)
             ) {
                 AsyncImage(
                     model = effectivePoster,
                     contentDescription = effectiveTitle,
                     contentScale = ContentScale.Crop,
-                    modifier = Modifier.width(posterWidth).height(posterHeight)
+                    modifier = Modifier.width(posterWidth).height(posterHeight).clip(RoundedCornerShape(14.dp))
                 )
 
                 Column(
                     modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                    verticalArrangement = Arrangement.spacedBy(if (isTv) 14.dp else 8.dp)
                 ) {
-                    Text("TVFlow CINEMA  •  FILM", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
+                    Text("FILM  •  TVFLOW CINÉMA", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
                     Text(
                         effectiveTitle,
-                        style = MaterialTheme.typography.headlineLarge,
-                        fontWeight = FontWeight.Bold
+                        style = if (isTv) MaterialTheme.typography.headlineLarge else MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = if (isTv) 3 else 2,
+                        overflow = TextOverflow.Ellipsis
                     )
 
                     val dateLabel = when {
@@ -128,8 +131,8 @@ fun VodDetailsScreen(
 
                     Spacer(Modifier.height(8.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Button(onClick = onPlay) { Text("▶ Lire") }
-                        Button(onClick = onBack) { Text("Retour") }
+                        Button(onClick = onPlay) { Text("▶ Lecture") }
+                        OutlinedButton(onClick = onBack) { Text("Retour") }
                     }
                 }
             }

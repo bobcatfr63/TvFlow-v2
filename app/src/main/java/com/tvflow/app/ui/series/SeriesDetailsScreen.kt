@@ -2,6 +2,8 @@ package com.tvflow.app.ui.series
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -73,7 +75,7 @@ fun SeriesDetailsScreen(
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(24.dp),
+                horizontalArrangement = Arrangement.spacedBy(if (isTv) 24.dp else 12.dp),
                 verticalAlignment = Alignment.Top
             ) {
                 coverUrl?.takeIf { it.isNotBlank() }?.let { image ->
@@ -81,17 +83,19 @@ fun SeriesDetailsScreen(
                         model = image,
                         contentDescription = seriesName,
                         contentScale = ContentScale.Crop,
-                        modifier = Modifier.width(210.dp).height(315.dp)
+                        modifier = Modifier.width(if (isTv) 210.dp else 100.dp).height(if (isTv) 315.dp else 150.dp).clip(RoundedCornerShape(14.dp))
                     )
                 }
                 Column(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Text("TVFlow CINEMA  •  SÉRIE", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
+                    Text("SÉRIE  •  TVFLOW CINÉMA", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
                     Text(
                         seriesName,
-                        style = MaterialTheme.typography.headlineLarge,
+                        style = if (isTv) MaterialTheme.typography.headlineLarge else MaterialTheme.typography.titleLarge,
+                        maxLines = if (isTv) 3 else 2,
+                        overflow = TextOverflow.Ellipsis,
                         color = Color.White,
                         fontWeight = FontWeight.Bold
                     )
@@ -111,7 +115,7 @@ fun SeriesDetailsScreen(
                         plot?.takeIf { it.isNotBlank() } ?: "Synopsis indisponible.",
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.bodyLarge,
-                        maxLines = 10,
+                        maxLines = if (isTv) 10 else 5,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
@@ -241,7 +245,12 @@ fun SeriesDetailsScreen(
                                 )
                             }
                         }
-                        Text("▶", style = MaterialTheme.typography.titleLarge)
+                        Text(
+                            "▶",
+                            style = MaterialTheme.typography.titleLarge,
+                            color = if (focused) MaterialTheme.colorScheme.primary else Color.White,
+                            modifier = Modifier.padding(start = 12.dp, end = 6.dp)
+                        )
                     }
                 }
             }

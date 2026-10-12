@@ -68,6 +68,7 @@ fun MediaLibraryScreen(
     val searchedVod by viewModel.searchedVod.collectAsState()
     val searchedSeries by viewModel.searchedSeries.collectAsState()
     var searchMode by remember(viewModel.type) { mutableStateOf(false) }
+    var expandedDateFilters by remember(viewModel.type) { mutableStateOf(false) }
     BackHandler(enabled = searchMode) {
         searchMode = false
         viewModel.searchQuery.value = ""
@@ -160,11 +161,17 @@ fun MediaLibraryScreen(
                     }
                 }
             }
-            Text(
-                "Sorties récentes • date de sortie réelle",
-                style = if (compactMobile) MaterialTheme.typography.bodyLarge else MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onBackground
+            ReleaseFilterChip(
+                label = when {
+                    expandedDateFilters -> "▴ Masquer les filtres de dates"
+                    selectedYear != null -> "▾ Sorties : ${selectedYear}${selectedMonth?.let { " • ${monthName(it)}" }.orEmpty()}"
+                    else -> "▾ Filtrer par date de sortie"
+                },
+                selected = selectedYear != null,
+                onClick = { expandedDateFilters = !expandedDateFilters },
+                compact = compactMobile
             )
+            if (expandedDateFilters) {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(filterSpacing)) {
                 item {
                     ReleaseFilterChip(
@@ -209,6 +216,7 @@ fun MediaLibraryScreen(
                         )
                     }
                 }
+            }
             }
         }
         Row(Modifier.fillMaxSize().padding(top = contentTopPadding)) {
@@ -357,7 +365,7 @@ private fun MediaPreviewPanel(
     modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = modifier.height(150.dp),
+        modifier = modifier.height(if (preview == null) 76.dp else 150.dp),
         colors = CardDefaults.cardColors(containerColor = Color(0xFF0B2033)),
         border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))
     ) {
@@ -372,9 +380,11 @@ private fun MediaPreviewPanel(
                     color = MaterialTheme.colorScheme.primary
                 )
                 Text(
-                    if (isSeries) "Sélectionne une série pour découvrir son histoire." else "Sélectionne un film pour découvrir son histoire.",
+                    if (isSeries) "Choisis une série" else "Choisis un film",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         } else {
