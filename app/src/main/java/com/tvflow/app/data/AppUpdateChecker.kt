@@ -21,13 +21,16 @@ data class AppUpdateInfo(
     val signatureFingerprint: String?
 )
 
+internal const val TVFLOW_RELEASE_MANIFEST_URL =
+    "https://github.com/bobcatfr63/tvflowV2_release/releases/download/tvflow-latest/release.json"
+
 @Singleton
 class AppUpdateChecker @Inject constructor(
     private val client: OkHttpClient
 ) {
     suspend fun check(): AppUpdateInfo? = withContext(Dispatchers.IO) {
         val request = Request.Builder()
-            .url(RELEASE_MANIFEST_URL)
+            .url(TVFLOW_RELEASE_MANIFEST_URL)
             .header("Accept", "application/json")
             .header("Cache-Control", "no-cache")
             .build()
@@ -121,10 +124,6 @@ class AppUpdateChecker @Inject constructor(
         return null
     }
 
-    companion object {
-        private const val RELEASE_MANIFEST_URL =
-            "https://github.com/bobcatfr63/tvflowV2_release/releases/download/tvflow-latest/release.json"
-    }
 }
 
 internal fun isRemoteVersionNewer(remoteName: String, remoteCode: Long): Boolean {

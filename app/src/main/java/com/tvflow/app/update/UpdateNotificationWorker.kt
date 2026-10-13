@@ -18,6 +18,7 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.tvflow.app.BuildConfig
+import com.tvflow.app.data.TVFLOW_RELEASE_MANIFEST_URL
 import com.tvflow.app.MainActivity
 import com.tvflow.app.R
 import java.util.concurrent.TimeUnit
@@ -35,7 +36,7 @@ class UpdateNotificationWorker(
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         runCatching {
             val request = Request.Builder()
-                .url(RELEASE_MANIFEST_URL)
+                .url(TVFLOW_RELEASE_MANIFEST_URL)
                 .header("Accept", "application/json")
                 .header("Cache-Control", "no-cache")
                 .build()
@@ -110,8 +111,6 @@ class UpdateNotificationWorker(
 
     companion object {
         const val EXTRA_OPEN_UPDATE = "tvflow_open_update"
-        private const val RELEASE_MANIFEST_URL =
-            "https://github.com/bobcatfr63/tvflowV2_release/releases/download/tvflow-latest/release.json"
         private const val CHANNEL_ID = "tvflow_updates"
         private const val CHANNEL_NAME = "Mises à jour TVFlow"
         private const val NOTIFICATION_ID = 7401
