@@ -111,7 +111,7 @@ class UpdateNotificationWorker(
     companion object {
         const val EXTRA_OPEN_UPDATE = "tvflow_open_update"
         private const val RELEASE_MANIFEST_URL =
-            "https://github.com/bobcatfr63/TvFlow-v2/releases/download/tvflow-latest/release.json"
+            "https://github.com/bobcatfr63/tvflowV2_release/releases/download/tvflow-latest/release.json"
         private const val CHANNEL_ID = "tvflow_updates"
         private const val CHANNEL_NAME = "Mises à jour TVFlow"
         private const val NOTIFICATION_ID = 7401
