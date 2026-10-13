@@ -35,6 +35,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import com.tvflow.app.ui.theme.rainbowBorder
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -339,6 +340,11 @@ private fun CategoryPanel(
             selected = selectedId == GUIDE_ALL,
             onClick = { onSelect(GUIDE_ALL) }
         )
+        FocusCategoryItem(
+            text = "📺 TNT",
+            selected = selectedId == GUIDE_TNT,
+            onClick = { onSelect(GUIDE_TNT) }
+        )
         LazyColumn(verticalArrangement = Arrangement.spacedBy(3.dp)) {
             items(categories, key = { it.id }) { category ->
                 FocusCategoryItem(
@@ -373,6 +379,7 @@ private fun FocusCategoryItem(text: String, selected: Boolean, onClick: () -> Un
             .fillMaxWidth()
             .clip(RoundedCornerShape(7.dp))
             .background(background)
+            .rainbowBorder(focused || selected, 7.dp)
             .clickable(interactionSource = interaction, indication = null, onClick = onClick)
             .focusable(interactionSource = interaction)
             .padding(horizontal = 12.dp, vertical = 10.dp)
@@ -714,7 +721,7 @@ private fun GuideToolbar(sort: GuideSort, epgOnly: Boolean, onSort: () -> Unit, 
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            "TRI : " + when(sort) { GuideSort.TNT -> "TNT"; GuideSort.NAME -> "A-Z"; GuideSort.FAVORITES -> "FAVORIS"; GuideSort.EPG -> "EPG" },
+            "TRI : " + when(sort) { GuideSort.NAME -> "A-Z"; GuideSort.FAVORITES -> "FAVORIS"; GuideSort.EPG -> "EPG" },
             color = Color.White,
             fontWeight = FontWeight.Bold,
             style = if (compact) MaterialTheme.typography.labelLarge else MaterialTheme.typography.bodyLarge,

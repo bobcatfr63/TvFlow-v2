@@ -1,6 +1,11 @@
 # Historique des mises à jour TVFlow-v2
 
-## 1.0.121 (en validation)
+## 1.0.122 (en validation)
+
+- **Guide et Direct** : nouvelle catégorie **TNT** regroupant les chaînes nationales reconnues, indépendamment des catégories IPTV du serveur ; retrait du mode de tri TNT.
+- **Thème Rainbow** : animation de couleur renforcée sur le contour fixe, notamment sur les catégories du Guide ; contours animés uniquement lorsque le thème est sélectionné.
+
+## 1.0.121
 
 - **TVFlow AI** : barre de recherche compacte dès la saisie pour laisser plus de place aux films et séries ; résultats et messages réunis dans la zone défilante ; réinitialisation du défilement à chaque nouvelle recherche.
 - **Rainbow** : contour animé étendu aux champs de recherche, au micro et aux suggestions de TVFlow AI lorsque le thème Arc-en-ciel est sélectionné.

@@ -47,7 +47,7 @@ class HomeSortingTest {
             channel(23, "FR - TF1", false, null),
             channel(24, "FR - Radio Albi", false, null)
         )
-        assertEquals(listOf(23, 21, 22, 20, 24), sortHomeChannels(channels, HomeSort.TNT).map { it.streamId })
+        assertEquals(listOf(23, 21, 22, 20, 24), com.tvflow.app.data.repository.sortTntChannels(channels).map { it.streamId })
     }
 
     private fun channel(

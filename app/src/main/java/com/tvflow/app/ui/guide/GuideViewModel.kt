@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.drop
@@ -31,8 +32,9 @@ private const val WINDOW_SECONDS = 2 * 60 * 60L
 private const val STEP_SECONDS = 30 * 60L
 const val GUIDE_ALL = "__all__"
 const val GUIDE_FAVORITES = "__favorites__"
+const val GUIDE_TNT = "__tnt__"
 
-enum class GuideSort { TNT, NAME, FAVORITES, EPG }
+enum class GuideSort { NAME, FAVORITES, EPG }
 
 data class GuideUiState(
     val categories: List<LiveCategory> = emptyList(),
@@ -49,7 +51,7 @@ data class GuideUiState(
     val loading: Boolean = false,
     val pinRequiredCategory: LiveCategory? = null,
     val pinError: String? = null,
-    val sort: GuideSort = GuideSort.TNT,
+    val sort: GuideSort = GuideSort.NAME,
     val epgOnly: Boolean = false,
     val selectedSubFilterId: String? = null
 )
@@ -70,7 +72,7 @@ class GuideViewModel @Inject constructor(
     private val windowStart = MutableStateFlow(currentHalfHour())
     private val pinRequiredCategory = MutableStateFlow<LiveCategory?>(null)
     private val pinError = MutableStateFlow<String?>(null)
-    private val sort = MutableStateFlow(GuideSort.TNT)
+    private val sort = MutableStateFlow(GuideSort.NAME)
     private val epgOnly = MutableStateFlow(false)
 
     private val categories = repository.observeCategories()
@@ -161,7 +163,6 @@ class GuideViewModel @Inject constructor(
             value.channels
         }
         val ordered = when (order) {
-            GuideSort.TNT -> sortTntChannels(visible)
             GuideSort.NAME -> visible.filterNot { it.isSectionMarker }.sortedBy { channelAlphabeticalKey(it.name) }
             GuideSort.FAVORITES -> visible.filterNot { it.isSectionMarker }
                 .sortedWith(compareByDescending<LiveChannel> { it.isFavorite }.thenBy { channelAlphabeticalKey(it.name) })
@@ -262,6 +263,13 @@ class GuideViewModel @Inject constructor(
         null -> flowOf(emptyList())
         GUIDE_ALL -> repository.observeAllChannels()
         GUIDE_FAVORITES -> repository.observeFavorites()
+        GUIDE_TNT -> repository.observeAllChannels().map { channels ->
+            sortTntChannels(channels).filter { channel ->
+                channel.logicalNumber != null || com.tvflow.app.data.repository.frenchTntNumber(
+                    com.tvflow.app.data.repository.canonicalFrenchChannelName(channel.name)
+                ) != null
+            }.distinctBy { it.logicalNumber ?: com.tvflow.app.data.repository.canonicalFrenchChannelName(it.name) }
+        }
         else -> repository.observeChannels(filterId ?: categoryId)
     }
 

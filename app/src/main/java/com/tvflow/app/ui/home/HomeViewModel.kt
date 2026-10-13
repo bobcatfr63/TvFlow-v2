@@ -24,13 +24,13 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 sealed interface ChannelSource {
+    data object Tnt : ChannelSource
     data object Favorites : ChannelSource
     data object Recent : ChannelSource
     data class Category(val id: String) : ChannelSource
 }
 
 enum class HomeSort {
-    TNT,
     NAME,
     FAVORITES,
     EPG
@@ -52,7 +52,7 @@ class HomeViewModel @Inject constructor(
     private val _pinError = MutableStateFlow<String?>(null)
     val pinError: StateFlow<String?> = _pinError
 
-    private val sort = MutableStateFlow(HomeSort.TNT)
+    private val sort = MutableStateFlow(HomeSort.NAME)
     val selectedSort: StateFlow<HomeSort> = sort
     private val subFilterId = MutableStateFlow<String?>(null)
     val selectedSubFilterId: StateFlow<String?> = subFilterId
@@ -61,6 +61,11 @@ class HomeViewModel @Inject constructor(
         selected to filterId
     }.flatMapLatest { (selected, filterId) ->
         val stream = when (selected) {
+            ChannelSource.Tnt -> repository.observeAllChannels().map { channels ->
+                com.tvflow.app.data.repository.sortTntChannels(channels)
+                    .filter { channel -> channel.logicalNumber != null || com.tvflow.app.data.repository.frenchTntNumber(com.tvflow.app.data.repository.canonicalFrenchChannelName(channel.name)) != null }
+                    .distinctBy { it.logicalNumber ?: com.tvflow.app.data.repository.canonicalFrenchChannelName(it.name) }
+            }
             ChannelSource.Favorites -> repository.observeFavorites()
             ChannelSource.Recent -> repository.observeRecentChannels()
             is ChannelSource.Category -> repository.observeChannels(filterId ?: selected.id)
@@ -113,6 +118,11 @@ class HomeViewModel @Inject constructor(
 
     fun dismissParentalPin() { _pinRequiredCategory.value = null; _pinError.value = null }
 
+    fun selectTnt() {
+        subFilterId.value = null
+        source.value = ChannelSource.Tnt
+    }
+
     fun selectFavorites() {
         subFilterId.value = null
         source.value = ChannelSource.Favorites
@@ -146,7 +156,6 @@ internal fun sortHomeChannels(
 ): List<LiveChannel> {
     val visible = list.filterNot { it.isSectionMarker }
     return when (order) {
-        HomeSort.TNT -> sortTntChannels(visible)
         HomeSort.NAME -> visible.sortedBy { channelAlphabeticalKey(it.name) }
         HomeSort.FAVORITES -> visible.sortedWith(
             compareByDescending<LiveChannel> { it.isFavorite }

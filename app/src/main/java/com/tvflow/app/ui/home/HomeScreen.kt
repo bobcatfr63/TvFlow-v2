@@ -87,6 +87,9 @@ fun HomeScreen(
                 MenuCard("★ Favoris") { viewModel.selectFavorites() }
             }
             item {
+                MenuCard("📺 TNT") { viewModel.selectTnt() }
+            }
+            item {
                 MenuCard("↻ Récents") { viewModel.selectRecent() }
             }
             items(categories, key = { it.id }) { category ->
@@ -97,6 +100,7 @@ fun HomeScreen(
         Box(modifier = Modifier.fillMaxSize()) {
             if (channels.isEmpty()) {
                 val message = when (selectedSource) {
+                    ChannelSource.Tnt -> "Aucune chaîne TNT reconnue dans ce catalogue"
                     ChannelSource.Favorites -> "Aucune chaîne favorite"
                     ChannelSource.Recent -> "Aucune chaîne regardée récemment"
                     null -> "Chargement du catalogue…"
@@ -259,7 +263,6 @@ private fun SortToolbar(
         ) {
             Text(
                 text = "TRI : " + when (sort) {
-                    HomeSort.TNT -> "TNT"
                     HomeSort.NAME -> "A-Z"
                     HomeSort.FAVORITES -> "FAVORIS"
                     HomeSort.EPG -> "EPG"
