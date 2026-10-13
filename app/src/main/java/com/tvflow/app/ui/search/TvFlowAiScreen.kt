@@ -84,6 +84,9 @@ fun TvFlowAiScreen(
                 Button(onClick = { viewModel.query.value = suggestion }) { Text(suggestion) }
             }
         }
+        if (TvProgramMatcher.isTvQuestion(query) && !result.tvQuestion) {
+            Text("Recherche des programmes dans le guide TV…", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
         result.notice?.let { Text(it, color = MaterialTheme.colorScheme.secondary) }
         result.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -104,7 +107,7 @@ fun TvFlowAiScreen(
                     }
                 }
             }
-            if (!result.tvQuestion && query.isNotBlank() && result.movies.isEmpty() && result.series.isEmpty() && result.error == null) {
+            if (!TvProgramMatcher.isTvQuestion(query) && !result.tvQuestion && query.isNotBlank() && result.movies.isEmpty() && result.series.isEmpty() && result.error == null) {
                 item { Text("Aucun résultat confirmé dans le catalogue. Essaie un titre ou un genre précis.") }
             }
             if (result.movies.isNotEmpty()) item { Text("Films référencés dans ton catalogue", style = MaterialTheme.typography.titleLarge) }
