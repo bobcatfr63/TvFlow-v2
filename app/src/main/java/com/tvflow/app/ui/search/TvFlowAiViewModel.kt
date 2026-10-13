@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.withContext
 
 data class TvFlowAiResults(
+    val searchedQuery: String = "",
     val movies: List<VodItem> = emptyList(),
     val series: List<SeriesItem> = emptyList(),
     val programs: List<Pair<EpgProgram, LiveChannel>> = emptyList(),
@@ -43,11 +44,11 @@ class TvFlowAiViewModel @Inject constructor(
     val query = MutableStateFlow("")
 
     val results = query.debounce(300).mapLatest { raw ->
-        if (raw.trim().length < 2) return@mapLatest TvFlowAiResults()
+        if (raw.trim().length < 2) return@mapLatest TvFlowAiResults(searchedQuery = raw)
         val parsed = TvFlowIntent.parse(raw)
         val tvQuestion = TvProgramMatcher.isTvQuestion(raw)
         val requestedPerson = TvFlowIntent.requestedPerson(raw)
-        if (parsed.terms.isEmpty() && !tvQuestion) return@mapLatest TvFlowAiResults()
+        if (parsed.terms.isEmpty() && !tvQuestion) return@mapLatest TvFlowAiResults(searchedQuery = raw)
         try {
             withContext(Dispatchers.Default) {
                 val sportsTeam = TvProgramMatcher.requestedTeam(raw)
@@ -91,6 +92,7 @@ class TvFlowAiViewModel @Inject constructor(
                     confirmedMovies to confirmedSeries
                 }
                 TvFlowAiResults(
+                    searchedQuery = raw,
                     notice = when {
                         requestedPerson == null -> null
                         verifiedCredits == null -> "Une clé TMDB valide est nécessaire dans les réglages pour vérifier les acteurs. Aucun résultat approximatif n'est affiché."
@@ -113,7 +115,7 @@ class TvFlowAiViewModel @Inject constructor(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            TvFlowAiResults(error = "Recherche indisponible. Vérifie le catalogue local.")
+            TvFlowAiResults(searchedQuery = raw, error = "Recherche indisponible. Vérifie le catalogue local.")
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), TvFlowAiResults())
 }

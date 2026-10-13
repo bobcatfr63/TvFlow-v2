@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
@@ -54,6 +55,7 @@ fun TvFlowAiScreen(
 ) {
     val query by viewModel.query.collectAsState()
     val result by viewModel.results.collectAsState()
+    val searching = query.trim().length >= 2 && result.searchedQuery != query
     val context = LocalContext.current
     val voiceLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
@@ -84,10 +86,15 @@ fun TvFlowAiScreen(
                 Button(onClick = { viewModel.query.value = suggestion }) { Text(suggestion) }
             }
         }
-        if (TvProgramMatcher.isTvQuestion(query) && !result.tvQuestion) {
-            Text("Recherche des programmes dans le guide TV…", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        if (searching) {
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                CircularProgressIndicator(modifier = Modifier.width(24.dp).height(24.dp), strokeWidth = 3.dp)
+                Text("TVFlow AI recherche dans ton catalogue et les sources disponibles…", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        } else if (query.length >= 2 && result.error == null) {
+            Text("Recherche terminée", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
         }
-        result.footballAnswer?.let { answer ->
+        if (!searching) result.footballAnswer?.let { answer ->
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text("Calendrier sportif en ligne", style = MaterialTheme.typography.titleMedium)
@@ -101,13 +108,13 @@ fun TvFlowAiScreen(
                 }
             }
         }
-        result.notice?.let { Text(it, color = MaterialTheme.colorScheme.secondary) }
-        result.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+        if (!searching) result.notice?.let { Text(it, color = MaterialTheme.colorScheme.secondary) }
+        if (!searching) result.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (result.tvQuestion && result.programs.isEmpty() && result.footballAnswer == null) {
-                item { Text("Aucune diffusion correspondante confirmée dans l'EPG du serveur actif. Les programmes sans guide TV ne sont pas vérifiables ici.") }
+            if (!searching && result.tvQuestion && result.programs.isEmpty() && result.footballAnswer == null) {
+                item { Text("Aucune diffusion confirmée dans l'EPG du serveur actif.", color = MaterialTheme.colorScheme.onSurface) }
             }
-            if (result.programs.isNotEmpty()) {
+            if (!searching && result.programs.isNotEmpty()) {
                 item { Text("À la télévision selon ton guide EPG", style = MaterialTheme.typography.titleLarge) }
                 items(result.programs, key = { "epg:${it.first.streamId}:${it.first.startTimestamp}" }) { (program, channel) ->
                     Card(onClick = { onLive(channel) }, modifier = Modifier.fillMaxWidth()) {
@@ -121,11 +128,11 @@ fun TvFlowAiScreen(
                     }
                 }
             }
-            if (!TvProgramMatcher.isTvQuestion(query) && !result.tvQuestion && query.isNotBlank() && result.movies.isEmpty() && result.series.isEmpty() && result.error == null) {
-                item { Text("Aucun résultat confirmé dans le catalogue. Essaie un titre ou un genre précis.") }
+            if (!searching && !TvProgramMatcher.isTvQuestion(query) && !result.tvQuestion && query.isNotBlank() && result.movies.isEmpty() && result.series.isEmpty() && result.error == null) {
+                item { Text("Recherche terminée : aucun résultat confirmé sur le serveur actif. Pour les thèmes (informatique, piratage, science…), essaie aussi un mot-clé présent dans un titre ou un synopsis.", color = MaterialTheme.colorScheme.onSurface) }
             }
-            if (result.movies.isNotEmpty()) item { Text("Films référencés dans ton catalogue", style = MaterialTheme.typography.titleLarge) }
-            items(result.movies, key = { "movie:${it.streamId}" }) { movie ->
+            if (!searching && result.movies.isNotEmpty()) item { Text("Films référencés dans ton catalogue", style = MaterialTheme.typography.titleLarge) }
+            items(if (searching) emptyList() else result.movies, key = { "movie:${it.streamId}" }) { movie ->
                 Card(onClick = { onVod(movie) }, modifier = Modifier.fillMaxWidth()) {
                     Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         movie.posterUrl?.let { url ->
@@ -139,8 +146,8 @@ fun TvFlowAiScreen(
                     }
                 }
             }
-            if (result.series.isNotEmpty()) item { Text("Séries disponibles", style = MaterialTheme.typography.titleLarge) }
-            items(result.series, key = { "series:${it.seriesId}" }) { series ->
+            if (!searching && result.series.isNotEmpty()) item { Text("Séries disponibles", style = MaterialTheme.typography.titleLarge) }
+            items(if (searching) emptyList() else result.series, key = { "series:${it.seriesId}" }) { series ->
                 Card(onClick = { onSeries(series) }, modifier = Modifier.fillMaxWidth()) {
                     Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         series.coverUrl?.let { url ->

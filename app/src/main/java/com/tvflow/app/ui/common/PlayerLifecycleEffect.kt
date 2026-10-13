@@ -20,12 +20,15 @@ fun PlayerLifecycleEffect(player: Player) {
     DisposableEffect(lifecycleOwner, player) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
-                Lifecycle.Event.ON_STOP -> {
+                Lifecycle.Event.ON_PAUSE -> {
+                    // Incoming calls can trigger ON_PAUSE before the Activity stops.
                     resumeState[0] = player.playWhenReady
                     player.pause()
                 }
-                Lifecycle.Event.ON_START -> {
+                Lifecycle.Event.ON_STOP -> player.pause()
+                Lifecycle.Event.ON_RESUME -> {
                     if (resumeState[0] && player.mediaItemCount > 0) {
+                        resumeState[0] = false
                         player.play()
                     }
                 }
