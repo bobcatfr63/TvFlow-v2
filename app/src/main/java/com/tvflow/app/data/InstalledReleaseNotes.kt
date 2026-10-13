@@ -23,6 +23,7 @@ object InstalledReleaseNotes {
         .take(4)
 
     private fun frenchSummary(subject: String): String = when {
+        "correct TNT and alphabetical channel sorting" in subject -> "Direct et Guide : ordre TNT corrigé et classement A à Z plus fiable, sans les préfixes IPTV."
         "release date filters across all movie and series categories" in subject -> "Films et séries : les filtres par année et par mois couvrent toutes les catégories."
         "advance TVFlow version code" in subject -> "Mises à jour : installation corrigée sur les téléphones disposant d'un numéro de build supérieur."
         "share canonical TVFlow release manifest" in subject || "canonical release manifest for update notifications" in subject -> "Mises à jour : détection et notifications réunies sur une seule source fiable."

@@ -3,6 +3,8 @@ package com.tvflow.app.ui.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tvflow.app.data.repository.XtreamRepository
+import com.tvflow.app.data.repository.channelAlphabeticalKey
+import com.tvflow.app.data.repository.sortTntChannels
 import com.tvflow.app.data.local.SettingsStore
 import com.tvflow.app.domain.LiveCategory
 import com.tvflow.app.domain.LiveChannel
@@ -144,15 +146,15 @@ internal fun sortHomeChannels(
 ): List<LiveChannel> {
     val visible = list.filterNot { it.isSectionMarker }
     return when (order) {
-        HomeSort.TNT -> visible
-        HomeSort.NAME -> visible.sortedBy { it.name.lowercase() }
+        HomeSort.TNT -> sortTntChannels(visible)
+        HomeSort.NAME -> visible.sortedBy { channelAlphabeticalKey(it.name) }
         HomeSort.FAVORITES -> visible.sortedWith(
             compareByDescending<LiveChannel> { it.isFavorite }
-                .thenBy { it.name.lowercase() }
+                .thenBy { channelAlphabeticalKey(it.name) }
         )
         HomeSort.EPG -> visible.sortedWith(
             compareByDescending<LiveChannel> { !it.epgChannelId.isNullOrBlank() }
-                .thenBy { it.name.lowercase() }
+                .thenBy { channelAlphabeticalKey(it.name) }
         )
     }
 }

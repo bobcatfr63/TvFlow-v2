@@ -2,6 +2,8 @@
 
 ## Prochaine version (en préparation)
 
+- **Direct et Guide TV** : tri TNT réellement numéroté, tri A à Z amélioré en ignorant les préfixes IPTV et indications de qualité. Même logique dans les deux pages.
+
 - **Films et séries** : le filtre par année et par mois recherche désormais dans toutes les catégories du profil IPTV actif.
 - **Mises à jour** : la détection et les notifications consultent le même manifeste de distribution ; numérotation des builds corrigée pour éviter les rétrogradations.
 - **TVFlow AI** : grille de suggestions adaptée à la télévision, contrastes renforcés et recherche Xtream optimisée.

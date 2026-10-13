@@ -4,6 +4,8 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tvflow.app.data.repository.XtreamRepository
+import com.tvflow.app.data.repository.channelAlphabeticalKey
+import com.tvflow.app.data.repository.sortTntChannels
 import com.tvflow.app.data.local.SettingsStore
 import com.tvflow.app.domain.EpgProgram
 import com.tvflow.app.domain.LiveCategory
@@ -159,12 +161,12 @@ class GuideViewModel @Inject constructor(
             value.channels
         }
         val ordered = when (order) {
-            GuideSort.TNT -> visible
-            GuideSort.NAME -> visible.filterNot { it.isSectionMarker }.sortedBy { it.name.lowercase() }
+            GuideSort.TNT -> sortTntChannels(visible)
+            GuideSort.NAME -> visible.filterNot { it.isSectionMarker }.sortedBy { channelAlphabeticalKey(it.name) }
             GuideSort.FAVORITES -> visible.filterNot { it.isSectionMarker }
-                .sortedWith(compareByDescending<LiveChannel> { it.isFavorite }.thenBy { it.name.lowercase() })
+                .sortedWith(compareByDescending<LiveChannel> { it.isFavorite }.thenBy { channelAlphabeticalKey(it.name) })
             GuideSort.EPG -> visible.filterNot { it.isSectionMarker }
-                .sortedWith(compareByDescending<LiveChannel> { it.hasEpg() }.thenBy { it.name.lowercase() })
+                .sortedWith(compareByDescending<LiveChannel> { it.hasEpg() }.thenBy { channelAlphabeticalKey(it.name) })
         }
         value.copy(
             channels = ordered,

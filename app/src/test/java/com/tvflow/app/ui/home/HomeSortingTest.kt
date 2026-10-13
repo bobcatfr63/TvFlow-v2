@@ -28,6 +28,28 @@ class HomeSortingTest {
         assertEquals(listOf("Beta", "Gamma", "Alpha"), result.map { it.name })
     }
 
+    @Test
+    fun nameSort_ignoresProviderPrefixAndAccents() {
+        val channels = listOf(
+            channel(10, "FR - Équipe TV", false, null),
+            channel(11, "FR - Arte HD", false, null),
+            channel(12, "FR - BFM TV", false, null)
+        )
+        assertEquals(listOf(11, 12, 10), sortHomeChannels(channels, HomeSort.NAME).map { it.streamId })
+    }
+
+    @Test
+    fun tntSort_placesKnownNumbersFirstAndKeepsOthersStable() {
+        val channels = listOf(
+            channel(20, "FR - Canal Cinema", false, null),
+            channel(21, "FR - M6", false, null),
+            channel(22, "FR - Arte HD", false, null),
+            channel(23, "FR - TF1", false, null),
+            channel(24, "FR - Radio Albi", false, null)
+        )
+        assertEquals(listOf(23, 21, 22, 20, 24), sortHomeChannels(channels, HomeSort.TNT).map { it.streamId })
+    }
+
     private fun channel(
         id: Int,
         name: String,
