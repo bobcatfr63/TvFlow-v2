@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import android.os.SystemClock
 import com.tvflow.app.MainActivity
 import com.tvflow.app.data.local.SettingsStore
 import com.tvflow.app.util.isTelevisionUi
@@ -23,6 +24,8 @@ class TvBootReceiver : BroadcastReceiver() {
         if (intent.action != Intent.ACTION_BOOT_COMPLETED) return
         if (!context.isTelevisionUi()) return
 
+        val startMs = SystemClock.elapsedRealtime()
+        Log.i(TAG, "BOOT_COMPLETED received")
         val pendingResult = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
             try {
@@ -46,7 +49,7 @@ class TvBootReceiver : BroadcastReceiver() {
                     }
                 }
                 context.startActivity(launchIntent)
-                Log.i(TAG, "TVFlow auto-start launched after boot; resume=" + (lastLive != null))
+                Log.i(TAG, "TVFlow auto-start requested in ${SystemClock.elapsedRealtime() - startMs}ms; resume=" + (lastLive != null))
             } catch (t: Throwable) {
                 Log.e(TAG, "TVFlow auto-start failed", t)
             } finally {

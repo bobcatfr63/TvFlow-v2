@@ -37,8 +37,8 @@ class TVFlowApplication : Application() {
         Log.i("TVFlowStartup", "Application super.onCreate ${SystemClock.uptimeMillis() - bootStart}ms")
         TvFlowConnect.startReceiverIfTv(this)
         Log.i("TVFlowStartup", "Receiver ready ${SystemClock.uptimeMillis() - bootStart}ms")
-        UpdateNotificationWorker.schedule(this)
-        Log.i("TVFlowStartup", "WorkManager scheduled ${SystemClock.uptimeMillis() - bootStart}ms")
+        appScope.launch(Dispatchers.IO) { UpdateNotificationWorker.schedule(this@TVFlowApplication) }
+        Log.i("TVFlowStartup", "WorkManager scheduling delegated ${SystemClock.uptimeMillis() - bootStart}ms")
         startFavoriteSync()
         Log.i("TVFlowStartup", "Application initialized ${SystemClock.uptimeMillis() - bootStart}ms")
 
