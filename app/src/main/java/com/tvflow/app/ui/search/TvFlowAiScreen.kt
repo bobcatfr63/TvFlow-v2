@@ -12,6 +12,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -58,6 +60,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import com.tvflow.app.domain.VodItem
+import com.tvflow.app.ui.theme.rainbowBorder
 
 private val suggestions = listOf(
     "Une comédie française",
@@ -82,6 +85,13 @@ fun TvFlowAiScreen(
     val context = LocalContext.current
     var voiceStatus by remember { mutableStateOf<String?>(null) }
     val listState = rememberLazyListState()
+    val suggestionGridState = rememberLazyGridState()
+    LaunchedEffect(result.searchedQuery) {
+        if (result.searchedQuery.isNotBlank()) listState.scrollToItem(0)
+    }
+    LaunchedEffect(query.isBlank()) {
+        if (query.isBlank()) suggestionGridState.scrollToItem(0)
+    }
     var inputFocused by remember { mutableStateOf(false) }
     val microphoneFocus = remember { FocusRequester() }
     val firstSuggestionFocus = remember { FocusRequester() }
@@ -94,21 +104,23 @@ fun TvFlowAiScreen(
     Column(
         Modifier.fillMaxSize()
             .background(Brush.verticalGradient(listOf(Color(0xFF14324A), Color(0xFF07121E), Color(0xFF040911))))
-            .padding(horizontal = 20.dp, vertical = 16.dp)
+            .padding(horizontal = 20.dp, vertical = if (query.isBlank()) 12.dp else 6.dp)
             .onPreviewKeyEvent { event ->
                 if (inputFocused && event.key == Key.DirectionDown && event.type == KeyEventType.KeyDown) {
                     microphoneFocus.requestFocus()
                     true
                 } else false
             },
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(if (query.isBlank()) 10.dp else 6.dp)
     ) {
-        Text("✦ TVFlow AI", style = MaterialTheme.typography.headlineMedium,
+        Text("✦ TVFlow AI", style = if (query.isBlank()) MaterialTheme.typography.headlineMedium else MaterialTheme.typography.titleLarge,
             color = Color(0xFFF4FAFF), fontWeight = FontWeight.Bold)
-        Text("Trouve ton prochain programme", style = MaterialTheme.typography.titleMedium,
-            color = Color(0xFF65DFFF))
-        Text("Films, séries et programmes TV de ton catalogue", style = MaterialTheme.typography.bodyMedium,
-            color = Color(0xFFCEE2EF))
+        if (query.isBlank()) {
+            Text("Trouve ton prochain programme", style = MaterialTheme.typography.titleMedium,
+                color = Color(0xFF65DFFF))
+            Text("Films, séries et programmes TV de ton catalogue", style = MaterialTheme.typography.bodyMedium,
+                color = Color(0xFFCEE2EF))
+        }
         OutlinedTextField(
             value = query,
             onValueChange = { viewModel.query.value = it },
@@ -117,8 +129,9 @@ fun TvFlowAiScreen(
             modifier = Modifier.fillMaxWidth()
                 .onFocusChanged { inputFocused = it.isFocused }
                 .focusProperties { down = microphoneFocus }
+                .rainbowBorder(inputFocused, 6.dp)
         )
-        Button(modifier = Modifier.focusRequester(microphoneFocus).focusProperties {
+        Button(modifier = Modifier.focusRequester(microphoneFocus).rainbowBorder(true, 24.dp).focusProperties {
             if (query.isBlank()) down = firstSuggestionFocus
         }, onClick = {
             val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
@@ -161,13 +174,13 @@ fun TvFlowAiScreen(
                 }
             }
         }
-        if (!searching) result.notice?.let { Text(it, color = MaterialTheme.colorScheme.secondary) }
-        if (!searching) result.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+        if (query.isBlank() && !searching) result.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         if (query.isBlank()) {
             androidx.compose.foundation.layout.BoxWithConstraints(modifier = Modifier.weight(1f)) {
                 val columns = if (maxWidth >= 720.dp) 3 else if (maxWidth >= 460.dp) 2 else 1
                 androidx.compose.foundation.lazy.grid.LazyVerticalGrid(
                     columns = androidx.compose.foundation.lazy.grid.GridCells.Fixed(columns),
+                    state = suggestionGridState,
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
@@ -181,7 +194,8 @@ fun TvFlowAiScreen(
                                 .onFocusChanged { focused = it.isFocused }
                                 .border(if (focused) 4.dp else 1.dp,
                                     if (focused) Color(0xFF42E8FF) else Color(0xFF367698),
-                                    androidx.compose.foundation.shape.RoundedCornerShape(18.dp)),
+                                    androidx.compose.foundation.shape.RoundedCornerShape(18.dp))
+                                .rainbowBorder(focused, 18.dp),
                             shape = androidx.compose.foundation.shape.RoundedCornerShape(18.dp),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = if (focused) Color(0xFF126A8F) else Color(0xFF17334A),
@@ -193,6 +207,12 @@ fun TvFlowAiScreen(
             }
         }
         if (query.isNotBlank()) LazyColumn(state = listState, modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (!searching) result.notice?.let { notice ->
+                item { Text(notice, color = MaterialTheme.colorScheme.secondary, style = MaterialTheme.typography.bodySmall) }
+            }
+            if (!searching) result.error?.let { error ->
+                item { Text(error, color = MaterialTheme.colorScheme.error) }
+            }
             if (!searching && result.tvQuestion && result.programs.isEmpty() && result.footballAnswer == null) {
                 item { Text("Aucune diffusion confirmée dans l'EPG du serveur actif.", color = MaterialTheme.colorScheme.onSurface) }
             }

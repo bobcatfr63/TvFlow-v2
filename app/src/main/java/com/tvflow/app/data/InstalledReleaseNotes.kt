@@ -23,6 +23,7 @@ object InstalledReleaseNotes {
         .take(4)
 
     private fun frenchSummary(subject: String): String = when {
+        "compact AI results and extend rainbow focus" in subject -> "TVFlow AI : résultats plus visibles et bordures Rainbow ajoutées à la recherche."
         "rainbow" in subject.lowercase() -> "Nouveau thème Arc-en-ciel : contours lumineux animés autour des onglets actifs."
         "increment" in subject.lowercase() && "version" in subject.lowercase() -> "Le numéro de version évolue désormais à chaque publication."
         "correct TNT and alphabetical channel sorting" in subject -> "Direct et Guide : ordre TNT corrigé et classement A à Z plus fiable, sans les préfixes IPTV."
