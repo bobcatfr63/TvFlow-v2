@@ -166,7 +166,9 @@ class TmdbMetadataClient @Inject constructor(
         val normalizedCandidate = normalize(candidateTitle)
         var score = when {
             normalizedQuery == normalizedCandidate -> 100
-            normalizedCandidate.contains(normalizedQuery) || normalizedQuery.contains(normalizedCandidate) -> 78
+            normalizedQuery.length >= 6 && normalizedCandidate.length >= 6 &&
+                (" $normalizedCandidate ".contains(" $normalizedQuery ") ||
+                    " $normalizedQuery ".contains(" $normalizedCandidate ")) -> 82
             else -> return null
         }
 
