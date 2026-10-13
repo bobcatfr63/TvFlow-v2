@@ -89,12 +89,7 @@ object TvLauncherMode {
             return@runCatching "Réglages de l’écran d’accueil ouverts"
         }
 
-        val chooser = Intent.createChooser(
-            homeIntent(),
-            "Choisir l’écran d’accueil"
-        ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        context.startActivity(chooser)
-        "Sélecteur d’applications d’accueil ouvert"
+        error("Cette box ne propose pas de sélecteur d'accueil compatible. TVFlow peut toujours démarrer automatiquement. Conservez le launcher Android.")
     }
 
     fun launchApp(context: Context, packageName: String) {
