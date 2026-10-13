@@ -37,13 +37,18 @@ internal object TvFlowIntent {
         val normalized = normalized(input)
         val tokens = normalized.split(' ').filter { it.isNotBlank() }
         val terms = tokens.filterNot { it in stop || it in setOf("recent", "recente", "recents", "recentes") }
-            .map { synonyms[it] ?: it }.distinct().take(8)
+            .flatMap { word -> listOfNotNull(word, synonyms[word]).distinct() }.distinct().take(12)
         return Parsed(
             terms = terms,
             seriesOnly = tokens.any { it in setOf("serie", "series", "saison", "saisons", "episode") },
             filmOnly = tokens.any { it in setOf("film", "films") },
             recent = tokens.any { it.startsWith("recent") || it == "nouveau" }
         )
+    }
+
+    fun searchTerms(input: String): List<String> {
+        val words = normalized(input).split(' ').filter { it.length >= 3 && it !in stop }
+        return (words + parse(input).terms).distinct().take(12)
     }
 
     fun score(query: Parsed, title: String, description: String?, year: Int?): Int {

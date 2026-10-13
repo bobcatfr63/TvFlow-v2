@@ -39,7 +39,7 @@ class TvFlowAiViewModel @Inject constructor(
             withContext(Dispatchers.Default) {
                 val movies = LinkedHashMap<Int, VodItem>()
                 val series = LinkedHashMap<Int, SeriesItem>()
-                for (term in parsed.terms.take(5)) {
+                for (term in TvFlowIntent.searchTerms(raw).take(8)) {
                     val batch = repository.searchGlobal(term, limitPerType = 70)
                     batch.vod.forEach { movies[it.streamId] = it }
                     batch.series.forEach { series[it.seriesId] = it }

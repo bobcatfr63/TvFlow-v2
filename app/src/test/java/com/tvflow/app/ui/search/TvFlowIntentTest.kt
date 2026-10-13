@@ -27,6 +27,12 @@ class TvFlowIntentTest {
         assertTrue(TvFlowIntent.score(intent, "Alien Invasion", "alien", 2024) > 0)
         assertEquals(0, TvFlowIntent.score(intent, "Comédie romantique", null, null))
     }
+    @Test fun preservesFrenchSynonymsForCatalogSearch() {
+        val terms = TvFlowIntent.searchTerms("Un film avec une invasion extraterrestre")
+        assertTrue(terms.contains("extraterrestre"))
+        assertTrue(terms.contains("alien"))
+        assertTrue(TvFlowIntent.score(TvFlowIntent.parse("extraterrestre"), "Invasion", "Invasion extraterrestre", null) > 0)
+    }
     @Test fun emptyRequestCannotReturnInventedRecommendations() {
         val intent = TvFlowIntent.parse("je veux un film")
         assertTrue(intent.terms.isEmpty())
