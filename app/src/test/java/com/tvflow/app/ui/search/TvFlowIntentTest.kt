@@ -51,6 +51,15 @@ class TvFlowIntentTest {
         assertFalse(TvFlowIntent.sameMovie("Mission Impossible", 1996, "Mission Impossible 2", 2000))
         assertFalse(TvFlowIntent.sameMovie("Tom Cruise", null, "Tom & Jerry (2021)", 2021))
     }
+    @Test fun computingTopicExpandsSearchWithoutAcceptingUnrelatedSeries() {
+        val terms = TvFlowIntent.searchTerms("trouve une série sur l'informatique")
+        assertTrue(terms.contains("hacker"))
+        assertTrue(terms.contains("cyber"))
+        assertTrue(terms.contains("programmation"))
+        val query = TvFlowIntent.parse("série sur l'informatique")
+        assertTrue(TvFlowIntent.score(query, "Hackers", "Un groupe de hackers", null) > 0)
+        assertEquals(0, TvFlowIntent.score(query, "Cuisine et voyage", "Recettes et découvertes", null))
+    }
     @Test fun emptyRequestCannotReturnInventedRecommendations() {
         val intent = TvFlowIntent.parse("je veux un film")
         assertTrue(intent.terms.isEmpty())

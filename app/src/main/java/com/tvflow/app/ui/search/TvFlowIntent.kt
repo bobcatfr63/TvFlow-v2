@@ -23,7 +23,14 @@ internal object TvFlowIntent {
         "effrayant" to "horreur",
         "drole" to "comedie",
         "rigolo" to "comedie",
-        "suspense" to "thriller"
+        "suspense" to "thriller",
+        "informatique" to "hacker",
+        "piratage" to "hacker",
+        "pirate" to "hacker",
+        "cybersecurite" to "cyber",
+        "programmation" to "code",
+        "ordinateur" to "computer",
+        "ordinateurs" to "computer"
     )
 
     private fun normalized(value: String) =
@@ -69,9 +76,18 @@ internal object TvFlowIntent {
         return creditedYear == null || catalogYear == null || kotlin.math.abs(creditedYear - catalogYear) <= 1
     }
 
+    private val topicTerms = mapOf(
+        "informatique" to listOf("informatique", "piratage", "hacker", "hacking", "cyber", "ordinateur", "computer", "programmation"),
+        "piratage" to listOf("piratage", "hacker", "hacking", "cyber"),
+        "cybersecurite" to listOf("cybersecurite", "cyber", "hacker", "piratage"),
+        "programmation" to listOf("programmation", "programmeur", "developpeur", "code"),
+        "ordinateur" to listOf("ordinateur", "computer", "informatique")
+    )
+
     fun searchTerms(input: String): List<String> {
         val words = normalized(input).split(' ').filter { it.length >= 3 && it !in stop && !it.startsWith("recent") && it != "nouveau" }
-        return (words + parse(input).terms).distinct().take(12)
+        val related = words.flatMap { topicTerms[it].orEmpty() }
+        return (words + related + parse(input).terms).distinct().take(16)
     }
 
     fun score(query: Parsed, title: String, description: String?, year: Int?): Int {
