@@ -41,7 +41,9 @@ val gitCommitCount = providers.exec {
     commandLine("git", "-C", rootDir.absolutePath, "rev-list", "--count", "HEAD")
 }.standardOutput.asText.get().trim().toIntOrNull()?.coerceAtLeast(35) ?: 35
 // Keep Android upgrades monotonic even if DevServer supplies an older versionCode.
-val tvFlowVersionCodeBase = 2_020_100_000
+// The previous release-manifest builds reused code 2020100035, below already installed builds
+// (for example 2020100102). Advance the baseline so in-app upgrades are monotonic.
+val tvFlowVersionCodeBase = 2_020_100_200
 val appVersionCode = maxOf(tvFlowVersionCodeBase + gitCommitCount, devServerVersionCode ?: 0)
 val releaseKeystorePath = providers.environmentVariable("TVFLOW_KEYSTORE_PATH").orNull
 val releaseStorePassword = providers.environmentVariable("TVFLOW_STORE_PASSWORD").orNull
