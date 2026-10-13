@@ -34,6 +34,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -97,10 +99,53 @@ fun SettingsScreen(
         )
     }
     var tmdbToken by remember { mutableStateOf("") }
+    var showTmdbGuide by remember { mutableStateOf(false) }
+    var tmdbGuideStep by remember { mutableStateOf(0) }
     var showChannelOrganization by remember { mutableStateOf(false) }
     var showMediaOrganization by remember { mutableStateOf(false) }
     var selectedMediaIds by remember { mutableStateOf(setOf<String>()) }
     val hiddenMediaKeys by viewModel.hiddenMediaKeys.collectAsState()
+
+    if (showTmdbGuide) {
+        val steps = listOf(
+            "1/4 • Créer un compte TMDB" to "Sur le site officiel The Movie Database, crée un compte personnel ou connecte-toi. TVFlow ne demande jamais ton mot de passe TMDB.",
+            "2/4 • Demander un accès API" to "Dans les paramètres de ton compte TMDB, ouvre la rubrique API puis suis leurs instructions. L'accès dépend des conditions d'utilisation de TMDB.",
+            "3/4 • Copier la clé" to "Copie la clé API v3 ou le jeton d'accès en lecture. Sur Android TV, tu peux effectuer les étapes sur ton téléphone et revenir ici pour saisir la clé avec la télécommande.",
+            "4/4 • Enregistrer dans TVFlow" to "Ferme ce guide, colle la clé dans le champ TMDB des paramètres et appuie sur Enregistrer. TVFlow vérifie la clé. La configuration est facultative et les données du catalogue continuent à provenir de Xtream."
+        )
+        val guide = steps[tmdbGuideStep]
+        AlertDialog(
+            onDismissRequest = { showTmdbGuide = false },
+            title = { Text(guide.first) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(guide.second)
+                    if (tmdbGuideStep <= 1) {
+                        Button(onClick = {
+                            val address = if (tmdbGuideStep == 0) "https://www.themoviedb.org/signup" else "https://www.themoviedb.org/settings/api"
+                            val browser = Intent(Intent.ACTION_VIEW, Uri.parse(address))
+                            if (browser.resolveActivity(context.packageManager) != null) {
+                                context.startActivity(browser)
+                            } else {
+                                android.widget.Toast.makeText(context, "Ouvre $address sur ton téléphone", android.widget.Toast.LENGTH_LONG).show()
+                            }
+                        }) { Text(if (tmdbGuideStep == 0) "Ouvrir l'inscription TMDB" else "Ouvrir la page API TMDB") }
+                    }
+                    Text("TMDB enrichit les fiches films et séries, pas les chaînes ni les abonnements IPTV.", style = MaterialTheme.typography.bodySmall)
+                }
+            },
+            confirmButton = {
+                Button(onClick = {
+                    if (tmdbGuideStep == 3) showTmdbGuide = false else tmdbGuideStep++
+                }) { Text(if (tmdbGuideStep == 3) "Terminer et saisir la clé" else "Suivant") }
+            },
+            dismissButton = {
+                Button(onClick = {
+                    if (tmdbGuideStep > 0) tmdbGuideStep-- else showTmdbGuide = false
+                }) { Text(if (tmdbGuideStep > 0) "Précédent" else "Plus tard") }
+            }
+        )
+    }
 
     refreshProgress?.let { progress ->
         AlertDialog(
@@ -320,6 +365,9 @@ fun SettingsScreen(
 
             item {
                 SectionTitle("Métadonnées films & séries")
+                SettingsButton(onClick = { tmdbGuideStep = 0; showTmdbGuide = true }) {
+                    Text("Guide : configurer TMDB étape par étape")
+                }
                 Text(
                     if (state.tmdbConfigured) {
                         "TMDb est configuré. TVFlow complète les synopsis, affiches et dates de sortie manquantes."
