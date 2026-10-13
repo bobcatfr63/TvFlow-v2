@@ -107,6 +107,7 @@ fun SettingsScreen(
     var showTmdbGuide by remember { mutableStateOf(false) }
     var tmdbGuideStep by remember { mutableStateOf(0) }
     var showChannelOrganization by remember { mutableStateOf(false) }
+    var showChannelAdvanced by remember { mutableStateOf(false) }
     var showMediaOrganization by remember { mutableStateOf(false) }
     var selectedMediaIds by remember { mutableStateOf(setOf<String>()) }
     val hiddenMediaKeys by viewModel.hiddenMediaKeys.collectAsState()
@@ -550,6 +551,10 @@ fun SettingsScreen(
             )
             Spacer(Modifier.height(8.dp))
 
+            SettingsButton(onClick = { showChannelAdvanced = !showChannelAdvanced }) {
+                Text(if (showChannelAdvanced) "Masquer les actions avancees" else "Selection multiple et actions avancees")
+            }
+            if (showChannelAdvanced) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -578,6 +583,7 @@ fun SettingsScreen(
                 ) { Text("Afficher sélection", maxLines = 1) }
             }
 
+            }
             Spacer(Modifier.height(10.dp))
             Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                 LazyColumn(
