@@ -87,6 +87,7 @@ import coil3.compose.AsyncImage
 import com.tvflow.app.BuildConfig
 import com.tvflow.app.data.AppUpdateInfo
 import com.tvflow.app.data.InstalledReleaseNotes
+import com.tvflow.app.ui.theme.rainbowBorder
 import com.tvflow.app.data.UpdateDownloadState
 import com.tvflow.app.ui.common.iptvMediaSourceFactory
 import com.tvflow.app.domain.LiveChannel
@@ -594,6 +595,7 @@ private fun TvTopSelected(text: String) {
             .clip(RoundedCornerShape(10.dp))
             .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.22f))
             .border(1.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(10.dp))
+            .rainbowBorder(true, 10.dp)
             .padding(horizontal = 16.dp, vertical = 10.dp),
         color = MaterialTheme.colorScheme.onBackground,
         fontWeight = FontWeight.Bold
@@ -622,6 +624,7 @@ private fun TvTopAction(text: String, onClick: () -> Unit) {
                 else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f),
                 RoundedCornerShape(10.dp)
             )
+            .rainbowBorder(focused, 10.dp)
             .clickable(interactionSource = interaction, indication = null, onClick = onClick)
             .focusable(interactionSource = interaction)
             .padding(horizontal = 16.dp, vertical = 10.dp),
@@ -794,6 +797,7 @@ private fun MobileFeatureTile(
                 else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f),
                 shape = RoundedCornerShape(18.dp)
             )
+            .rainbowBorder(focused || primary, 18.dp)
             .clickable(interactionSource = interaction, indication = null, onClick = onClick)
             .focusable(interactionSource = interaction)
             .padding(horizontal = 14.dp, vertical = 12.dp),

@@ -1,6 +1,11 @@
 # Historique des mises à jour TVFlow-v2
 
-## Prochaine version (en préparation)
+## 1.0.120 (en validation)
+
+- **Nouveau thème Arc-en-ciel animé** : contours colorés en mouvement autour des onglets sélectionnés et des cartes de l'accueil. Choix du thème dans les réglages, avec focus TV lisible.
+- **Versions** : incrémentation du numéro affiché à chaque nouvelle publication (1.0.120, puis 1.0.121, etc.), en conservant un code Android toujours croissant.
+
+## Modifications précédentes
 
 - **Direct et Guide TV** : tri TNT réellement numéroté, tri A à Z amélioré en ignorant les préfixes IPTV et indications de qualité. Même logique dans les deux pages.
 

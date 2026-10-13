@@ -282,7 +282,7 @@ fun SettingsScreen(
                 ChoiceRow("Image", listOf("FIT", "FILL", "ZOOM"), state.player.videoScale, viewModel::setScale)
                 ChoiceRow(
                     "Thème",
-                    listOf("BLUE", "DARK", "OLED", "PURPLE", "GREEN", "HIGH_CONTRAST"),
+                    listOf("BLUE", "DARK", "OLED", "PURPLE", "GREEN", "RAINBOW", "HIGH_CONTRAST"),
                     state.player.accent,
                     viewModel::setAccent
                 )
@@ -773,6 +773,7 @@ private fun ChoiceRow(label: String, choices: List<String>, selected: String, on
                     "DARK" -> "Sombre"
                     "OLED" -> "OLED"
                     "PURPLE" -> "Violet"
+                    "RAINBOW" -> "Arc-en-ciel animé"
                     "GREEN" -> "Vert"
                     "HIGH_CONTRAST" -> "Contraste"
                     else -> value

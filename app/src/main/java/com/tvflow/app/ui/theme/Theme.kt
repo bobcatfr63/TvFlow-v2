@@ -4,6 +4,7 @@ import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.graphics.Color
 
 private data class ThemePalette(
@@ -34,6 +35,12 @@ private fun palette(id: String): ThemePalette = when (id) {
         surfaceVariant = Color(0xFF14191E),
         text = Color.White,
         textSecondary = Color(0xFFD7E0E8)
+    )
+    "RAINBOW" -> ThemePalette(
+        primary = Color(0xFF6FDCFF), onPrimary = Color(0xFF07121F),
+        background = Color(0xFF080D1A), surface = Color(0xFF101A2C),
+        surfaceVariant = Color(0xFF1A2A42), text = Color.White,
+        textSecondary = Color(0xFFD5E4F5)
     )
     "PURPLE" -> ThemePalette(
         primary = Color(0xFFC6A8FF),
@@ -92,8 +99,7 @@ private fun ThemePalette.toColorScheme(): ColorScheme = darkColorScheme(
 
 @Composable
 fun TVFlowTheme(accent: String = "BLUE", content: @Composable () -> Unit) {
-    MaterialTheme(
-        colorScheme = palette(accent).toColorScheme(),
-        content = content
-    )
+    CompositionLocalProvider(LocalRainbowEnabled provides (accent == "RAINBOW")) {
+        MaterialTheme(colorScheme = palette(accent).toColorScheme(), content = content)
+    }
 }
