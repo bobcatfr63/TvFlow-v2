@@ -36,6 +36,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import android.content.Intent
 import android.net.Uri
+import android.graphics.Bitmap
+import androidx.compose.foundation.Image
+import androidx.compose.ui.graphics.asImageBitmap
+import com.google.zxing.BarcodeFormat
+import com.google.zxing.MultiFormatWriter
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -120,6 +125,18 @@ fun SettingsScreen(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text(guide.second)
+                    if (isTv && tmdbGuideStep <= 1) {
+                        val address = if (tmdbGuideStep == 0) "https://www.themoviedb.org/signup" else "https://www.themoviedb.org/settings/api"
+                        val qr = remember(address) {
+                            val matrix = MultiFormatWriter().encode(address, BarcodeFormat.QR_CODE, 248, 248)
+                            val pixels = IntArray(248 * 248) { index ->
+                                if (matrix[index % 248, index / 248]) android.graphics.Color.BLACK else android.graphics.Color.WHITE
+                            }
+                            Bitmap.createBitmap(248, 248, Bitmap.Config.ARGB_8888).apply { setPixels(pixels, 0, 248, 0, 0, 248, 248) }.asImageBitmap()
+                        }
+                        Image(bitmap = qr, contentDescription = "QR code vers $address", modifier = Modifier.width(180.dp).height(180.dp))
+                        Text("Scanne ce QR code avec ton téléphone.", style = MaterialTheme.typography.bodySmall)
+                    }
                     if (tmdbGuideStep <= 1) {
                         Button(onClick = {
                             val address = if (tmdbGuideStep == 0) "https://www.themoviedb.org/signup" else "https://www.themoviedb.org/settings/api"
@@ -374,6 +391,12 @@ fun SettingsScreen(
                     } else {
                         "Optionnel : ajoute un token ou une API Key TMDb pour compléter les métadonnées absentes chez le fournisseur IPTV."
                     }
+                )
+                Text(
+                    if (state.tmdbConfigured) "Clé TMDB enregistrée. L'enrichissement dépend des fiches manquantes et des actualisations du catalogue. Aucun total vérifié n'est disponible pour l'instant."
+                    else "Clé non configurée : l'enrichissement TMDB est désactivé. Les films et séries du serveur actif restent accessibles.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall
                 )
                 Spacer(Modifier.height(8.dp))
                 OutlinedTextField(
