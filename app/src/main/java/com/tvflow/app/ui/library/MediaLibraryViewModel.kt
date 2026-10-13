@@ -73,18 +73,13 @@ class MediaLibraryViewModel @Inject constructor(
     private val selectedMonthState = MutableStateFlow<Int?>(null)
     val selectedMonth: StateFlow<Int?> = selectedMonthState
 
-    val releaseYears: StateFlow<List<Int>> = selectedCategory.flatMapLatest { categoryId ->
-        if (categoryId == null) flowOf(emptyList())
-        else repository.observeReleaseYears(type, categoryId)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    // Date filters span all categories of the active profile.
+    val releaseYears: StateFlow<List<Int>> = repository.observeReleaseYears(type, null)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    val releaseMonths: StateFlow<List<Int>> = combine(
-        selectedCategory,
-        selectedYearState
-    ) { categoryId, year -> categoryId to year }
-        .flatMapLatest { (categoryId, year) ->
-            if (categoryId == null || year == null) flowOf(emptyList())
-            else repository.observeReleaseMonths(type, categoryId, year)
+    val releaseMonths: StateFlow<List<Int>> = selectedYearState.flatMapLatest { year ->
+            if (year == null) flowOf(emptyList())
+            else repository.observeReleaseMonths(type, null, year)
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
@@ -98,7 +93,7 @@ class MediaLibraryViewModel @Inject constructor(
 
     val vod: Flow<PagingData<VodItem>> = filter.flatMapLatest { filter ->
         if (type == MediaType.VOD && filter.categoryId != null) {
-            repository.pagedVod(filter.categoryId, filter.year, filter.month)
+            repository.pagedVod(if (filter.year != null) null else filter.categoryId, filter.year, filter.month)
         } else {
             flowOf(PagingData.empty())
         }
@@ -106,7 +101,7 @@ class MediaLibraryViewModel @Inject constructor(
 
     val series: Flow<PagingData<SeriesItem>> = filter.flatMapLatest { filter ->
         if (type == MediaType.SERIES && filter.categoryId != null) {
-            repository.pagedSeries(filter.categoryId, filter.year, filter.month)
+            repository.pagedSeries(if (filter.year != null) null else filter.categoryId, filter.year, filter.month)
         } else {
             flowOf(PagingData.empty())
         }
@@ -127,8 +122,7 @@ class MediaLibraryViewModel @Inject constructor(
     fun selectCategory(id: String) {
         if (selectedCategory.value == id) return
         selectedCategory.value = id
-        selectedYearState.value = null
-        selectedMonthState.value = null
+        // Retain date filtering when browsing categories: date results remain global.
         enrichCategory(id)
     }
 

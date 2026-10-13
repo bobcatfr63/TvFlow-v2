@@ -202,14 +202,14 @@ interface TVFlowDao {
     @Query("SELECT * FROM series_items WHERE profileId = :profileId AND categoryId IN (:categoryIds) AND releaseYear IS NOT NULL ORDER BY releaseYear DESC, COALESCE(releaseMonth, 0) DESC, name LIMIT :limit")
     fun observeRecentSeriesReleasesForCategories(profileId: String, categoryIds: List<String>, limit: Int): Flow<List<SeriesItemEntity>>
 
-    @Query("SELECT * FROM vod_items WHERE profileId = :profileId AND categoryId = :categoryId AND (:year IS NULL OR releaseYear = :year) AND (:month IS NULL OR releaseMonth = :month) ORDER BY CASE WHEN releaseYear IS NULL THEN 1 ELSE 0 END, releaseYear DESC, releaseMonth DESC, name")
-    fun pagingVod(profileId: String, categoryId: String, year: Int?, month: Int?): PagingSource<Int, VodItemEntity>
+    @Query("SELECT * FROM vod_items WHERE profileId = :profileId AND (:categoryId IS NULL OR categoryId = :categoryId) AND (:year IS NULL OR releaseYear = :year) AND (:month IS NULL OR releaseMonth = :month) ORDER BY CASE WHEN releaseYear IS NULL THEN 1 ELSE 0 END, releaseYear DESC, releaseMonth DESC, name")
+    fun pagingVod(profileId: String, categoryId: String?, year: Int?, month: Int?): PagingSource<Int, VodItemEntity>
 
-    @Query("SELECT DISTINCT releaseYear FROM vod_items WHERE profileId = :profileId AND categoryId = :categoryId AND releaseYear IS NOT NULL ORDER BY releaseYear DESC")
-    fun observeVodReleaseYears(profileId: String, categoryId: String): Flow<List<Int>>
+    @Query("SELECT DISTINCT releaseYear FROM vod_items WHERE profileId = :profileId AND (:categoryId IS NULL OR categoryId = :categoryId) AND releaseYear IS NOT NULL ORDER BY releaseYear DESC")
+    fun observeVodReleaseYears(profileId: String, categoryId: String?): Flow<List<Int>>
 
-    @Query("SELECT DISTINCT releaseMonth FROM vod_items WHERE profileId = :profileId AND categoryId = :categoryId AND releaseYear = :year AND releaseMonth IS NOT NULL ORDER BY releaseMonth DESC")
-    fun observeVodReleaseMonths(profileId: String, categoryId: String, year: Int): Flow<List<Int>>
+    @Query("SELECT DISTINCT releaseMonth FROM vod_items WHERE profileId = :profileId AND (:categoryId IS NULL OR categoryId = :categoryId) AND releaseYear = :year AND releaseMonth IS NOT NULL ORDER BY releaseMonth DESC")
+    fun observeVodReleaseMonths(profileId: String, categoryId: String?, year: Int): Flow<List<Int>>
 
     @Query("SELECT * FROM vod_items WHERE profileId = :profileId AND categoryId = :categoryId AND releaseYear IS NULL")
     suspend fun getVodMissingReleaseDates(profileId: String, categoryId: String): List<VodItemEntity>
@@ -223,14 +223,14 @@ interface TVFlowDao {
     @Query("SELECT * FROM series_items WHERE profileId = :profileId AND categoryId = :categoryId ORDER BY name")
     fun observeSeries(profileId: String, categoryId: String): Flow<List<SeriesItemEntity>>
 
-    @Query("SELECT * FROM series_items WHERE profileId = :profileId AND categoryId = :categoryId AND (:year IS NULL OR releaseYear = :year) AND (:month IS NULL OR releaseMonth = :month) ORDER BY CASE WHEN releaseYear IS NULL THEN 1 ELSE 0 END, releaseYear DESC, releaseMonth DESC, name")
-    fun pagingSeries(profileId: String, categoryId: String, year: Int?, month: Int?): PagingSource<Int, SeriesItemEntity>
+    @Query("SELECT * FROM series_items WHERE profileId = :profileId AND (:categoryId IS NULL OR categoryId = :categoryId) AND (:year IS NULL OR releaseYear = :year) AND (:month IS NULL OR releaseMonth = :month) ORDER BY CASE WHEN releaseYear IS NULL THEN 1 ELSE 0 END, releaseYear DESC, releaseMonth DESC, name")
+    fun pagingSeries(profileId: String, categoryId: String?, year: Int?, month: Int?): PagingSource<Int, SeriesItemEntity>
 
-    @Query("SELECT DISTINCT releaseYear FROM series_items WHERE profileId = :profileId AND categoryId = :categoryId AND releaseYear IS NOT NULL ORDER BY releaseYear DESC")
-    fun observeSeriesReleaseYears(profileId: String, categoryId: String): Flow<List<Int>>
+    @Query("SELECT DISTINCT releaseYear FROM series_items WHERE profileId = :profileId AND (:categoryId IS NULL OR categoryId = :categoryId) AND releaseYear IS NOT NULL ORDER BY releaseYear DESC")
+    fun observeSeriesReleaseYears(profileId: String, categoryId: String?): Flow<List<Int>>
 
-    @Query("SELECT DISTINCT releaseMonth FROM series_items WHERE profileId = :profileId AND categoryId = :categoryId AND releaseYear = :year AND releaseMonth IS NOT NULL ORDER BY releaseMonth DESC")
-    fun observeSeriesReleaseMonths(profileId: String, categoryId: String, year: Int): Flow<List<Int>>
+    @Query("SELECT DISTINCT releaseMonth FROM series_items WHERE profileId = :profileId AND (:categoryId IS NULL OR categoryId = :categoryId) AND releaseYear = :year AND releaseMonth IS NOT NULL ORDER BY releaseMonth DESC")
+    fun observeSeriesReleaseMonths(profileId: String, categoryId: String?, year: Int): Flow<List<Int>>
 
     @Query("SELECT * FROM series_items WHERE profileId = :profileId AND categoryId = :categoryId AND (releaseYear IS NULL OR plot IS NULL OR plot = '') LIMIT :limit")
     suspend fun getSeriesMissingMetadata(profileId: String, categoryId: String, limit: Int): List<SeriesItemEntity>

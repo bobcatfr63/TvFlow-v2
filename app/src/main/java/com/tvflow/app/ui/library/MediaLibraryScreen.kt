@@ -157,6 +157,13 @@ fun MediaLibraryScreen(
                 onClick = { expandedDateFilters = !expandedDateFilters },
                 compact = compactMobile
             )
+            if (selectedYear != null) {
+                Text(
+                    "Toutes les catégories • ${selectedYear}${selectedMonth?.let { " / ${monthName(it)}" }.orEmpty()}",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = Color(0xFF67DEFF)
+                )
+            }
             if (expandedDateFilters) {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(filterSpacing)) {
                 item {
@@ -225,7 +232,7 @@ fun MediaLibraryScreen(
                     verticalArrangement = Arrangement.spacedBy(if (compactMobile) 4.dp else 8.dp)
                 ) {
                     items(categories, key = { it.id }) { category ->
-                        val selected = category.id == selectedId
+                        val selected = category.id == selectedId && selectedYear == null
                         val interaction = remember { MutableInteractionSource() }
                         val focused by interaction.collectIsFocusedAsState()
                         Card(

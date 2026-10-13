@@ -775,7 +775,7 @@ class XtreamRepository @Inject constructor(
 
     fun observeSeries(categoryId: String): Flow<List<SeriesItem>> = activeProfileId.flatMapLatest { id -> if (id == null) flowOf(emptyList()) else dao.observeSeries(id, categoryId) }.map { list -> list.map { it.toDomain() } }
 
-    fun pagedVod(categoryId: String, year: Int? = null, month: Int? = null): Flow<PagingData<VodItem>> =
+    fun pagedVod(categoryId: String?, year: Int? = null, month: Int? = null): Flow<PagingData<VodItem>> =
         activeProfileId.flatMapLatest { profileId ->
             if (profileId == null) {
                 flowOf(PagingData.empty())
@@ -787,7 +787,7 @@ class XtreamRepository @Inject constructor(
             }
         }
 
-    fun pagedSeries(categoryId: String, year: Int? = null, month: Int? = null): Flow<PagingData<SeriesItem>> =
+    fun pagedSeries(categoryId: String?, year: Int? = null, month: Int? = null): Flow<PagingData<SeriesItem>> =
         activeProfileId.flatMapLatest { profileId ->
             if (profileId == null) {
                 flowOf(PagingData.empty())
@@ -799,7 +799,7 @@ class XtreamRepository @Inject constructor(
             }
         }
 
-    fun observeReleaseYears(type: MediaType, categoryId: String): Flow<List<Int>> =
+    fun observeReleaseYears(type: MediaType, categoryId: String?): Flow<List<Int>> =
         activeProfileId.flatMapLatest { profileId ->
             if (profileId == null) flowOf(emptyList())
             else when (type) {
@@ -808,7 +808,7 @@ class XtreamRepository @Inject constructor(
             }
         }
 
-    fun observeReleaseMonths(type: MediaType, categoryId: String, year: Int): Flow<List<Int>> =
+    fun observeReleaseMonths(type: MediaType, categoryId: String?, year: Int): Flow<List<Int>> =
         activeProfileId.flatMapLatest { profileId ->
             if (profileId == null) flowOf(emptyList())
             else when (type) {
