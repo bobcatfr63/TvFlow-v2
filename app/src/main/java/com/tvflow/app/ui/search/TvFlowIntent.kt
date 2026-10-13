@@ -36,7 +36,7 @@ internal object TvFlowIntent {
     fun parse(input: String): Parsed {
         val normalized = normalized(input)
         val tokens = normalized.split(' ').filter { it.isNotBlank() }
-        val terms = tokens.filterNot { it in stop || it in setOf("recent", "recente", "recents", "recentes") }
+        val terms = tokens.filterNot { it.length < 2 || it in stop || it in setOf("recent", "recente", "recents", "recentes") }
             .flatMap { word -> listOfNotNull(word, synonyms[word]).distinct() }.distinct().take(12)
         return Parsed(
             terms = terms,
@@ -47,7 +47,7 @@ internal object TvFlowIntent {
     }
 
     fun searchTerms(input: String): List<String> {
-        val words = normalized(input).split(' ').filter { it.length >= 3 && it !in stop }
+        val words = normalized(input).split(' ').filter { it.length >= 3 && it !in stop && !it.startsWith("recent") && it != "nouveau" }
         return (words + parse(input).terms).distinct().take(12)
     }
 
@@ -61,6 +61,8 @@ internal object TvFlowIntent {
                 else -> 0
             }
         }
+        // Recency is a ranking bonus, never proof that a title matches the request.
+        if (matching == 0) return 0
         return matching + if (query.recent && year != null && year >= 2020) 4 else 0
     }
 }

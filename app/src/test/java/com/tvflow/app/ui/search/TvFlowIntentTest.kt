@@ -33,6 +33,13 @@ class TvFlowIntentTest {
         assertTrue(terms.contains("alien"))
         assertTrue(TvFlowIntent.score(TvFlowIntent.parse("extraterrestre"), "Invasion", "Invasion extraterrestre", null) > 0)
     }
+    @Test fun recentIsNotAnUnrelatedMatch() {
+        val intent = TvFlowIntent.parse("Un film d'action récent")
+        assertEquals(0, TvFlowIntent.score(intent, "Romance", "Une histoire d'amour", 2026))
+        assertTrue(TvFlowIntent.score(intent, "Action totale", null, 2024) >
+            TvFlowIntent.score(intent, "Action totale", null, 2010))
+        assertFalse(TvFlowIntent.searchTerms("film récent").contains("recent"))
+    }
     @Test fun emptyRequestCannotReturnInventedRecommendations() {
         val intent = TvFlowIntent.parse("je veux un film")
         assertTrue(intent.terms.isEmpty())
