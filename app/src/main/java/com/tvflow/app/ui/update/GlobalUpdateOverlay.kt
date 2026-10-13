@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.tvflow.app.BuildConfig
 import com.tvflow.app.data.UpdateDownloadState
+import com.tvflow.app.data.InstalledReleaseNotes
 import java.util.Locale
 
 @Composable
@@ -38,6 +39,9 @@ fun GlobalUpdateOverlay(
     val context = LocalContext.current
     val downloadState = state.downloadState
     val sizeMb = update.artifactSize / (1024f * 1024f)
+    val readableNotes = remember(update.releaseNotes) {
+        InstalledReleaseNotes.localizedItems(update.releaseNotes)
+    }
 
     AlertDialog(
         onDismissRequest = {
@@ -68,13 +72,13 @@ fun GlobalUpdateOverlay(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
-                if (update.releaseNotes.isNotEmpty()) {
+                if (readableNotes.isNotEmpty()) {
                     Text(
                         "Cette mise à jour apporte :",
                         fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.padding(top = 4.dp)
                     )
-                    update.releaseNotes.forEach { note ->
+                    readableNotes.forEach { note ->
                         Text(
                             "• $note",
                             style = MaterialTheme.typography.bodyMedium

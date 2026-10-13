@@ -23,6 +23,10 @@ object InstalledReleaseNotes {
         .take(4)
 
     private fun frenchSummary(subject: String): String = when {
+        "release date filters across all movie and series categories" in subject -> "Films et séries : les filtres par année et par mois couvrent toutes les catégories."
+        "advance TVFlow version code" in subject -> "Mises à jour : installation corrigée sur les téléphones disposant d'un numéro de build supérieur."
+        "share canonical TVFlow release manifest" in subject || "canonical release manifest for update notifications" in subject -> "Mises à jour : détection et notifications réunies sur une seule source fiable."
+        "refresh AI TV layout and optimize catalog search" in subject -> "TVFlow AI : nouvelle grille de suggestions et recherche plus rapide dans les grands catalogues."
         "array-shaped VOD info" in subject -> "Compatibilité Xtream améliorée : correction de la récupération des informations des films."
         "store-safe app bundle" in subject -> "Préparation de TVFlow pour Google Play, sans perturber les mises à jour GitHub."
         "film detail composable" in subject -> "Correction de l'affichage des fiches de films."

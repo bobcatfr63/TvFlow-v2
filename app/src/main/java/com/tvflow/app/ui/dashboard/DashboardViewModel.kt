@@ -123,7 +123,8 @@ class DashboardViewModel @Inject constructor(
         viewModelScope.launch {
             val lastShown = settingsStore.lastReleaseNotesVersion.first()
             val currentVersion = InstalledReleaseNotes.versionName
-            if (lastShown != currentVersion && InstalledReleaseNotes.items.isNotEmpty()) {
+            val currentBuildKey = "$currentVersion (${BuildConfig.VERSION_CODE})"
+            if (lastShown != currentBuildKey && InstalledReleaseNotes.items.isNotEmpty()) {
                 installedReleaseNotes.value = InstalledReleaseNotesState(
                     versionName = currentVersion,
                     items = InstalledReleaseNotes.items
@@ -403,7 +404,7 @@ class DashboardViewModel @Inject constructor(
         val notes = installedReleaseNotes.value ?: return
         installedReleaseNotes.value = null
         viewModelScope.launch {
-            settingsStore.markReleaseNotesShown(notes.versionName)
+            settingsStore.markReleaseNotesShown("${notes.versionName} (${BuildConfig.VERSION_CODE})")
         }
     }
 
