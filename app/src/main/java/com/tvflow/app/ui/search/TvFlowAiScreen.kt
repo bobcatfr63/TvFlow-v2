@@ -61,9 +61,9 @@ fun TvFlowAiScreen(
                 ?.firstOrNull()?.let { viewModel.query.value = it }
         }
     }
-    Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        Text("✨ TVFlow AI", style = MaterialTheme.typography.headlineLarge)
-        Text("Découvre les films et séries de ton catalogue, sans abonnement IA.")
+    Column(Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+        Text("✨ TVFlow AI", style = MaterialTheme.typography.headlineSmall)
+        Text("Films, séries et programmes TV du serveur actif", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         OutlinedTextField(
             value = query,
             onValueChange = { viewModel.query.value = it },
@@ -84,6 +84,7 @@ fun TvFlowAiScreen(
                 Button(onClick = { viewModel.query.value = suggestion }) { Text(suggestion) }
             }
         }
+        result.notice?.let { Text(it, color = MaterialTheme.colorScheme.secondary) }
         result.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             if (result.tvQuestion && result.programs.isEmpty()) {

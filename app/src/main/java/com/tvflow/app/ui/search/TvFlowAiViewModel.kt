@@ -27,6 +27,7 @@ data class TvFlowAiResults(
     val series: List<SeriesItem> = emptyList(),
     val programs: List<Pair<EpgProgram, LiveChannel>> = emptyList(),
     val tvQuestion: Boolean = false,
+    val notice: String? = null,
     val error: String? = null
 )
 
@@ -41,6 +42,7 @@ class TvFlowAiViewModel @Inject constructor(
         if (raw.trim().length < 2) return@mapLatest TvFlowAiResults()
         val parsed = TvFlowIntent.parse(raw)
         val tvQuestion = TvProgramMatcher.isTvQuestion(raw)
+        val requestedPerson = TvFlowIntent.requestedPerson(raw)
         if (parsed.terms.isEmpty() && !tvQuestion) return@mapLatest TvFlowAiResults()
         try {
             withContext(Dispatchers.Default) {
@@ -64,14 +66,27 @@ class TvFlowAiViewModel @Inject constructor(
                             .thenBy { it.first.startTimestamp })
                         .take(40).map { it.first to it.second }.toList()
                 } else emptyList()
+                val personCheck = requestedPerson?.let { person ->
+                    val normalizedPerson = person.lowercase()
+                    val confirmedMovies = movies.values.filter {
+                        (it.synopsis.orEmpty() + " " + it.name).lowercase().contains(normalizedPerson)
+                    }
+                    val confirmedSeries = series.values.filter {
+                        (it.plot.orEmpty() + " " + it.name).lowercase().contains(normalizedPerson)
+                    }
+                    confirmedMovies to confirmedSeries
+                }
                 TvFlowAiResults(
+                    notice = if (requestedPerson != null && personCheck?.first?.isEmpty() == true && personCheck.second.isEmpty())
+                        "Impossible de confirmer $requestedPerson dans les métadonnées du catalogue actif. Aucun résultat approximatif n'est présenté comme vérifié."
+                        else null,
                     programs = programs,
                     tvQuestion = tvQuestion,
-                    movies = if (parsed.seriesOnly && !parsed.filmOnly) emptyList() else movies.values
+                    movies = if (parsed.seriesOnly && !parsed.filmOnly) emptyList() else (personCheck?.first ?: movies.values)
                         .filter { TvFlowIntent.score(parsed, it.name, it.synopsis, it.releaseYear) > 0 }
                         .sortedByDescending { TvFlowIntent.score(parsed, it.name, it.synopsis, it.releaseYear) }
                         .take(80),
-                    series = if (parsed.filmOnly && !parsed.seriesOnly) emptyList() else series.values
+                    series = if (parsed.filmOnly && !parsed.seriesOnly) emptyList() else (personCheck?.second ?: series.values)
                         .filter { TvFlowIntent.score(parsed, it.name, it.plot, it.releaseYear) > 0 }
                         .sortedByDescending { TvFlowIntent.score(parsed, it.name, it.plot, it.releaseYear) }
                         .take(80)
