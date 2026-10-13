@@ -26,6 +26,11 @@ class TvProgramMatcherTest {
         assertEquals(0, TvProgramMatcher.score("Clermont Foot joue ce soir", other))
         assertTrue(TvProgramMatcher.score("Clermont Foot joue ce soir", clermont) > 0)
     }
+    @Test fun teamAliasesResolveWithoutPartialWords() {
+        assertEquals("Paris Saint-Germain", TvProgramMatcher.requestedTeam("Le PSG joue ce soir ?"))
+        assertEquals("Real Madrid", TvProgramMatcher.requestedTeam("Match du Real Madrid ce soir"))
+        assertEquals(null, TvProgramMatcher.requestedTeam("un film formidable ce soir"))
+    }
     @Test fun eveningWindowIncludesLaterPrograms() {
         val calendar = Calendar.getInstance().apply {
             set(Calendar.HOUR_OF_DAY, 17)

@@ -10,6 +10,19 @@ internal object TvProgramMatcher {
     fun normalize(text: String): String = Normalizer.normalize(text.lowercase(Locale.ROOT), Normalizer.Form.NFD)
         .replace(Regex("\\p{M}+"), "").replace(Regex("[^a-z0-9 ]"), " ").replace(Regex("\\s+"), " ").trim()
 
+    private val teams = mapOf(
+        "clermont foot" to "Clermont Foot", "psg" to "Paris Saint-Germain", "paris saint germain" to "Paris Saint-Germain",
+        "olympique de marseille" to "Olympique de Marseille", "om" to "Olympique de Marseille",
+        "olympique lyonnais" to "Olympique Lyonnais", "as monaco" to "AS Monaco",
+        "real madrid" to "Real Madrid", "barcelone" to "Barcelona", "fc barcelona" to "Barcelona",
+        "manchester city" to "Manchester City", "liverpool" to "Liverpool", "arsenal" to "Arsenal"
+    )
+    fun requestedTeam(text: String): String? {
+        val q = " " + normalize(text) + " "
+        return teams.entries.sortedByDescending { it.key.length }
+            .firstOrNull { q.contains(" " + it.key + " ") }?.value
+    }
+
     fun isTvQuestion(text: String): Boolean {
         val q = normalize(text)
         return listOf("ce soir", "a la tele", "a la tv", "sur quelle chaine", "sur les chaines",

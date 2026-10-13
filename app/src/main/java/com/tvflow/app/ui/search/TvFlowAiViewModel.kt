@@ -50,8 +50,9 @@ class TvFlowAiViewModel @Inject constructor(
         if (parsed.terms.isEmpty() && !tvQuestion) return@mapLatest TvFlowAiResults()
         try {
             withContext(Dispatchers.Default) {
-                val footballAnswer = if (TvProgramMatcher.normalize(raw).contains("clermont") && TvProgramMatcher.normalize(raw).contains("soir") && (TvProgramMatcher.normalize(raw).contains("match") || TvProgramMatcher.normalize(raw).contains("joue"))) {
-                    runCatching { sports.clermontTonight() }.getOrElse {
+                val sportsTeam = TvProgramMatcher.requestedTeam(raw)
+                val footballAnswer = if (sportsTeam != null && TvProgramMatcher.normalize(raw).contains("soir") && (TvProgramMatcher.normalize(raw).contains("match") || TvProgramMatcher.normalize(raw).contains("joue") || TvProgramMatcher.normalize(raw).contains("foot"))) {
+                    runCatching { sports.teamTonight(sportsTeam) }.getOrElse {
                         FootballAnswer("Calendrier sportif momentanément inaccessible. Match non confirmé.", sourceUrl = "https://www.thesportsdb.com/")
                     }
                 } else null
