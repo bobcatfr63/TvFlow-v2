@@ -31,6 +31,12 @@ class TvProgramMatcherTest {
         assertEquals("Real Madrid", TvProgramMatcher.requestedTeam("Match du Real Madrid ce soir"))
         assertEquals(null, TvProgramMatcher.requestedTeam("un film formidable ce soir"))
     }
+    @Test fun psgAliasMustMatchItsOwnEpgProgram() {
+        val unrelated = EpgProgram(20, 1000, 2000, "Marseille - Lyon", "Football en direct")
+        val matching = EpgProgram(21, 1000, 2000, "PSG - Lille", "Match de football")
+        assertEquals(0, TvProgramMatcher.score("Le PSG joue ce soir ?", unrelated))
+        assertTrue(TvProgramMatcher.score("Le PSG joue ce soir ?", matching) > 0)
+    }
     @Test fun eveningWindowIncludesLaterPrograms() {
         val calendar = Calendar.getInstance().apply {
             set(Calendar.HOUR_OF_DAY, 17)

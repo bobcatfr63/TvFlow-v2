@@ -50,9 +50,12 @@ internal object TvProgramMatcher {
         val q = normalize(request)
         val haystack = normalize(program.title + " " + program.description.orEmpty())
         val sports = q.contains("foot") || q.contains("match")
-        // A team-specific question is not answered by any unrelated football broadcast.
-        val team = listOf("clermont", "marseille", "paris saint germain", "lyon", "monaco", "lille", "lens", "rennes", "nantes", "bordeaux", "toulouse").firstOrNull { q.contains(it) }
-        if (team != null && !haystack.contains(team)) return 0
+        // When a team is named, generic football programmes must not pass as its match.
+        val team = requestedTeam(request)
+        if (team != null) {
+            val aliases = teams.filterValues { it == team }.keys + normalize(team)
+            if (aliases.none { alias -> " $haystack ".contains(" $alias ") }) return 0
+        }
         val genre = when {
             sports -> listOf("football", "foot", "ligue", "match")
             q.contains("action") -> listOf("action", "aventure", "combat", "thriller")
@@ -63,7 +66,8 @@ internal object TvProgramMatcher {
             else -> emptyList()
         }
         val terms = q.split(' ').filter { it.length > 3 && it !in setOf("soir", "film", "chaine", "passe", "direct", "avec", "programme", "maintenant", "quelle", "estce", "quil", "diffuse") }
-        return genre.sumOf { if (haystack.contains(it)) 9 else 0 } +
+        return (if (team != null) 20 else 0) +
+            genre.sumOf { if (haystack.contains(it)) 9 else 0 } +
             terms.sumOf { if (haystack.contains(it)) 3 else 0 }
     }
 }
