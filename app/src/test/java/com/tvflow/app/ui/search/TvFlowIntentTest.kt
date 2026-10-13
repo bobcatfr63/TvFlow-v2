@@ -67,4 +67,10 @@ class TvFlowIntentTest {
         assertTrue(intent.terms.isEmpty())
         assertFalse(intent.seriesOnly)
     }
+    @Test fun recognizesEverydayFrenchGenreRequests() {
+        val parsed = TvFlowIntent.parse("Une comedie francaise")
+        assertTrue(parsed.terms.contains("comedie"))
+        assertTrue(parsed.terms.contains("francais"))
+        assertTrue(TvFlowIntent.searchTerms("Une comedie francaise").contains("francais"))
+    }
 }
