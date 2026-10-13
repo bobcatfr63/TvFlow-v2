@@ -3,6 +3,7 @@ package com.tvflow.app.ui.search
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tvflow.app.data.repository.XtreamRepository
+import com.tvflow.app.data.metadata.TmdbMetadataClient
 import com.tvflow.app.domain.EpgProgram
 import com.tvflow.app.domain.LiveChannel
 import com.tvflow.app.domain.SeriesItem
@@ -34,7 +35,8 @@ data class TvFlowAiResults(
 @HiltViewModel
 @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
 class TvFlowAiViewModel @Inject constructor(
-    private val repository: XtreamRepository
+    private val repository: XtreamRepository,
+    private val metadata: TmdbMetadataClient
 ) : ViewModel() {
     val query = MutableStateFlow("")
 
@@ -49,7 +51,12 @@ class TvFlowAiViewModel @Inject constructor(
                 val movies = LinkedHashMap<Int, VodItem>()
                 val series = LinkedHashMap<Int, SeriesItem>()
                 // Live-TV requests must not wait for sequential VOD catalog searches.
-                if (!tvQuestion) for (term in TvFlowIntent.searchTerms(raw).take(8)) {
+                val verifiedCredits = if (requestedPerson != null && !tvQuestion) {
+                    runCatching { metadata.movieCreditsForPerson(requestedPerson) }.getOrNull()
+                } else null
+                val searchQueries = if (requestedPerson != null) verifiedCredits.orEmpty().map { it.first }.take(24)
+                    else TvFlowIntent.searchTerms(raw).take(8)
+                if (!tvQuestion) for (term in searchQueries) {
                     val batch = repository.searchGlobal(term, limitPerType = 70)
                     batch.vod.forEach { movies[it.streamId] = it }
                     batch.series.forEach { series[it.seriesId] = it }
@@ -67,24 +74,25 @@ class TvFlowAiViewModel @Inject constructor(
                             .thenBy { it.first.startTimestamp })
                         .take(40).map { it.first to it.second }.toList()
                 } else emptyList()
-                val personCheck = requestedPerson?.let { person ->
-                    val normalizedPerson = person.lowercase()
-                    val confirmedMovies = movies.values.filter {
-                        (it.synopsis.orEmpty() + " " + it.name).lowercase().contains(normalizedPerson)
+                val personCheck = requestedPerson?.let { _ ->
+                    val credits = verifiedCredits.orEmpty()
+                    val confirmedMovies = movies.values.filter { movie ->
+                        credits.any { (title, year) -> TvFlowIntent.sameMovie(title, year, movie.name, movie.releaseYear) }
                     }
-                    val confirmedSeries = series.values.filter {
-                        (it.plot.orEmpty() + " " + it.name).lowercase().contains(normalizedPerson)
-                    }
+                    val confirmedSeries = emptyList<SeriesItem>()
                     confirmedMovies to confirmedSeries
                 }
                 TvFlowAiResults(
-                    notice = if (requestedPerson != null && personCheck?.first?.isEmpty() == true && personCheck.second.isEmpty())
-                        "Impossible de confirmer $requestedPerson dans les métadonnées du catalogue actif. Aucun résultat approximatif n'est présenté comme vérifié."
-                        else null,
+                    notice = when {
+                        requestedPerson == null -> null
+                        verifiedCredits == null -> "Une clé TMDB valide est nécessaire dans les réglages pour vérifier les acteurs. Aucun résultat approximatif n'est affiché."
+                        personCheck?.first?.isEmpty() == true -> "Aucun film avec $requestedPerson confirmé dans le catalogue actif."
+                        else -> "Distribution vérifiée via TMDB, disponibilité issue du serveur actif."
+                    },
                     programs = programs,
                     tvQuestion = tvQuestion,
                     movies = if (parsed.seriesOnly && !parsed.filmOnly) emptyList() else (personCheck?.first ?: movies.values)
-                        .filter { TvFlowIntent.score(parsed, it.name, it.synopsis, it.releaseYear) > 0 }
+                        .filter { requestedPerson != null || TvFlowIntent.score(parsed, it.name, it.synopsis, it.releaseYear) > 0 }
                         .sortedByDescending { TvFlowIntent.score(parsed, it.name, it.synopsis, it.releaseYear) }
                         .take(80),
                     series = if (parsed.filmOnly && !parsed.seriesOnly) emptyList() else (personCheck?.second ?: series.values)

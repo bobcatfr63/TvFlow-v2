@@ -46,6 +46,11 @@ class TvFlowIntentTest {
         assertEquals("tom cruise", TvFlowIntent.requestedPerson("film avec TOM CRUISE"))
         assertEquals(null, TvFlowIntent.requestedPerson("un film d'action avec du suspense"))
     }
+    @Test fun actorCreditsRequireExactMovieAndCompatibleYear() {
+        assertTrue(TvFlowIntent.sameMovie("Mission Impossible", 1996, "FR - Mission Impossible (1996)", 1996))
+        assertFalse(TvFlowIntent.sameMovie("Mission Impossible", 1996, "Mission Impossible 2", 2000))
+        assertFalse(TvFlowIntent.sameMovie("Tom Cruise", null, "Tom & Jerry (2021)", 2021))
+    }
     @Test fun emptyRequestCannotReturnInventedRecommendations() {
         val intent = TvFlowIntent.parse("je veux un film")
         assertTrue(intent.terms.isEmpty())

@@ -58,6 +58,17 @@ internal object TvFlowIntent {
         return "$first $second"
     }
 
+    /** Strict matching avoids a similar-looking title being mistaken for a credit. */
+    fun sameMovie(creditedTitle: String, creditedYear: Int?, catalogTitle: String, catalogYear: Int?): Boolean {
+        fun title(value: String): String = normalized(value)
+            .replace(Regex("^(fr|en|vf|vostfr|multi|lat) "), "")
+            .replace(Regex("\\b(19|20)\\d{2}\\b"), "")
+            .replace(Regex("\\b(4k|uhd|fhd|hd|vf|vostfr)\\b"), "")
+            .replace(Regex("\\s+"), " ").trim()
+        if (title(creditedTitle) != title(catalogTitle)) return false
+        return creditedYear == null || catalogYear == null || kotlin.math.abs(creditedYear - catalogYear) <= 1
+    }
+
     fun searchTerms(input: String): List<String> {
         val words = normalized(input).split(' ').filter { it.length >= 3 && it !in stop && !it.startsWith("recent") && it != "nouveau" }
         return (words + parse(input).terms).distinct().take(12)

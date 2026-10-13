@@ -45,6 +45,39 @@ class TmdbMetadataClient @Inject constructor(
         }.getOrNull()
     }
 
+    /** Verified person filmography, available only when the user configured TMDB credentials. */
+    suspend fun movieCreditsForPerson(person: String): List<Pair<String, Int?>>? = withContext(Dispatchers.IO) {
+        val credential = settingsStore.currentTmdbToken()?.let(::normalizeCredential)?.takeIf { it.isNotBlank() }
+            ?: return@withContext null
+        if (credential == rejectedCredential) return@withContext null
+        val apiKeyMode = credential.matches(Regex("^[a-fA-F0-9]{32}$"))
+        fun request(url: okhttp3.HttpUrl): JsonObject? {
+            val finalUrl = if (apiKeyMode) url.newBuilder().addQueryParameter("api_key", credential).build() else url
+            val builder = Request.Builder().url(finalUrl).header("Accept", "application/json")
+            if (!apiKeyMode) builder.header("Authorization", "Bearer $credential")
+            return client.newCall(builder.build()).execute().use { response ->
+                if (response.code == 401 || response.code == 403) rejectedCredential = credential
+                if (!response.isSuccessful) return@use null
+                runCatching { JsonParser.parseString(response.body?.string().orEmpty()).asJsonObject }.getOrNull()
+            }
+        }
+        val peopleUrl = "https://api.themoviedb.org/3/search/person".toHttpUrl().newBuilder()
+            .addQueryParameter("query", person).addQueryParameter("language", "fr-FR").build()
+        val people = request(peopleUrl)?.getAsJsonArray("results") ?: return@withContext emptyList()
+        val candidate = people.mapNotNull { runCatching { it.asJsonObject }.getOrNull() }
+            .firstOrNull { normalize(string(it, "name").orEmpty()) == normalize(person) }
+            ?: return@withContext emptyList()
+        val id = candidate.get("id")?.asInt ?: return@withContext emptyList()
+        val creditsUrl = "https://api.themoviedb.org/3/person/$id/movie_credits".toHttpUrl().newBuilder()
+            .addQueryParameter("language", "fr-FR").build()
+        val casts = request(creditsUrl)?.getAsJsonArray("cast") ?: return@withContext emptyList()
+        casts.mapNotNull { row ->
+            val movie = runCatching { row.asJsonObject }.getOrNull() ?: return@mapNotNull null
+            val title = string(movie, "title")?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+            title to parseDate(string(movie, "release_date")).first
+        }.distinctBy { normalize(it.first) to it.second }.take(150)
+    }
+
     suspend fun search(
         type: MediaType,
         rawTitle: String,
