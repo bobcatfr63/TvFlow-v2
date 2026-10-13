@@ -6,6 +6,8 @@ import androidx.lifecycle.viewModelScope
 import com.tvflow.app.data.local.PlayerPreferences
 import com.tvflow.app.data.local.SettingsStore
 import com.tvflow.app.data.metadata.TmdbMetadataClient
+import com.tvflow.app.data.metadata.TmdbEnrichmentTracker
+import com.tvflow.app.data.metadata.TmdbEnrichmentStats
 import com.tvflow.app.data.refresh.CatalogRefreshWorker
 import com.tvflow.app.data.repository.XtreamRepository
 import com.tvflow.app.domain.ConnectionDiagnostics
@@ -41,6 +43,7 @@ data class SettingsUiState(
     val player: PlayerPreferences = PlayerPreferences(),
     val pinConfigured: Boolean = false,
     val tmdbConfigured: Boolean = false,
+    val tmdbStats: TmdbEnrichmentStats = TmdbEnrichmentStats(),
     val categories: List<LiveCategory> = emptyList(),
     val vodCategories: List<MediaCategory> = emptyList(),
     val seriesCategories: List<MediaCategory> = emptyList(),
@@ -77,6 +80,7 @@ class SettingsViewModel @Inject constructor(
     private val repository: XtreamRepository,
     private val settingsStore: SettingsStore,
     private val tmdbMetadataClient: TmdbMetadataClient,
+    private val tmdbEnrichmentTracker: TmdbEnrichmentTracker,
     private val application: Application
 ) : ViewModel() {
     private val selectedCategoryId = MutableStateFlow<String?>(null)
@@ -163,6 +167,10 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    private val tmdbStats = combine(repository.activeProfileId, tmdbEnrichmentTracker.revision) { id, _ ->
+        tmdbEnrichmentTracker.snapshot(id)
+    }
+
     val state: StateFlow<SettingsUiState> = combine(
         account,
         catalog,
@@ -187,6 +195,8 @@ class SettingsViewModel @Inject constructor(
             message = info,
             diagnostics = networkDiagnostics
         )
+    }.combine(tmdbStats) { settings, statistics ->
+        settings.copy(tmdbStats = statistics)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SettingsUiState())
 
     fun selectCategory(id: String) {

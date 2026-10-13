@@ -398,6 +398,16 @@ fun SettingsScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodySmall
                 )
+                val stats = state.tmdbStats
+                Text(
+                    "Activité TMDB sur le profil Xtream actif : ${stats.attempted} tentative(s), ${stats.enriched} fiche(s) complétée(s), ${stats.failed} sans enrichissement.",
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Text(
+                    if (stats.lastAttemptAt > 0) "Dernier essai : " + java.text.SimpleDateFormat("dd/MM/yyyy HH:mm", java.util.Locale.FRANCE).format(java.util.Date(stats.lastAttemptAt))
+                    else "Aucun enrichissement TMDB enregistré sur ce profil.",
+                    style = MaterialTheme.typography.bodySmall
+                )
                 Spacer(Modifier.height(8.dp))
                 OutlinedTextField(
                     value = tmdbToken,

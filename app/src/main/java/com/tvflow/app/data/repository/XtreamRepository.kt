@@ -19,6 +19,7 @@ import com.tvflow.app.data.local.TVFlowDao
 import com.tvflow.app.data.local.VodItemEntity
 import com.tvflow.app.data.local.WatchHistoryEntity
 import com.tvflow.app.data.metadata.TmdbMetadataClient
+import com.tvflow.app.data.metadata.TmdbEnrichmentTracker
 import com.tvflow.app.data.remote.XtreamApi
 import com.tvflow.app.domain.ConnectionDiagnostics
 import com.tvflow.app.domain.ConnectionProbe
@@ -130,6 +131,7 @@ class XtreamRepository @Inject constructor(
     private val settingsStore: SettingsStore,
     private val okHttpClient: OkHttpClient,
     private val tmdbMetadataClient: TmdbMetadataClient,
+    private val tmdbEnrichmentTracker: TmdbEnrichmentTracker,
     @ApplicationContext private val context: Context
 ) {
     val savedCredentials = credentialsStore.credentials
@@ -642,6 +644,7 @@ class XtreamRepository @Inject constructor(
             }.onFailure {
                 Log.w("TVFlowTmdb", "TMDb VOD detail fallback failed for id=$streamId", it)
             }.getOrNull()
+            tmdbEnrichmentTracker.record(profileId, metadata != null && (metadata.synopsis?.isNotBlank() == true || metadata.imageUrl?.isNotBlank() == true || metadata.releaseYear != null))
             if (metadata != null) {
                 dao.updateVodMetadata(
                     profileId = profileId,
@@ -842,7 +845,9 @@ class XtreamRepository @Inject constructor(
             MediaType.SERIES -> dao.getSeriesMissingMetadata(profileId, categoryId, limit).forEach { item ->
                 val metadata = runCatching {
                     tmdbMetadataClient.search(MediaType.SERIES, item.name, item.releaseYear)
-                }.getOrNull() ?: return@forEach
+                }.getOrNull()
+                tmdbEnrichmentTracker.record(profileId, metadata != null && (metadata.synopsis?.isNotBlank() == true || metadata.imageUrl?.isNotBlank() == true || metadata.releaseYear != null))
+                if (metadata == null) return@forEach
                 dao.updateSeriesMetadata(
                     profileId = profileId,
                     seriesId = item.seriesId,
