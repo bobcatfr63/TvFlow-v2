@@ -109,6 +109,7 @@ fun SettingsScreen(
     var showChannelOrganization by remember { mutableStateOf(false) }
     var showChannelAdvanced by remember { mutableStateOf(false) }
     var showMediaOrganization by remember { mutableStateOf(false) }
+    var showMediaBulk by remember { mutableStateOf(false) }
     var selectedMediaIds by remember { mutableStateOf(setOf<String>()) }
     val hiddenMediaKeys by viewModel.hiddenMediaKeys.collectAsState()
 
@@ -488,6 +489,10 @@ fun SettingsScreen(
                     }
                 }
                 Text("Choisis les catégories à afficher ou masquer dans Films et Séries.")
+                SettingsButton(onClick = { showMediaBulk = !showMediaBulk }) {
+                    Text(if (showMediaBulk) "Masquer les actions de groupe" else "Selection multiple / actions de groupe")
+                }
+                if (showMediaBulk) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     SettingsButton(
                         onClick = {
@@ -504,6 +509,7 @@ fun SettingsScreen(
                         onClick = { viewModel.setMediaCategoriesHidden(allMedia.filter { mediaKey(it) in selectedMediaIds }, false) },
                         enabled = selectedMediaIds.isNotEmpty() && !state.busy
                     ) { Text("Afficher") }
+                }
                 }
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     item { SectionTitle("Films") }
@@ -800,7 +806,7 @@ private fun SettingsButton(
         enabled = enabled,
         interactionSource = interaction,
         border = BorderStroke(
-            width = if (focused) 3.dp else 1.dp,
+            width = if (focused) 4.dp else 1.dp,
             color = when {
                 focused -> colors.primary
                 selected -> colors.secondary
