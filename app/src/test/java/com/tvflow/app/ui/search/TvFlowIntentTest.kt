@@ -41,7 +41,9 @@ class TvFlowIntentTest {
         assertFalse(TvFlowIntent.searchTerms("film récent").contains("recent"))
     }
     @Test fun extractsActorWithoutConfusingGenre() {
-        assertEquals("Johnny Depp", TvFlowIntent.requestedPerson("trouve-moi un film d'action avec Johnny Depp"))
+        assertEquals("johnny depp", TvFlowIntent.requestedPerson("trouve-moi un film d'action avec Johnny Depp"))
+        assertEquals("tom cruise", TvFlowIntent.requestedPerson("film avec tom cruise"))
+        assertEquals("tom cruise", TvFlowIntent.requestedPerson("film avec TOM CRUISE"))
         assertEquals(null, TvFlowIntent.requestedPerson("un film d'action avec du suspense"))
     }
     @Test fun emptyRequestCannotReturnInventedRecommendations() {

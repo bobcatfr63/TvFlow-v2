@@ -46,13 +46,17 @@ internal object TvFlowIntent {
         )
     }
 
-    /** Detects an explicit two-part proper name after 'avec', without treating genres as actors. */
-    fun requestedPerson(input: String): String? = Regex("(?i)\\bavec\\s+([A-ZÀ-Ÿ][a-zà-ÿ]+)\\s+([A-ZÀ-Ÿ][a-zà-ÿ]+)")
-        .find(input)?.let { match ->
-            val first = match.groupValues[1]
-            val second = match.groupValues[2]
-            if (first.first().isUpperCase() && second.first().isUpperCase()) "$first $second" else null
-        }
+    /** Two-word actor name after 'avec', independent of capitalization. */
+    fun requestedPerson(input: String): String? {
+        val words = normalized(input).split(' ')
+        val after = words.indexOf("avec")
+        if (after < 0 || after + 2 >= words.size) return null
+        val first = words[after + 1]
+        val second = words[after + 2]
+        val excluded = setOf("des", "une", "les", "dans", "sans", "sous", "pour", "film", "serie", "plus", "beaucoup", "plein", "action", "comedie", "thriller", "suspense")
+        if (first.length < 3 || second.length < 3 || first in excluded || second in excluded) return null
+        return "$first $second"
+    }
 
     fun searchTerms(input: String): List<String> {
         val words = normalized(input).split(' ').filter { it.length >= 3 && it !in stop && !it.startsWith("recent") && it != "nouveau" }
