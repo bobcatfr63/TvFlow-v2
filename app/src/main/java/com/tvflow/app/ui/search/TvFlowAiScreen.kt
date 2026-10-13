@@ -3,6 +3,17 @@ package com.tvflow.app.ui.search
 import android.app.Activity
 import android.content.Intent
 import android.speech.RecognizerIntent
+import android.content.ActivityNotFoundException
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.ui.graphics.Color
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.platform.LocalContext
@@ -57,11 +68,13 @@ fun TvFlowAiScreen(
     val result by viewModel.results.collectAsState()
     val searching = query.trim().length >= 2 && result.searchedQuery != query
     val context = LocalContext.current
+    var voiceStatus by remember { mutableStateOf<String?>(null) }
+    val listState = rememberLazyListState()
     val voiceLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
             result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
-                ?.firstOrNull()?.let { viewModel.query.value = it }
-        }
+                ?.firstOrNull()?.let { viewModel.query.value = it; voiceStatus = null } ?: run { voiceStatus = "Aucune parole reconnue. Réessaie ou saisis une recherche." }
+        } else { voiceStatus = "Reconnaissance vocale annulée ou indisponible sur cette box." }
     }
     Column(Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
         Text("✨ TVFlow AI", style = MaterialTheme.typography.headlineSmall)
@@ -78,13 +91,19 @@ fun TvFlowAiScreen(
                 putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
                 putExtra(RecognizerIntent.EXTRA_LANGUAGE, "fr-FR")
             }
-            if (intent.resolveActivity(context.packageManager) != null) voiceLauncher.launch(intent)
+            try {
+                voiceLauncher.launch(intent)
+                voiceStatus = "Parle après le signal de reconnaissance vocale."
+            } catch (e: ActivityNotFoundException) {
+                voiceStatus = "Aucun service de reconnaissance vocale installé sur cet appareil."
+            } catch (e: SecurityException) {
+                voiceStatus = "Reconnaissance vocale interdite par Android sur cet appareil."
+            }
         }) { Text("🎙 Recherche vocale") }
+        voiceStatus?.let { Text(it, color = MaterialTheme.colorScheme.secondary) }
         if (query.isBlank()) {
             Text("Quelques idées", style = MaterialTheme.typography.titleMedium)
-            suggestions.forEach { suggestion ->
-                Button(onClick = { viewModel.query.value = suggestion }) { Text(suggestion) }
-            }
+            // Keep suggestions inside the same scroll container as the results.
         }
         if (searching) {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -110,7 +129,20 @@ fun TvFlowAiScreen(
         }
         if (!searching) result.notice?.let { Text(it, color = MaterialTheme.colorScheme.secondary) }
         if (!searching) result.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        LazyColumn(state = listState, modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (query.isBlank()) items(suggestions) { suggestion ->
+                var focused by remember { mutableStateOf(false) }
+                Button(
+                    onClick = { viewModel.query.value = suggestion },
+                    modifier = Modifier.onFocusChanged { focused = it.isFocused }.border(
+                        if (focused) 3.dp else 0.dp,
+                        if (focused) Color.White else Color.Transparent,
+                        androidx.compose.foundation.shape.RoundedCornerShape(24.dp)
+                    ),
+                    colors = ButtonDefaults.buttonColors(containerColor = if (focused) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.primary,
+                        contentColor = if (focused) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onPrimary)
+                ) { Text(suggestion) }
+            }
             if (!searching && result.tvQuestion && result.programs.isEmpty() && result.footballAnswer == null) {
                 item { Text("Aucune diffusion confirmée dans l'EPG du serveur actif.", color = MaterialTheme.colorScheme.onSurface) }
             }
