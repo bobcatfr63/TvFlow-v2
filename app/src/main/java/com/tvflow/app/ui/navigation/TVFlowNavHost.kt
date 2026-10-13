@@ -202,7 +202,8 @@ fun TVFlowNavHost(
             )
         }
         composable("tvflowAi") {
-            TvFlowAiScreen(onVod = ::openVodDetails, onSeries = ::openSeriesDetails)
+            TvFlowAiScreen(onVod = ::openVodDetails, onSeries = ::openSeriesDetails,
+                onLive = { channel -> openLive(channel.streamId, channel.name, channel.categoryId) })
         }
         composable("search") {
             SearchScreen(

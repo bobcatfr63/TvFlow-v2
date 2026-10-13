@@ -3,7 +3,11 @@ package com.tvflow.app.ui.search
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tvflow.app.data.repository.XtreamRepository
+import com.tvflow.app.domain.EpgProgram
+import com.tvflow.app.domain.LiveChannel
 import com.tvflow.app.domain.SeriesItem
+import java.util.Calendar
+import kotlinx.coroutines.flow.first
 import com.tvflow.app.domain.VodItem
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -21,6 +25,8 @@ import kotlinx.coroutines.withContext
 data class TvFlowAiResults(
     val movies: List<VodItem> = emptyList(),
     val series: List<SeriesItem> = emptyList(),
+    val programs: List<Pair<EpgProgram, LiveChannel>> = emptyList(),
+    val tvQuestion: Boolean = false,
     val error: String? = null
 )
 
@@ -34,7 +40,8 @@ class TvFlowAiViewModel @Inject constructor(
     val results = query.debounce(300).mapLatest { raw ->
         if (raw.trim().length < 2) return@mapLatest TvFlowAiResults()
         val parsed = TvFlowIntent.parse(raw)
-        if (parsed.terms.isEmpty()) return@mapLatest TvFlowAiResults()
+        val tvQuestion = TvProgramMatcher.isTvQuestion(raw)
+        if (parsed.terms.isEmpty() && !tvQuestion) return@mapLatest TvFlowAiResults()
         try {
             withContext(Dispatchers.Default) {
                 val movies = LinkedHashMap<Int, VodItem>()
@@ -44,7 +51,22 @@ class TvFlowAiViewModel @Inject constructor(
                     batch.vod.forEach { movies[it.streamId] = it }
                     batch.series.forEach { series[it.seriesId] = it }
                 }
+                val programs = if (tvQuestion) {
+                    val (start, end) = TvProgramMatcher.window(raw)
+                    val channels = repository.observeAllChannels().first().associateBy { it.streamId }
+                    repository.searchEpgWindow(start, end).asSequence()
+                        .mapNotNull { program ->
+                            val channel = channels[program.streamId] ?: return@mapNotNull null
+                            val rank = TvProgramMatcher.score(raw, program)
+                            if (rank > 0) Triple(program, channel, rank) else null
+                        }
+                        .sortedWith(compareByDescending<Triple<EpgProgram, LiveChannel, Int>> { it.third }
+                            .thenBy { it.first.startTimestamp })
+                        .take(40).map { it.first to it.second }.toList()
+                } else emptyList()
                 TvFlowAiResults(
+                    programs = programs,
+                    tvQuestion = tvQuestion,
                     movies = if (parsed.seriesOnly && !parsed.filmOnly) emptyList() else movies.values
                         .filter { TvFlowIntent.score(parsed, it.name, it.synopsis, it.releaseYear) > 0 }
                         .sortedByDescending { TvFlowIntent.score(parsed, it.name, it.synopsis, it.releaseYear) }

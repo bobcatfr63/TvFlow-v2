@@ -28,20 +28,28 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.tvflow.app.domain.LiveChannel
 import com.tvflow.app.domain.SeriesItem
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import com.tvflow.app.domain.VodItem
 
 private val suggestions = listOf(
     "Une comédie française",
     "Un film d'action avec du suspense",
     "Une série policière",
-    "Un film avec une invasion extraterrestre"
+    "Un film avec une invasion extraterrestre",
+    "Est-ce qu'il y a un film d'action ce soir ?",
+    "Quel documentaire passe ce soir ?",
+    "Y a-t-il du foot en direct ?"
 )
 
 @Composable
 fun TvFlowAiScreen(
     onVod: (VodItem) -> Unit,
     onSeries: (SeriesItem) -> Unit,
+    onLive: (LiveChannel) -> Unit,
     viewModel: TvFlowAiViewModel = hiltViewModel()
 ) {
     val query by viewModel.query.collectAsState()
@@ -78,7 +86,24 @@ fun TvFlowAiScreen(
         }
         result.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (query.isNotBlank() && result.movies.isEmpty() && result.series.isEmpty() && result.error == null) {
+            if (result.tvQuestion && result.programs.isEmpty()) {
+                item { Text("Aucune diffusion correspondante confirmée dans l'EPG du serveur actif. Les programmes sans guide TV ne sont pas vérifiables ici.") }
+            }
+            if (result.programs.isNotEmpty()) {
+                item { Text("À la télévision selon ton guide EPG", style = MaterialTheme.typography.titleLarge) }
+                items(result.programs, key = { "epg:${it.first.streamId}:${it.first.startTimestamp}" }) { (program, channel) ->
+                    Card(onClick = { onLive(channel) }, modifier = Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(16.dp)) {
+                            Text(program.title, style = MaterialTheme.typography.titleMedium)
+                            val formatter = SimpleDateFormat("HH:mm", Locale.FRANCE)
+                            Text("${channel.name} · ${formatter.format(Date(program.startTimestamp * 1000))} - ${formatter.format(Date(program.stopTimestamp * 1000))}")
+                            program.description?.takeIf { it.isNotBlank() }?.let { Text(it.take(180)) }
+                            Text("Ouvrir la chaîne", style = MaterialTheme.typography.labelMedium)
+                        }
+                    }
+                }
+            }
+            if (!result.tvQuestion && query.isNotBlank() && result.movies.isEmpty() && result.series.isEmpty() && result.error == null) {
                 item { Text("Aucun résultat confirmé dans le catalogue. Essaie un titre ou un genre précis.") }
             }
             if (result.movies.isNotEmpty()) item { Text("Films référencés dans ton catalogue", style = MaterialTheme.typography.titleLarge) }

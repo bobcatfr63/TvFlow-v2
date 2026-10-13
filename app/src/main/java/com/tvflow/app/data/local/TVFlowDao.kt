@@ -46,6 +46,9 @@ interface TVFlowDao {
     @Query("SELECT * FROM epg_programs WHERE profileId = :profileId AND streamId IN (:streamIds) ORDER BY streamId, startTimestamp")
     fun observeEpgForStreams(profileId: String, streamIds: List<Int>): Flow<List<EpgProgramEntity>>
 
+    @Query("""SELECT e.* FROM epg_programs e INNER JOIN live_channels c ON c.profileId = e.profileId AND c.streamId = e.streamId WHERE e.profileId = :profileId AND e.startTimestamp < :endTime AND e.stopTimestamp > :startTime AND c.isHidden = 0 AND c.categoryId NOT IN (SELECT id FROM live_categories WHERE profileId = :profileId AND (isHidden = 1 OR isLocked = 1)) ORDER BY e.startTimestamp LIMIT 2500""")
+    suspend fun searchVisibleEpgWindow(profileId: String, startTime: Long, endTime: Long): List<EpgProgramEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertEpg(items: List<EpgProgramEntity>)
 

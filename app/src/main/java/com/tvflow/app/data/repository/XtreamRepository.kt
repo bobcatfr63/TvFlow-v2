@@ -457,6 +457,13 @@ class XtreamRepository @Inject constructor(
         invalidateSearchCache(profileId)
     }
 
+    suspend fun searchEpgWindow(startTime: Long, endTime: Long): List<EpgProgram> = withContext(Dispatchers.IO) {
+        val profileId = activeProfileId.first() ?: return@withContext emptyList()
+        dao.searchVisibleEpgWindow(profileId, startTime, endTime).map {
+            EpgProgram(it.streamId, it.startTimestamp, it.stopTimestamp, it.title, it.description, it.hasArchive)
+        }
+    }
+
     fun observeEpg(streamId: Int): Flow<List<EpgProgram>> = activeProfileId.flatMapLatest { profileId ->
         if (profileId == null) flowOf(emptyList()) else dao.observeEpg(profileId, streamId)
     }.map { list -> list.map { EpgProgram(it.streamId, it.startTimestamp, it.stopTimestamp, it.title, it.description, it.hasArchive) } }
