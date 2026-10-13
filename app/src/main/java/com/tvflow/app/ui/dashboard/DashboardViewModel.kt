@@ -89,6 +89,7 @@ class DashboardViewModel @Inject constructor(
     }.getOrNull()
 
     private val updateInfo = MutableStateFlow<AppUpdateInfo?>(null)
+    private var updateDismissed = false
     private val updateDownloadState = MutableStateFlow<UpdateDownloadState>(UpdateDownloadState.Idle)
     private val backgroundPreview = MutableStateFlow<DashboardBackdrop?>(null)
     private val installedReleaseNotes = MutableStateFlow<InstalledReleaseNotesState?>(null)
@@ -130,7 +131,7 @@ class DashboardViewModel @Inject constructor(
             }
         }
         if (!BuildConfig.IS_PLAY_STORE) {
-            viewModelScope.launch { updateInfo.value = updateChecker.check() }
+            checkUpdates()
         }
         viewModelScope.launch {
             var currentStreamId: Int? = null
@@ -355,6 +356,11 @@ class DashboardViewModel @Inject constructor(
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DashboardUiState())
 
+    fun checkUpdates() {
+        if (BuildConfig.IS_PLAY_STORE || updateDismissed || updateInfo.value != null) return
+        viewModelScope.launch { updateChecker.check()?.let { updateInfo.value = it } }
+    }
+
     fun downloadUpdate() {
         if (BuildConfig.IS_PLAY_STORE) return
         val info = updateInfo.value ?: return
@@ -388,6 +394,7 @@ class DashboardViewModel @Inject constructor(
     }
 
     fun dismissUpdate() {
+        updateDismissed = true
         updateInfo.value = null
         updateDownloadState.value = UpdateDownloadState.Idle
     }

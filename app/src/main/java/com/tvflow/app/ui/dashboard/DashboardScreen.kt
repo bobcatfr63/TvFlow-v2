@@ -45,6 +45,8 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -116,6 +118,7 @@ fun DashboardScreen(
     viewModel: DashboardViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.checkUpdates() }
     val context = LocalContext.current
     val isTv = context.isTelevisionUi()
     val listState = rememberLazyListState()
@@ -341,7 +344,7 @@ fun DashboardScreen(
         }
 
         // Offer a downloadable update before displaying the installed-version changelog.
-        if (!state.showTasteOnboarding && !showTasteEditor && !showMoment) {
+        if (!showTasteEditor && !showMoment) {
             state.updateInfo?.let { available ->
                 UpdatePopup(
                     update = available,
