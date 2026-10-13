@@ -28,6 +28,7 @@ data class TvFlowAiResults(
     val series: List<SeriesItem> = emptyList(),
     val programs: List<Pair<EpgProgram, LiveChannel>> = emptyList(),
     val tvQuestion: Boolean = false,
+    val footballAnswer: FootballAnswer? = null,
     val notice: String? = null,
     val error: String? = null
 )
@@ -36,7 +37,8 @@ data class TvFlowAiResults(
 @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
 class TvFlowAiViewModel @Inject constructor(
     private val repository: XtreamRepository,
-    private val metadata: TmdbMetadataClient
+    private val metadata: TmdbMetadataClient,
+    private val sports: FootballScheduleClient
 ) : ViewModel() {
     val query = MutableStateFlow("")
 
@@ -48,6 +50,11 @@ class TvFlowAiViewModel @Inject constructor(
         if (parsed.terms.isEmpty() && !tvQuestion) return@mapLatest TvFlowAiResults()
         try {
             withContext(Dispatchers.Default) {
+                val footballAnswer = if (TvProgramMatcher.normalize(raw).contains("clermont") && TvProgramMatcher.normalize(raw).contains("soir") && (TvProgramMatcher.normalize(raw).contains("match") || TvProgramMatcher.normalize(raw).contains("joue"))) {
+                    runCatching { sports.clermontTonight() }.getOrElse {
+                        FootballAnswer("Calendrier sportif momentanément inaccessible. Match non confirmé.", sourceUrl = "https://www.thesportsdb.com/")
+                    }
+                } else null
                 val movies = LinkedHashMap<Int, VodItem>()
                 val series = LinkedHashMap<Int, SeriesItem>()
                 // Live-TV requests must not wait for sequential VOD catalog searches.
@@ -90,6 +97,7 @@ class TvFlowAiViewModel @Inject constructor(
                         else -> "Distribution vérifiée via TMDB, disponibilité issue du serveur actif."
                     },
                     programs = programs,
+                    footballAnswer = footballAnswer,
                     tvQuestion = tvQuestion,
                     movies = if (parsed.seriesOnly && !parsed.filmOnly) emptyList() else (personCheck?.first ?: movies.values)
                         .filter { requestedPerson != null || TvFlowIntent.score(parsed, it.name, it.synopsis, it.releaseYear) > 0 }

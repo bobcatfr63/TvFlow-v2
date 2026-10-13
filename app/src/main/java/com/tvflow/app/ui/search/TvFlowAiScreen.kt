@@ -87,10 +87,24 @@ fun TvFlowAiScreen(
         if (TvProgramMatcher.isTvQuestion(query) && !result.tvQuestion) {
             Text("Recherche des programmes dans le guide TV…", color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
+        result.footballAnswer?.let { answer ->
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("Calendrier sportif en ligne", style = MaterialTheme.typography.titleMedium)
+                    Text(answer.message)
+                    if (answer.eventName != null && result.programs.isEmpty()) {
+                        Text("Match annoncé, mais aucune chaîne correspondante confirmée dans ton EPG.", color = MaterialTheme.colorScheme.secondary)
+                    } else if (answer.eventName != null && result.programs.isNotEmpty()) {
+                        Text("Programme correspondant trouvé dans ton EPG : sélectionne la chaîne ci-dessous.", color = MaterialTheme.colorScheme.secondary)
+                    }
+                    Text("Source : TheSportsDB. Programmation et disponibilité des chaînes vérifiées séparément dans TVFlow.", style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        }
         result.notice?.let { Text(it, color = MaterialTheme.colorScheme.secondary) }
         result.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (result.tvQuestion && result.programs.isEmpty()) {
+            if (result.tvQuestion && result.programs.isEmpty() && result.footballAnswer == null) {
                 item { Text("Aucune diffusion correspondante confirmée dans l'EPG du serveur actif. Les programmes sans guide TV ne sont pas vérifiables ici.") }
             }
             if (result.programs.isNotEmpty()) {
