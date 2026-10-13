@@ -281,6 +281,23 @@ fun MediaLibraryScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                if (categories.isEmpty() && vod.itemCount == 0 && series.itemCount == 0) {
+                    item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }) {
+                        Card(
+                            modifier = Modifier.fillMaxWidth().padding(top = 20.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.45f))
+                        ) {
+                            Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                Text("Catalogue en attente", style = MaterialTheme.typography.headlineSmall,
+                                    color = MaterialTheme.colorScheme.onSurface)
+                                Text("Les ${if (viewModel.type == MediaType.VOD) "films" else "séries"} de ta source IPTV apparaîtront ici après synchronisation.",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                    }
+                }
                 if (viewModel.type == MediaType.VOD) {
                     items(count = vod.itemCount) { index ->
                         vod[index]?.let { item ->

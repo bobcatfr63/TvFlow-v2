@@ -6,9 +6,21 @@ import android.speech.RecognizerIntent
 import android.content.ActivityNotFoundException
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -70,23 +82,45 @@ fun TvFlowAiScreen(
     val context = LocalContext.current
     var voiceStatus by remember { mutableStateOf<String?>(null) }
     val listState = rememberLazyListState()
+    var inputFocused by remember { mutableStateOf(false) }
+    val microphoneFocus = remember { FocusRequester() }
+    val firstSuggestionFocus = remember { FocusRequester() }
     val voiceLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
             result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
                 ?.firstOrNull()?.let { viewModel.query.value = it; voiceStatus = null } ?: run { voiceStatus = "Aucune parole reconnue. Réessaie ou saisis une recherche." }
         } else { voiceStatus = "Reconnaissance vocale annulée ou indisponible sur cette box." }
     }
-    Column(Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
-        Text("✨ TVFlow AI", style = MaterialTheme.typography.headlineSmall)
-        Text("Films, séries et programmes TV du serveur actif", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Column(
+        Modifier.fillMaxSize()
+            .background(Brush.verticalGradient(listOf(Color(0xFF14324A), Color(0xFF07121E), Color(0xFF040911))))
+            .padding(horizontal = 20.dp, vertical = 16.dp)
+            .onPreviewKeyEvent { event ->
+                if (inputFocused && event.key == Key.DirectionDown && event.type == KeyEventType.KeyDown) {
+                    microphoneFocus.requestFocus()
+                    true
+                } else false
+            },
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Text("✦ TVFlow AI", style = MaterialTheme.typography.headlineMedium,
+            color = Color(0xFFF4FAFF), fontWeight = FontWeight.Bold)
+        Text("Trouve ton prochain programme", style = MaterialTheme.typography.titleMedium,
+            color = Color(0xFF65DFFF))
+        Text("Films, séries et programmes TV de ton catalogue", style = MaterialTheme.typography.bodyMedium,
+            color = Color(0xFFCEE2EF))
         OutlinedTextField(
             value = query,
             onValueChange = { viewModel.query.value = it },
             label = { Text("Quel film ou quelle série aimerais-tu voir ?") },
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
+                .onFocusChanged { inputFocused = it.isFocused }
+                .focusProperties { down = microphoneFocus }
         )
-        Button(onClick = {
+        Button(modifier = Modifier.focusRequester(microphoneFocus).focusProperties {
+            if (query.isBlank()) down = firstSuggestionFocus
+        }, onClick = {
             val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
                 putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
                 putExtra(RecognizerIntent.EXTRA_LANGUAGE, "fr-FR")
@@ -102,7 +136,7 @@ fun TvFlowAiScreen(
         }) { Text("🎙 Recherche vocale") }
         voiceStatus?.let { Text(it, color = MaterialTheme.colorScheme.secondary) }
         if (query.isBlank()) {
-            Text("Quelques idées", style = MaterialTheme.typography.titleMedium)
+            Text("Quelques idées", style = MaterialTheme.typography.titleMedium, color = Color(0xFFF4FAFF), fontWeight = FontWeight.SemiBold)
             // Keep suggestions inside the same scroll container as the results.
         }
         if (searching) {
@@ -129,27 +163,44 @@ fun TvFlowAiScreen(
         }
         if (!searching) result.notice?.let { Text(it, color = MaterialTheme.colorScheme.secondary) }
         if (!searching) result.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        LazyColumn(state = listState, modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (query.isBlank()) items(suggestions) { suggestion ->
-                var focused by remember { mutableStateOf(false) }
-                Button(
-                    onClick = { viewModel.query.value = suggestion },
-                    modifier = Modifier.onFocusChanged { focused = it.isFocused }.border(
-                        if (focused) 3.dp else 0.dp,
-                        if (focused) Color.White else Color.Transparent,
-                        androidx.compose.foundation.shape.RoundedCornerShape(24.dp)
-                    ),
-                    colors = ButtonDefaults.buttonColors(containerColor = if (focused) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.primary,
-                        contentColor = if (focused) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onPrimary)
-                ) { Text(suggestion) }
+        if (query.isBlank()) {
+            androidx.compose.foundation.layout.BoxWithConstraints(modifier = Modifier.weight(1f)) {
+                val columns = if (maxWidth >= 720.dp) 3 else if (maxWidth >= 460.dp) 2 else 1
+                androidx.compose.foundation.lazy.grid.LazyVerticalGrid(
+                    columns = androidx.compose.foundation.lazy.grid.GridCells.Fixed(columns),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(suggestions.size) { index ->
+                        val suggestion = suggestions[index]
+                        var focused by remember { mutableStateOf(false) }
+                        Button(
+                            onClick = { viewModel.query.value = suggestion },
+                            modifier = Modifier.fillMaxWidth().height(76.dp)
+                                .then(if (index == 0) Modifier.focusRequester(firstSuggestionFocus) else Modifier)
+                                .onFocusChanged { focused = it.isFocused }
+                                .border(if (focused) 4.dp else 1.dp,
+                                    if (focused) Color(0xFF42E8FF) else Color(0xFF367698),
+                                    androidx.compose.foundation.shape.RoundedCornerShape(18.dp)),
+                            shape = androidx.compose.foundation.shape.RoundedCornerShape(18.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (focused) Color(0xFF126A8F) else Color(0xFF17334A),
+                                contentColor = Color.White
+                            )
+                        ) { Text(suggestion, style = MaterialTheme.typography.bodyMedium) }
+                    }
+                }
             }
+        }
+        if (query.isNotBlank()) LazyColumn(state = listState, modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             if (!searching && result.tvQuestion && result.programs.isEmpty() && result.footballAnswer == null) {
                 item { Text("Aucune diffusion confirmée dans l'EPG du serveur actif.", color = MaterialTheme.colorScheme.onSurface) }
             }
             if (!searching && result.programs.isNotEmpty()) {
-                item { Text("À la télévision selon ton guide EPG", style = MaterialTheme.typography.titleLarge) }
+                item { Text("À la télévision selon ton guide EPG", style = MaterialTheme.typography.titleLarge, color = Color(0xFFF4FAFF), fontWeight = FontWeight.Bold) }
                 items(result.programs, key = { "epg:${it.first.streamId}:${it.first.startTimestamp}" }) { (program, channel) ->
-                    Card(onClick = { onLive(channel) }, modifier = Modifier.fillMaxWidth()) {
+                    var focused by remember { mutableStateOf(false) }
+                    Card(onClick = { onLive(channel) }, modifier = Modifier.fillMaxWidth().onFocusChanged { focused = it.isFocused }.border(if (focused) 3.dp else 1.dp, if (focused) Color(0xFF42E8FF) else Color.Transparent, androidx.compose.foundation.shape.RoundedCornerShape(16.dp))) {
                         Column(Modifier.padding(16.dp)) {
                             Text(program.title, style = MaterialTheme.typography.titleMedium)
                             val formatter = SimpleDateFormat("HH:mm", Locale.FRANCE)
@@ -163,9 +214,10 @@ fun TvFlowAiScreen(
             if (!searching && !TvProgramMatcher.isTvQuestion(query) && !result.tvQuestion && query.isNotBlank() && result.movies.isEmpty() && result.series.isEmpty() && result.error == null) {
                 item { Text("Recherche terminée : aucun résultat confirmé sur le serveur actif. Pour les thèmes (informatique, piratage, science…), essaie aussi un mot-clé présent dans un titre ou un synopsis.", color = MaterialTheme.colorScheme.onSurface) }
             }
-            if (!searching && result.movies.isNotEmpty()) item { Text("Films référencés dans ton catalogue", style = MaterialTheme.typography.titleLarge) }
+            if (!searching && result.movies.isNotEmpty()) item { Text("Films dans ton catalogue", style = MaterialTheme.typography.titleLarge, color = Color(0xFFF4FAFF), fontWeight = FontWeight.Bold) }
             items(if (searching) emptyList() else result.movies, key = { "movie:${it.streamId}" }) { movie ->
-                Card(onClick = { onVod(movie) }, modifier = Modifier.fillMaxWidth()) {
+                var focused by remember { mutableStateOf(false) }
+                Card(onClick = { onVod(movie) }, modifier = Modifier.fillMaxWidth().onFocusChanged { focused = it.isFocused }.border(if (focused) 3.dp else 1.dp, if (focused) Color(0xFF42E8FF) else Color.Transparent, androidx.compose.foundation.shape.RoundedCornerShape(16.dp))) {
                     Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         movie.posterUrl?.let { url ->
                             AsyncImage(model = url, contentDescription = null, modifier = Modifier.width(72.dp).height(104.dp))
@@ -178,9 +230,10 @@ fun TvFlowAiScreen(
                     }
                 }
             }
-            if (!searching && result.series.isNotEmpty()) item { Text("Séries disponibles", style = MaterialTheme.typography.titleLarge) }
+            if (!searching && result.series.isNotEmpty()) item { Text("Séries disponibles", style = MaterialTheme.typography.titleLarge, color = Color(0xFFF4FAFF), fontWeight = FontWeight.Bold) }
             items(if (searching) emptyList() else result.series, key = { "series:${it.seriesId}" }) { series ->
-                Card(onClick = { onSeries(series) }, modifier = Modifier.fillMaxWidth()) {
+                var focused by remember { mutableStateOf(false) }
+                Card(onClick = { onSeries(series) }, modifier = Modifier.fillMaxWidth().onFocusChanged { focused = it.isFocused }.border(if (focused) 3.dp else 1.dp, if (focused) Color(0xFF42E8FF) else Color.Transparent, androidx.compose.foundation.shape.RoundedCornerShape(16.dp))) {
                     Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         series.coverUrl?.let { url ->
                             AsyncImage(model = url, contentDescription = null, modifier = Modifier.width(72.dp).height(104.dp))

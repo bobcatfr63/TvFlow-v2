@@ -50,7 +50,9 @@ class TvFlowAiViewModel @Inject constructor(
         val requestedPerson = TvFlowIntent.requestedPerson(raw)
         if (parsed.terms.isEmpty() && !tvQuestion) return@mapLatest TvFlowAiResults(searchedQuery = raw)
         try {
-            withContext(Dispatchers.Default) {
+            // Catalog, EPG and metadata lookups may block on network or database I/O.
+            // Keep them off the CPU-bound Default dispatcher.
+            withContext(Dispatchers.IO) {
                 val sportsTeam = TvProgramMatcher.requestedTeam(raw)
                 val footballAnswer = if (sportsTeam != null && TvProgramMatcher.normalize(raw).contains("soir") && (TvProgramMatcher.normalize(raw).contains("match") || TvProgramMatcher.normalize(raw).contains("joue") || TvProgramMatcher.normalize(raw).contains("foot"))) {
                     runCatching { sports.teamTonight(sportsTeam) }.getOrElse {

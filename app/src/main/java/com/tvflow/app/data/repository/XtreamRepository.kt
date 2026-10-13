@@ -870,13 +870,26 @@ class XtreamRepository @Inject constructor(
         val cache = searchCacheMutex.withLock {
             searchCache[profileId] ?: buildSearchCache(profileId).also { searchCache[profileId] = it }
         }
-        fun <T> find(source: List<Pair<String, T>>): List<T> =
-            source.asSequence()
-                .filter { (key, _) -> key.contains(normalizedQuery) }
-                .sortedBy { (key, _) -> key.indexOf(normalizedQuery).coerceAtLeast(0) }
-                .take(limitPerType)
-                .map { it.second }
-                .toList()
+        // Retain only the best K hits. A full sort wastes time and memory on large Xtream catalogs.
+        fun <T> find(source: List<Pair<String, T>>): List<T> {
+            val limit = limitPerType.coerceAtLeast(0)
+            if (limit == 0) return emptyList()
+            data class Hit<T>(val offset: Int, val position: Int, val value: T)
+            val worstFirst = compareByDescending<Hit<T>> { it.offset }.thenByDescending { it.position }
+            val bestFirst = compareBy<Hit<T>> { it.offset }.thenBy { it.position }
+            val best = java.util.PriorityQueue(worstFirst)
+            source.forEachIndexed { position, (key, value) ->
+                val offset = key.indexOf(normalizedQuery)
+                if (offset < 0) return@forEachIndexed
+                val hit = Hit(offset, position, value)
+                if (best.size < limit) best.add(hit)
+                else if (bestFirst.compare(hit, best.peek()) < 0) {
+                    best.poll()
+                    best.add(hit)
+                }
+            }
+            return best.sortedWith(bestFirst).map { it.value }
+        }
 
         GlobalSearchResults(
             live = find(cache.live),

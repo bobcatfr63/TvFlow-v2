@@ -67,6 +67,19 @@ class TvFlowIntentTest {
         assertTrue(intent.terms.isEmpty())
         assertFalse(intent.seriesOnly)
     }
+    @Test fun multilingualTitlesAndAccentInsensitiveGenres() {
+        val french = TvFlowIntent.parse("Comédie française")
+        assertTrue(TvFlowIntent.score(french, "Comedie francaise", null, 2023) > 0)
+        assertEquals(0, TvFlowIntent.score(french, "English thriller", null, 2023))
+        val scienceFiction = TvFlowIntent.parse("Film extraterrestre")
+        assertTrue(TvFlowIntent.score(scienceFiction, "Alien encounter", null, 2022) > 0)
+        val detective = TvFlowIntent.parse("Série policière")
+        assertTrue(TvFlowIntent.score(detective, "Police investigation", null, 2021) > 0)
+    }
+    @Test fun actorNameParsingDoesNotAssumeRandomGenreIsAnActor() {
+        assertEquals("leonardo dicaprio", TvFlowIntent.requestedPerson("Film avec Leonardo DiCaprio"))
+        assertEquals(null, TvFlowIntent.requestedPerson("film avec du suspense"))
+    }
     @Test fun recognizesEverydayFrenchGenreRequests() {
         val parsed = TvFlowIntent.parse("Une comedie francaise")
         assertTrue(parsed.terms.contains("comedie"))
