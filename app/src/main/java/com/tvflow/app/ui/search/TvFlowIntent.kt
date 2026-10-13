@@ -44,7 +44,7 @@ internal object TvFlowIntent {
         val normalized = normalized(input)
         val tokens = normalized.split(' ').filter { it.isNotBlank() }
         val terms = tokens.filterNot { it.length < 2 || it in stop || it in setOf("recent", "recente", "recents", "recentes") }
-            .flatMap { word -> listOfNotNull(word, synonyms[word]).distinct() }.distinct().take(12)
+            .flatMap { word -> (listOfNotNull(word, synonyms[word]) + topicTerms[word].orEmpty()).distinct() }.distinct().take(16)
         return Parsed(
             terms = terms,
             seriesOnly = tokens.any { it in setOf("serie", "series", "saison", "saisons", "episode") },

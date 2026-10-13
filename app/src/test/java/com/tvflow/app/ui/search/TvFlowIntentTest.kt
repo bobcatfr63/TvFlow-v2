@@ -58,6 +58,8 @@ class TvFlowIntentTest {
         assertTrue(terms.contains("programmation"))
         val query = TvFlowIntent.parse("série sur l'informatique")
         assertTrue(TvFlowIntent.score(query, "Hackers", "Un groupe de hackers", null) > 0)
+        assertTrue(TvFlowIntent.score(query, "Cyber War", "Des spécialistes de cybersécurité", null) > 0)
+        assertTrue(TvFlowIntent.score(query, "Robot", "Un programmeur lutte contre des pirates informatiques", null) > 0)
         assertEquals(0, TvFlowIntent.score(query, "Cuisine et voyage", "Recettes et découvertes", null))
     }
     @Test fun emptyRequestCannotReturnInventedRecommendations() {
