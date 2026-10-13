@@ -280,6 +280,43 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun enrichTmdbNow() {
+        if (busy.value) return
+        viewModelScope.launch {
+            if (!state.value.tmdbConfigured) {
+                message.value = "Configure et valide d'abord ta clé TMDB."
+                return@launch
+            }
+            busy.value = true
+            val categories = mediaCategories.first()
+            // A bounded pass avoids blocking the UI on exceptionally large IPTV catalogs.
+            val tasks = (categories.first.map { MediaType.VOD to it.id } +
+                categories.second.map { MediaType.SERIES to it.id })
+                .distinct().take(120)
+            val startedProfile = repository.activeProfileId.first()
+            var done = 0
+            var errors = 0
+            try {
+                for ((type, categoryId) in tasks) {
+                    if (repository.activeProfileId.first() != startedProfile) break
+                    _refreshProgress.value = RefreshProgress(
+                        if (tasks.isEmpty()) 100 else done * 100 / tasks.size,
+                        "Enrichissement TMDB : catégorie ${done + 1}/${tasks.size}"
+                    )
+                    val result = runCatching {
+                        repository.enrichMissingMediaMetadata(type, categoryId, limit = 12)
+                    }
+                    if (result.isFailure) errors++
+                    done++
+                }
+                message.value = "TMDB : $done catégories parcourues, $errors erreur(s). Consulte les compteurs d'enrichissement ci-dessous."
+            } finally {
+                _refreshProgress.value = null
+                busy.value = false
+            }
+        }
+    }
+
     fun runConnectionDiagnostics() {
         viewModelScope.launch {
             busy.value = true

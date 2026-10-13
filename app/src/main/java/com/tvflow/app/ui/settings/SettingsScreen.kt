@@ -168,7 +168,7 @@ fun SettingsScreen(
         AlertDialog(
             onDismissRequest = {},
             confirmButton = {},
-            title = { Text("Actualisation TVFlow") },
+            title = { Text(if (progress.step.startsWith("Enrichissement TMDB")) "Enrichissement TMDB" else "Actualisation TVFlow") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text(progress.step, fontWeight = FontWeight.SemiBold)
@@ -398,6 +398,10 @@ fun SettingsScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodySmall
                 )
+                SettingsButton(onClick = viewModel::enrichTmdbNow, enabled = state.tmdbConfigured && !state.busy) {
+                    Text("Enrichir les fiches avec TMDB maintenant")
+                }
+                Text("Traitement limité à 12 fiches par catégorie et 120 catégories par passage, pour préserver la fluidité. La progression indique les catégories parcourues, pas la couverture totale du catalogue.", style = MaterialTheme.typography.bodySmall)
                 val stats = state.tmdbStats
                 Text(
                     "Activité TMDB sur le profil Xtream actif : ${stats.attempted} tentative(s), ${stats.enriched} fiche(s) complétée(s), ${stats.failed} sans enrichissement.",
