@@ -13,6 +13,7 @@ internal object TvProgramMatcher {
     fun isTvQuestion(text: String): Boolean {
         val q = normalize(text)
         return listOf("ce soir", "a la tele", "a la tv", "sur quelle chaine", "sur les chaines",
+            "joue ce soir", "match ce soir", "foot ce soir", "football ce soir",
             "en direct", "maintenant", "passe a", "diffuse", "programme tv", "au programme").any(q::contains)
     }
 
@@ -36,6 +37,9 @@ internal object TvProgramMatcher {
         val q = normalize(request)
         val haystack = normalize(program.title + " " + program.description.orEmpty())
         val sports = q.contains("foot") || q.contains("match")
+        // A team-specific question is not answered by any unrelated football broadcast.
+        val team = listOf("clermont", "marseille", "paris saint germain", "lyon", "monaco", "lille", "lens", "rennes", "nantes", "bordeaux", "toulouse").firstOrNull { q.contains(it) }
+        if (team != null && !haystack.contains(team)) return 0
         val genre = when {
             sports -> listOf("football", "foot", "ligue", "match")
             q.contains("action") -> listOf("action", "aventure", "combat", "thriller")
