@@ -586,6 +586,25 @@ class XtreamRepository @Inject constructor(
                 }
             }
         }
+    data class TmdbGenreCoverage(
+        val vodTotal: Int = 0,
+        val vodWithGenres: Int = 0,
+        val seriesTotal: Int = 0,
+        val seriesWithGenres: Int = 0
+    )
+
+    fun observeTmdbGenreCoverage(): Flow<TmdbGenreCoverage> = activeProfileId.flatMapLatest { id ->
+        if (id == null) flowOf(TmdbGenreCoverage())
+        else combine(
+            dao.observeVodTotal(id),
+            dao.observeVodWithTmdbGenres(id),
+            dao.observeSeriesTotal(id),
+            dao.observeSeriesWithTmdbGenres(id)
+        ) { vodTotal, vodWith, seriesTotal, seriesWith ->
+            TmdbGenreCoverage(vodTotal, vodWith, seriesTotal, seriesWith)
+        }
+    }
+
     fun observeVod(categoryId: String): Flow<List<VodItem>> = activeProfileId.flatMapLatest { id -> if (id == null) flowOf(emptyList()) else dao.observeVod(id, categoryId) }.map { list -> list.map { it.toDomain() } }
 
     fun observeVodItem(streamId: Int): Flow<VodItem?> = activeProfileId.flatMapLatest { id ->

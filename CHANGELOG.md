@@ -1,6 +1,11 @@
 # Historique des mises à jour TVFlow-v2
 
-## 1.0.137 (en préparation)
+## 1.0.138 (en préparation)
+
+- **Genres TMDB** : affichage dans les Réglages de la couverture des genres officiels pour les films et les séries du profil Xtream actif, en nombres et pourcentages.
+- **Performances** : comptage SQL réactif depuis Room, sans charger ni parcourir les fiches en mémoire ; les résultats se rafraîchissent après enrichissement ou synchronisation du catalogue.
+
+## 1.0.137
 
 - **TVFlow AI / TMDB** : mémorisation progressive des identifiants de genres officiels TMDB dans les fiches films et séries, sans effacer les données existantes.
 - **Classement AI** : les genres TMDB confirmés ont priorité sur les catégories IPTV et les mots isolés ; les recherches combinées action + aventure acceptent les identifiants officiels correspondants.

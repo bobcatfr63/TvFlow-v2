@@ -93,6 +93,7 @@ class SettingsViewModel @Inject constructor(
     private val _refreshProgress = MutableStateFlow<RefreshProgress?>(null)
     val refreshProgress: StateFlow<RefreshProgress?> = _refreshProgress
     val tmdbDiagnostics = tmdbMetadataClient.diagnostics
+    val tmdbGenreCoverage = repository.observeTmdbGenreCoverage()
 
     private val channels = selectedCategoryId.flatMapLatest { id ->
         if (id == null) flowOf(emptyList()) else repository.observeManageChannels(id)

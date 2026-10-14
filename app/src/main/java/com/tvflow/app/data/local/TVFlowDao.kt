@@ -247,6 +247,18 @@ interface TVFlowDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertMediaCategories(items: List<MediaCategoryEntity>)
 
+    @Query("SELECT COUNT(*) FROM vod_items WHERE profileId = :profileId")
+    fun observeVodTotal(profileId: String): Flow<Int>
+
+    @Query("SELECT COUNT(*) FROM vod_items WHERE profileId = :profileId AND tmdbGenreIds IS NOT NULL AND tmdbGenreIds != ''")
+    fun observeVodWithTmdbGenres(profileId: String): Flow<Int>
+
+    @Query("SELECT COUNT(*) FROM series_items WHERE profileId = :profileId")
+    fun observeSeriesTotal(profileId: String): Flow<Int>
+
+    @Query("SELECT COUNT(*) FROM series_items WHERE profileId = :profileId AND tmdbGenreIds IS NOT NULL AND tmdbGenreIds != ''")
+    fun observeSeriesWithTmdbGenres(profileId: String): Flow<Int>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertVod(items: List<VodItemEntity>)
 

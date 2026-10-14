@@ -68,6 +68,7 @@ fun SettingsScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val tmdbDiagnostics by viewModel.tmdbDiagnostics.collectAsState()
+    val tmdbGenreCoverage by viewModel.tmdbGenreCoverage.collectAsState(initial = com.tvflow.app.data.repository.XtreamRepository.TmdbGenreCoverage())
     val refreshProgress by viewModel.refreshProgress.collectAsState()
     val context = LocalContext.current
     val isTv = context.isTelevisionUi()
@@ -399,6 +400,10 @@ fun SettingsScreen(
                     if (state.tmdbConfigured) "Clé TMDB enregistrée. L'enrichissement dépend des fiches manquantes et des actualisations du catalogue. Aucun total vérifié n'est disponible pour l'instant."
                     else "Clé non configurée : l'enrichissement TMDB est désactivé. Les films et séries du serveur actif restent accessibles.",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Text(
+                    "Genres TMDB sur le catalogue actif : films ${tmdbGenreCoverage.vodWithGenres}/${tmdbGenreCoverage.vodTotal} (${if (tmdbGenreCoverage.vodTotal > 0) tmdbGenreCoverage.vodWithGenres * 100 / tmdbGenreCoverage.vodTotal else 0} %), séries ${tmdbGenreCoverage.seriesWithGenres}/${tmdbGenreCoverage.seriesTotal} (${if (tmdbGenreCoverage.seriesTotal > 0) tmdbGenreCoverage.seriesWithGenres * 100 / tmdbGenreCoverage.seriesTotal else 0} %).",
                     style = MaterialTheme.typography.bodySmall
                 )
                 SettingsButton(onClick = viewModel::enrichTmdbNow, enabled = state.tmdbConfigured && !state.busy) {
