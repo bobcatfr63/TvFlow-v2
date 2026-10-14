@@ -1,6 +1,12 @@
 # Historique des mises à jour TVFlow-v2
 
-## 1.0.142 (en préparation)
+## 1.0.143 (en préparation)
+
+- **TVFlow AI / recherche** : l'index ne conserve plus toutes les données des chaînes, films et séries en mémoire ; il conserve seulement les titres normalisés et identifiants.
+- **Performance** : affiches, synopsis et métadonnées complètes sont chargés depuis Room seulement pour les résultats sélectionnés (maximum 150 par type).
+- **Compatibilité** : recherche insensible aux accents et ordre de pertinence préservés ; aucune migration de base de données nécessaire.
+
+## 1.0.142
 
 - **TVFlow AI** : les suggestions par catégories IPTV sont maintenant équilibrées entre les catégories pertinentes, au lieu de privilégier arbitrairement une seule catégorie.
 - **Performance** : les lectures Room restent plafonnées à 120 fiches par type et huit catégories, sans tri global coûteux sur les gros catalogues.

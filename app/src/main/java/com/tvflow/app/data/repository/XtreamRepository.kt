@@ -117,9 +117,9 @@ data class GlobalSearchResults(
 )
 
 private data class SearchCache(
-    val live: List<Pair<String, LiveChannel>>,
-    val vod: List<Pair<String, VodItem>>,
-    val series: List<Pair<String, SeriesItem>>
+    val live: List<Pair<String, Int>>,
+    val vod: List<Pair<String, Int>>,
+    val series: List<Pair<String, Int>>
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -927,45 +927,48 @@ class XtreamRepository @Inject constructor(
         val cache = searchCacheMutex.withLock {
             searchCache[profileId] ?: buildSearchCache(profileId).also { searchCache[profileId] = it }
         }
-        // Retain only the best K hits. A full sort wastes time and memory on large Xtream catalogs.
-        fun <T> find(source: List<Pair<String, T>>): List<T> {
-            val limit = limitPerType.coerceAtLeast(0)
+        // Search in compact (normalized name, id) rows only, then hydrate matched items.
+        // Preserve accent-insensitive matching and deterministic top-K ranking.
+        fun find(source: List<Pair<String, Int>>): List<Int> {
+            val limit = limitPerType.coerceIn(0, 150)
             if (limit == 0) return emptyList()
-            data class Hit<T>(val offset: Int, val position: Int, val value: T)
-            val worstFirst = compareByDescending<Hit<T>> { it.offset }.thenByDescending { it.position }
-            val bestFirst = compareBy<Hit<T>> { it.offset }.thenBy { it.position }
+            data class Hit(val offset: Int, val position: Int, val id: Int)
+            val worstFirst = compareByDescending<Hit> { it.offset }.thenByDescending { it.position }
+            val bestFirst = compareBy<Hit> { it.offset }.thenBy { it.position }
             val best = java.util.PriorityQueue(worstFirst)
-            source.forEachIndexed { position, (key, value) ->
+            source.forEachIndexed { position, (key, id) ->
                 val offset = key.indexOf(normalizedQuery)
                 if (offset < 0) return@forEachIndexed
-                val hit = Hit(offset, position, value)
+                val hit = Hit(offset, position, id)
                 if (best.size < limit) best.add(hit)
                 else if (bestFirst.compare(hit, best.peek()) < 0) {
                     best.poll()
                     best.add(hit)
                 }
             }
-            return best.sortedWith(bestFirst).map { it.value }
+            return best.sortedWith(bestFirst).map { it.id }
         }
 
-        GlobalSearchResults(
-            live = find(cache.live),
-            vod = find(cache.vod),
-            series = find(cache.series)
-        )
+        val liveIds = find(cache.live)
+        val vodIds = find(cache.vod)
+        val seriesIds = find(cache.series)
+        withContext(Dispatchers.IO) {
+            val liveItems = if (liveIds.isEmpty()) emptyMap() else dao.getSearchLiveItems(profileId, liveIds).associateBy { it.streamId }
+            val vodItems = if (vodIds.isEmpty()) emptyMap() else dao.getSearchVodItems(profileId, vodIds).associateBy { it.streamId }
+            val seriesItems = if (seriesIds.isEmpty()) emptyMap() else dao.getSearchSeriesItems(profileId, seriesIds).associateBy { it.seriesId }
+            GlobalSearchResults(
+                live = liveIds.mapNotNull { liveItems[it]?.toDomain() },
+                vod = vodIds.mapNotNull { vodItems[it]?.toDomain() },
+                series = seriesIds.mapNotNull { seriesItems[it]?.toDomain() }
+            )
+        }
     }
 
     private suspend fun buildSearchCache(profileId: String): SearchCache = withContext(Dispatchers.IO) {
         SearchCache(
-            live = dao.getAllChannels(profileId)
-                .asSequence()
-                .filterNot { it.isHidden }
-                .map { normalizeSearchText(it.name) to it.toDomain() }
-                .toList(),
-            vod = dao.getAllVod(profileId)
-                .map { normalizeSearchText(it.name) to it.toDomain() },
-            series = dao.getAllSeries(profileId)
-                .map { normalizeSearchText(it.name) to it.toDomain() }
+            live = dao.getLiveSearchKeys(profileId).map { normalizeSearchText(it.name) to it.id },
+            vod = dao.getVodSearchKeys(profileId).map { normalizeSearchText(it.name) to it.id },
+            series = dao.getSeriesSearchKeys(profileId).map { normalizeSearchText(it.name) to it.id }
         )
     }
 

@@ -8,8 +8,29 @@ import androidx.room.Transaction
 import androidx.paging.PagingSource
 import kotlinx.coroutines.flow.Flow
 
+/** Minimal search index row: avoid materializing posters, synopsis and EPG metadata. */
+data class MediaSearchKey(val id: Int, val name: String)
+
 @Dao
 interface TVFlowDao {
+    @Query("SELECT streamId AS id, name FROM live_channels WHERE profileId = :profileId AND isHidden = 0")
+    suspend fun getLiveSearchKeys(profileId: String): List<MediaSearchKey>
+
+    @Query("SELECT streamId AS id, name FROM vod_items WHERE profileId = :profileId")
+    suspend fun getVodSearchKeys(profileId: String): List<MediaSearchKey>
+
+    @Query("SELECT seriesId AS id, name FROM series_items WHERE profileId = :profileId")
+    suspend fun getSeriesSearchKeys(profileId: String): List<MediaSearchKey>
+
+    @Query("SELECT * FROM live_channels WHERE profileId = :profileId AND streamId IN (:ids) AND isHidden = 0")
+    suspend fun getSearchLiveItems(profileId: String, ids: List<Int>): List<LiveChannelEntity>
+
+    @Query("SELECT * FROM vod_items WHERE profileId = :profileId AND streamId IN (:ids)")
+    suspend fun getSearchVodItems(profileId: String, ids: List<Int>): List<VodItemEntity>
+
+    @Query("SELECT * FROM series_items WHERE profileId = :profileId AND seriesId IN (:ids)")
+    suspend fun getSearchSeriesItems(profileId: String, ids: List<Int>): List<SeriesItemEntity>
+
     @Query("SELECT * FROM live_categories WHERE profileId = :profileId AND isHidden = 0 ORDER BY CASE WHEN customOrder IS NULL THEN 1 ELSE 0 END, customOrder, sortOrder, name")
     fun observeCategories(profileId: String): Flow<List<LiveCategoryEntity>>
 

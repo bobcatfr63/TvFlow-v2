@@ -23,6 +23,7 @@ object InstalledReleaseNotes {
         .take(4)
 
     private fun frenchSummary(subject: String): String = when {
+        "compact global search index" in subject -> "TVFlow AI : recherche plus économe en mémoire sur les catalogues volumineux."
         "balance AI candidates across IPTV categories" in subject -> "TVFlow AI : suggestions mieux réparties entre les catégories IPTV sur les gros catalogues."
         "discover AI candidates from provider categories" in subject -> "TVFlow AI : recherche par genre élargie aux catégories IPTV, même sans mots-clés dans les titres."
         "avoid repeat TMDB genre enrichment" in subject -> "TMDB : moins de recherches répétées, progression sur davantage de fiches."
