@@ -119,6 +119,11 @@ internal object TvFlowIntent {
         "science" to setOf(878, 10765)
     )
 
+    /** Genre browsing can use provider category candidates without warming the full text index. */
+    fun isGenreBrowsing(query: Parsed): Boolean =
+        query.terms.any { it in genreIdsByTerm } &&
+            query.terms.all { it in genreIdsByTerm || it in setOf("francais", "francaise") }
+
     fun score(
         query: Parsed, title: String, description: String?, year: Int?,
         categoryName: String? = null, tmdbGenreIds: String? = null
@@ -137,11 +142,17 @@ internal object TvFlowIntent {
                 word == normalizedTerm || (normalizedTerm.length >= 5 && word.startsWith(normalizedTerm))
             }
         }
-        // For compound genre requests, both genres must be supported by the item's metadata.
-        // A title containing only "Aventures" is not proof of "action et aventure".
+        // Requested genres are constraints, not optional ranking terms.
+        // A French documentary must not pass a "comedie francaise" request
+        // just because its title contains "francaise".
         val actionAdventure = query.terms.contains("action") && query.terms.contains("aventure")
         if (actionAdventure && (!matches(plot, "action") && !matches(category, "action") && !genreMatches("action") ||
                     !matches(plot, "aventure") && !matches(category, "aventure") && !genreMatches("aventure"))) return 0
+        val requestedGenres = query.terms.filter { it in genreIdsByTerm }
+        if (requestedGenres.any { term ->
+                !genreMatches(term) && !matches(category, term) &&
+                    !matches(plot, term) && !matches(name, term)
+            }) return 0
         val matching = query.terms.sumOf { term ->
             when {
                 genreMatches(term) -> 25

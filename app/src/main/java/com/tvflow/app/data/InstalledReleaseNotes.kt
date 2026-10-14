@@ -23,6 +23,7 @@ object InstalledReleaseNotes {
         .take(4)
 
     private fun frenchSummary(subject: String): String = when {
+        "filter requested genres before ranking" in subject -> "TVFlow AI : genres respectés et recherches par catégories accélérées sur les gros catalogues."
         "compact global search index" in subject -> "TVFlow AI : recherche plus économe en mémoire sur les catalogues volumineux."
         "balance AI candidates across IPTV categories" in subject -> "TVFlow AI : suggestions mieux réparties entre les catégories IPTV sur les gros catalogues."
         "discover AI candidates from provider categories" in subject -> "TVFlow AI : recherche par genre élargie aux catégories IPTV, même sans mots-clés dans les titres."

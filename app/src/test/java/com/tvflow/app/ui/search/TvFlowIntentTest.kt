@@ -86,6 +86,24 @@ class TvFlowIntentTest {
         assertTrue(TvFlowIntent.score(query, "Robot", "Un programmeur lutte contre des pirates informatiques", null) > 0)
         assertEquals(0, TvFlowIntent.score(query, "Cuisine et voyage", "Recettes et découvertes", null))
     }
+    @Test fun pureGenreBrowsingCanAvoidHeavyTextIndex() {
+        assertTrue(TvFlowIntent.isGenreBrowsing(TvFlowIntent.parse("Une comédie française")))
+        assertTrue(TvFlowIntent.isGenreBrowsing(TvFlowIntent.parse("Film d'action et d'aventure")))
+        assertFalse(TvFlowIntent.isGenreBrowsing(TvFlowIntent.parse("Film d'action avec piratage informatique")))
+        assertFalse(TvFlowIntent.isGenreBrowsing(TvFlowIntent.parse("Un film comme Interstellar")))
+    }
+    @Test fun requestedComedyMustNotReturnFrenchDocumentary() {
+        val query = TvFlowIntent.parse("Une comédie française")
+        assertEquals(0, TvFlowIntent.score(query, "L'histoire française des Rolling Stones", null, 2022, "FR Documentaire"))
+        assertEquals(0, TvFlowIntent.score(query, "FR Coup de foudre à la française", null, 2021, "FR Romance"))
+        assertTrue(TvFlowIntent.score(query, "Le grand dîner", null, 2023, "FR Comédie") > 0)
+        assertTrue(TvFlowIntent.score(query, "Le grand dîner", null, 2023, "FR Films", "35") > 0)
+    }
+    @Test fun requestedActionAdventureRequiresBothGenres() {
+        val query = TvFlowIntent.parse("Films d'action et d'aventure")
+        assertEquals(0, TvFlowIntent.score(query, "Le monde", null, 2024, "FR Action", "28"))
+        assertTrue(TvFlowIntent.score(query, "Le monde", null, 2024, "FR Films", "28,12") > 0)
+    }
     @Test fun providerCategoriesCanDiscoverGenreTitlesWithoutKeywords() {
         val request = TvFlowIntent.parse("cherche une série d'action et aventure")
         assertTrue(TvFlowIntent.score(request, "", null, null, "FR Action Aventure") > 0)

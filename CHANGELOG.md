@@ -1,6 +1,12 @@
 # Historique des mises à jour TVFlow-v2
 
-## 1.0.143 (en préparation)
+## 1.0.144 (en préparation)
+
+- **TVFlow AI** : une recherche de comédie n'affiche plus un documentaire simplement parce que son titre contient « française » ; les genres demandés sont des contraintes explicites.
+- **TVFlow AI** : pour les recherches simples par genre, la sélection Room bornée par catégories IPTV s'exécute en premier et évite le chargement du grand index textuel si elle trouve au moins 20 titres pertinents.
+- **Tests** : non-régression comédie française, action + aventure et distinction des recherches textuelles libres.
+
+## 1.0.143
 
 - **TVFlow AI / recherche** : l'index ne conserve plus toutes les données des chaînes, films et séries en mémoire ; il conserve seulement les titres normalisés et identifiants.
 - **Performance** : affiches, synopsis et métadonnées complètes sont chargés depuis Room seulement pour les résultats sélectionnés (maximum 150 par type).

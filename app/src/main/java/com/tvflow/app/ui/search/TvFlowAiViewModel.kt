@@ -104,11 +104,8 @@ class TvFlowAiViewModel @Inject constructor(
                 } else null
                 val searchQueries = if (requestedPerson != null) verifiedCredits.orEmpty().map { it.first }.take(24)
                     else TvFlowIntent.searchTerms(raw).take(8)
-                if (!tvQuestion) for (term in searchQueries) {
-                    val batch = repository.searchGlobal(term, limitPerType = 70)
-                    batch.vod.forEach { movies[it.streamId] = it }
-                    batch.series.forEach { series[it.seriesId] = it }
-                }
+                // Resolve provider genre categories first: avoid building the large
+                // title index for pure genre browsing when these candidates suffice.
                 // Provider categories can identify a genre even when the title and plot do not.
                 // The supplemental Room queries are limited to 8 categories and 120 items per type.
                 if (!tvQuestion && requestedPerson == null && parsed.terms.isNotEmpty()) {
@@ -123,6 +120,18 @@ class TvFlowAiViewModel @Inject constructor(
                         categoryResults.vod.forEach { movies[it.streamId] = it }
                         categoryResults.series.forEach { series[it.seriesId] = it }
                     }
+                }
+                val providerMatches = movies.values.count {
+                    TvFlowIntent.score(parsed, it.name, it.synopsis, it.releaseYear, movieCategoryNames[it.categoryId], it.tmdbGenreIds) > 0
+                } + series.values.count {
+                    TvFlowIntent.score(parsed, it.name, it.plot, it.releaseYear, seriesCategoryNames[it.categoryId], it.tmdbGenreIds) > 0
+                }
+                val sufficientGenreCandidates = requestedPerson == null &&
+                    TvFlowIntent.isGenreBrowsing(parsed) && providerMatches >= 20
+                if (!tvQuestion && !sufficientGenreCandidates) for (term in searchQueries) {
+                    val batch = repository.searchGlobal(term, limitPerType = 70)
+                    batch.vod.forEach { movies[it.streamId] = it }
+                    batch.series.forEach { series[it.seriesId] = it }
                 }
                 val programs = if (tvQuestion) {
                     val (start, end) = TvProgramMatcher.window(raw)
