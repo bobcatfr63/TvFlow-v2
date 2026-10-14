@@ -904,11 +904,19 @@ class XtreamRepository @Inject constructor(
     ): GlobalSearchResults = withContext(Dispatchers.IO) {
         val profileId = currentProfileId()
         val limit = limitPerType.coerceIn(0, 150)
+        val vodIds = vodCategoryIds.distinct().take(8)
+        val seriesIds = seriesCategoryIds.distinct().take(8)
+        // A single SQL IN + LIMIT can exhaust the quota in one category.
+        // Allocate a predictable share to each relevant category instead.
         GlobalSearchResults(
-            vod = if (limit == 0 || vodCategoryIds.isEmpty()) emptyList()
-                else dao.getVodAiCategoryCandidates(profileId, vodCategoryIds.distinct().take(8), limit).map { it.toDomain() },
-            series = if (limit == 0 || seriesCategoryIds.isEmpty()) emptyList()
-                else dao.getSeriesAiCategoryCandidates(profileId, seriesCategoryIds.distinct().take(8), limit).map { it.toDomain() }
+            vod = if (limit == 0 || vodIds.isEmpty()) emptyList()
+                else vodIds.flatMap { category ->
+                    dao.getVodAiCategoryCandidates(profileId, category, (limit + vodIds.size - 1) / vodIds.size)
+                }.take(limit).map { it.toDomain() },
+            series = if (limit == 0 || seriesIds.isEmpty()) emptyList()
+                else seriesIds.flatMap { category ->
+                    dao.getSeriesAiCategoryCandidates(profileId, category, (limit + seriesIds.size - 1) / seriesIds.size)
+                }.take(limit).map { it.toDomain() }
         )
     }
 

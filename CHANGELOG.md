@@ -1,6 +1,11 @@
 # Historique des mises à jour TVFlow-v2
 
-## 1.0.141 (en préparation)
+## 1.0.142 (en préparation)
+
+- **TVFlow AI** : les suggestions par catégories IPTV sont maintenant équilibrées entre les catégories pertinentes, au lieu de privilégier arbitrairement une seule catégorie.
+- **Performance** : les lectures Room restent plafonnées à 120 fiches par type et huit catégories, sans tri global coûteux sur les gros catalogues.
+
+## 1.0.141
 
 - **TVFlow AI** : la recherche par genre récupère aussi des films et séries via les catégories IPTV du serveur, même si le titre et le synopsis ne contiennent aucun mot-clé.
 - **Performance** : lecture Room bornée à huit catégories et 120 éléments par type, complémentaire au classement existant ; pas de chargement intégral du catalogue pour cette découverte.

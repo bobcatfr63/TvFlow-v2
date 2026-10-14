@@ -244,11 +244,11 @@ interface TVFlowDao {
     @Query("UPDATE series_items SET plot = COALESCE(:plot, plot), releaseYear = COALESCE(:year, releaseYear), releaseMonth = COALESCE(:month, releaseMonth), coverUrl = COALESCE(:coverUrl, coverUrl), rating = COALESCE(:rating, rating), tmdbGenreIds = COALESCE(:genreIds, tmdbGenreIds) WHERE profileId = :profileId AND seriesId = :seriesId")
     suspend fun updateSeriesMetadata(profileId: String, seriesId: Int, plot: String?, year: Int?, month: Int?, coverUrl: String?, rating: String?, genreIds: String? = null)
 
-    @Query("SELECT * FROM vod_items WHERE profileId = :profileId AND categoryId IN (:categoryIds) LIMIT :limit")
-    suspend fun getVodAiCategoryCandidates(profileId: String, categoryIds: List<String>, limit: Int): List<VodItemEntity>
+    @Query("SELECT * FROM vod_items WHERE profileId = :profileId AND categoryId = :categoryId LIMIT :limit")
+    suspend fun getVodAiCategoryCandidates(profileId: String, categoryId: String, limit: Int): List<VodItemEntity>
 
-    @Query("SELECT * FROM series_items WHERE profileId = :profileId AND categoryId IN (:categoryIds) LIMIT :limit")
-    suspend fun getSeriesAiCategoryCandidates(profileId: String, categoryIds: List<String>, limit: Int): List<SeriesItemEntity>
+    @Query("SELECT * FROM series_items WHERE profileId = :profileId AND categoryId = :categoryId LIMIT :limit")
+    suspend fun getSeriesAiCategoryCandidates(profileId: String, categoryId: String, limit: Int): List<SeriesItemEntity>
 
     @Query("SELECT * FROM vod_items WHERE profileId = :profileId AND name LIKE '%' || :query || '%' ORDER BY name LIMIT :limit")
     fun searchVod(profileId: String, query: String, limit: Int = 100): Flow<List<VodItemEntity>>
