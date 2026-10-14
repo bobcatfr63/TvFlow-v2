@@ -232,7 +232,7 @@ fun TvFlowAiScreen(
                     }
                 }
             }
-            if (!searching && !TvProgramMatcher.isTvQuestion(query) && !result.tvQuestion && query.isNotBlank() && result.movies.isEmpty() && result.series.isEmpty() && result.error == null) {
+            if (!searching && !TvProgramMatcher.isTvQuestion(query) && TvFlowSimilarity.referenceTitle(query) == null && !result.tvQuestion && query.isNotBlank() && result.movies.isEmpty() && result.series.isEmpty() && result.error == null) {
                 item { Text("Recherche terminée : aucun résultat confirmé sur le serveur actif. Pour les thèmes (informatique, piratage, science…), essaie aussi un mot-clé présent dans un titre ou un synopsis.", color = MaterialTheme.colorScheme.onSurface) }
             }
             if (!searching && result.movies.isNotEmpty()) item { Text("Films dans ton catalogue", style = MaterialTheme.typography.titleLarge, color = Color(0xFFF4FAFF), fontWeight = FontWeight.Bold) }
