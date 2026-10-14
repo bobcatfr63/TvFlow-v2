@@ -126,6 +126,7 @@ fun HomeScreen(
                     }
                     SortToolbar(
                         sort = selectedSort,
+                        isTnt = selectedSource == ChannelSource.Tnt,
                         channelCount = channels.size,
                         onSort = viewModel::cycleSort
                     )
@@ -231,6 +232,7 @@ private fun FilterChip(label: String, selected: Boolean, onClick: () -> Unit) {
 @Composable
 private fun SortToolbar(
     sort: HomeSort,
+    isTnt: Boolean,
     channelCount: Int,
     onSort: () -> Unit
 ) {
@@ -247,7 +249,7 @@ private fun SortToolbar(
         val interaction = remember { MutableInteractionSource() }
         val focused by interaction.collectIsFocusedAsState()
         Card(
-            onClick = onSort,
+            onClick = { if (!isTnt) onSort() },
             interactionSource = interaction,
             modifier = Modifier.graphicsLayer {
                 scaleX = 1f
@@ -262,7 +264,7 @@ private fun SortToolbar(
             )
         ) {
             Text(
-                text = "TRI : " + when (sort) {
+                text = if (isTnt) "ORDRE : TNT" else "TRI : " + when (sort) {
                     HomeSort.NAME -> "A-Z"
                     HomeSort.FAVORITES -> "FAVORIS"
                     HomeSort.EPG -> "EPG"

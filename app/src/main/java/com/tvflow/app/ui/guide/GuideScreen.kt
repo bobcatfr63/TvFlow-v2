@@ -163,17 +163,22 @@ fun GuideScreen(
                 }
                 GuideToolbar(
                     sort = state.sort,
+                    tnt = state.selectedCategoryId == GUIDE_TNT,
                     epgOnly = state.epgOnly,
                     onSort = viewModel::cycleSort,
                     onEpgOnly = viewModel::toggleEpgOnly,
                     compact = compactGuide
                 )
-            val channelNumbers = remember(state.channels) {
+            val channelNumbers = remember(state.channels, state.selectedCategoryId) {
                 var fallbackNumber = 26
                 buildMap {
                     state.channels.forEach { channel ->
                         if (!channel.isSectionMarker) {
-                            put(channel.streamId, channel.logicalNumber ?: fallbackNumber++)
+                            put(channel.streamId, if (state.selectedCategoryId == GUIDE_TNT) {
+                                com.tvflow.app.data.repository.frenchTntNumber(
+                                    com.tvflow.app.data.repository.canonicalFrenchChannelName(channel.name)
+                                ) ?: fallbackNumber++
+                            } else channel.logicalNumber ?: fallbackNumber++)
                         }
                     }
                 }
@@ -707,7 +712,7 @@ private fun SubFilterChip(text: String, selected: Boolean, compact: Boolean, onC
 }
 
 @Composable
-private fun GuideToolbar(sort: GuideSort, epgOnly: Boolean, onSort: () -> Unit, onEpgOnly: () -> Unit, compact: Boolean) {
+private fun GuideToolbar(sort: GuideSort, tnt: Boolean, epgOnly: Boolean, onSort: () -> Unit, onEpgOnly: () -> Unit, compact: Boolean) {
     val horizontalPadding = if (compact) 11.dp else 14.dp
     val verticalPadding = if (compact) 5.dp else 8.dp
     Row(
@@ -716,11 +721,11 @@ private fun GuideToolbar(sort: GuideSort, epgOnly: Boolean, onSort: () -> Unit, 
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            "TRI : " + when(sort) { GuideSort.NAME -> "A-Z"; GuideSort.FAVORITES -> "FAVORIS"; GuideSort.EPG -> "EPG" },
+            text = if (tnt) "ORDRE : TNT" else "TRI : " + when(sort) { GuideSort.NAME -> "A-Z"; GuideSort.FAVORITES -> "FAVORIS"; GuideSort.EPG -> "EPG" },
             color = Color.White,
             fontWeight = FontWeight.Bold,
             style = if (compact) MaterialTheme.typography.labelLarge else MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(PanelSoft).clickable(onClick = onSort)
+            modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(PanelSoft).clickable(enabled = !tnt, onClick = onSort)
                 .padding(horizontal = horizontalPadding, vertical = verticalPadding)
         )
         Text(

@@ -64,6 +64,20 @@ class HomeSortingTest {
         assertEquals(listOf(2, 3), result.map { it.streamId })
     }
 
+    @Test
+    fun tntCategoryUsesOfficialFrenchNumberingNotAlphabeticalOrder() {
+        val channels = listOf(
+            channel(4, "FR - FRANCE 4", false, null),
+            channel(3, "FR - FRANCE 3", false, null),
+            channel(1, "FR - TF1", false, null),
+            channel(2, "FR - FRANCE 2", false, null)
+        )
+        assertEquals(
+            listOf(1, 2, 3, 4),
+            com.tvflow.app.data.repository.selectTntChannels(channels).map { it.streamId }
+        )
+    }
+
     private fun channel(
         id: Int,
         name: String,
