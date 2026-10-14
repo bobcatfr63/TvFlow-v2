@@ -1,6 +1,11 @@
 # Historique des mises à jour TVFlow-v2
 
-## 1.0.131 (en préparation)
+## 1.0.132 (en préparation)
+
+- **TMDB** : nettoyage plus précis des noms de films et séries IPTV, sans perdre les sous-titres significatifs entre parenthèses.
+- **Tests** : cas de noms avec marqueurs FR, année, 4K et FHD, et vérification de conservation du titre réel.
+
+## 1.0.131
 
 - **TMDB** : reconnaît aussi le titre original des films et séries lorsque le titre traduit diffère.
 - **Performances TMDB** : évite pendant six heures les mêmes recherches sans correspondance dans une session, avec cache limité à 512 entrées ; contrôle de l'année conservé.

@@ -91,7 +91,7 @@ class TmdbMetadataClient @Inject constructor(
         val credential = settingsStore.currentTmdbToken()?.let(::normalizeCredential)?.takeIf { it.isNotBlank() } ?: return@withContext null
         if (credential == rejectedCredential) return@withContext null
         val inferredYear = knownYear ?: extractYear(rawTitle)
-        val query = cleanTitle(rawTitle)
+        val query = TmdbTitleCleaner.clean(rawTitle)
         if (query.length < 2) return@withContext null
         val lookupKey = "${type.name}:${normalize(query)}:${inferredYear ?: 0}:${credential.hashCode()}"
         synchronized(missedLookups) {
