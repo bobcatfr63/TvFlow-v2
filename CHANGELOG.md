@@ -1,6 +1,11 @@
 # Historique des mises à jour TVFlow-v2
 
-## 1.0.122 (en validation)
+## 1.0.123 (en validation)
+
+- **Guide TV** : retrait de l'entrée « Toutes les chaînes » devenue redondante avec l'organisation du catalogue dans les réglages.
+- **Navigation** : ouverture du Guide sur la catégorie TNT ; favoris et catégories du serveur restent accessibles, les chaînes masquées ne sont pas supprimées.
+
+## 1.0.122
 
 - **Guide et Direct** : nouvelle catégorie **TNT** regroupant les chaînes nationales reconnues, indépendamment des catégories IPTV du serveur ; retrait du mode de tri TNT.
 - **Thème Rainbow** : animation de couleur renforcée sur le contour fixe, notamment sur les catégories du Guide ; contours animés uniquement lorsque le thème est sélectionné.

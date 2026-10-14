@@ -336,11 +336,6 @@ private fun CategoryPanel(
             onClick = { onSelect(GUIDE_FAVORITES) }
         )
         FocusCategoryItem(
-            text = "Toutes les chaînes",
-            selected = selectedId == GUIDE_ALL,
-            onClick = { onSelect(GUIDE_ALL) }
-        )
-        FocusCategoryItem(
             text = "📺 TNT",
             selected = selectedId == GUIDE_TNT,
             onClick = { onSelect(GUIDE_TNT) }

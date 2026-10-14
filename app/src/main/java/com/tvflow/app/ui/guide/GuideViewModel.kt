@@ -184,7 +184,7 @@ class GuideViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             categories.collect { cats ->
-                if (selectedCategoryId.value == null && cats.isNotEmpty()) selectCategory(GUIDE_ALL)
+                if (selectedCategoryId.value == null && cats.isNotEmpty()) selectCategory(GUIDE_TNT)
             }
         }
         viewModelScope.launch {
@@ -197,7 +197,7 @@ class GuideViewModel @Inject constructor(
                 previewStreamId.value = null
                 pinRequiredCategory.value = null
                 pinError.value = null
-                selectCategory(GUIDE_ALL)
+                selectCategory(GUIDE_TNT)
             }
         }
     }

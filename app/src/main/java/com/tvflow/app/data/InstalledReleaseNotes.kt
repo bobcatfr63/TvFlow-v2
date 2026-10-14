@@ -23,6 +23,7 @@ object InstalledReleaseNotes {
         .take(4)
 
     private fun frenchSummary(subject: String): String = when {
+        "simplify Guide categories" in subject -> "Guide TV : suppression de Toutes les chaînes, ouverture sur TNT et accès direct aux favoris."
         "TNT category and rainbow animation" in subject -> "Nouvelle catégorie TNT dans le Guide et le Direct ; effet lumineux Rainbow animé amélioré."
         "compact AI results and extend rainbow focus" in subject -> "TVFlow AI : résultats plus visibles et bordures Rainbow ajoutées à la recherche."
         "rainbow" in subject.lowercase() -> "Nouveau thème Arc-en-ciel : contours lumineux animés autour des onglets actifs."
