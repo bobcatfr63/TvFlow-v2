@@ -1,6 +1,11 @@
 # Historique des mises à jour TVFlow-v2
 
-## 1.0.133 (en préparation)
+## 1.0.134 (en préparation)
+
+- **Mises à jour** : suppression du second popup et de la seconde recherche sur l'écran d'accueil ; conservation d'une seule fenêtre globale de mise à jour.
+- **Nouveautés** : le récapitulatif de la version installée reste accessible après l'installation.
+
+## 1.0.133
 
 - **Diagnostics TMDB** : compteurs distincts pour correspondances, titres introuvables, refus d'accès, limitations d'API, erreurs HTTP, erreurs réseau et réponses invalides.
 - **Réglages** : nouveaux diagnostics de la session affichés séparément des statistiques historiques du profil.

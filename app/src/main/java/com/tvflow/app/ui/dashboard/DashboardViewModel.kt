@@ -131,9 +131,7 @@ class DashboardViewModel @Inject constructor(
                 )
             }
         }
-        if (!BuildConfig.IS_PLAY_STORE) {
-            checkUpdates()
-        }
+        // Update availability is checked once by the global navigation overlay.
         viewModelScope.launch {
             var currentStreamId: Int? = null
             while (true) {
