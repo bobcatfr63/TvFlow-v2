@@ -1395,9 +1395,9 @@ private fun pulseSubtitle(explicit: Set<String>, learned: List<String>): String 
     val learnedLabel = learned.filterNot { it in explicit }.take(2).joinToString(" • ")
     return when {
         explicitLabel.isNotBlank() && learnedLabel.isNotBlank() ->
-            "Tes choix : $explicitLabel · Pulse apprend aussi : $learnedLabel"
+            "Tes préférences : $explicitLabel · Selon ton historique : $learnedLabel"
         explicitLabel.isNotBlank() -> "Inspiré de tes goûts : $explicitLabel"
-        learnedLabel.isNotBlank() -> "Pulse l’a appris de tes habitudes : $learnedLabel"
+        learnedLabel.isNotBlank() -> "Selon ton historique : $learnedLabel"
         else -> "Une sélection vivante qui évolue avec tes habitudes."
     }
 }

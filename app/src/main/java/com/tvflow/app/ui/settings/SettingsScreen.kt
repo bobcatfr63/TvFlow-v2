@@ -406,7 +406,7 @@ fun SettingsScreen(
                 Text("Traitement limité à 12 fiches par catégorie et 120 catégories par passage, pour préserver la fluidité. La progression indique les catégories parcourues, pas la couverture totale du catalogue.", style = MaterialTheme.typography.bodySmall)
                 val stats = state.tmdbStats
                 Text(
-                    "Activité TMDB sur le profil Xtream actif : ${stats.attempted} tentative(s), ${stats.enriched} fiche(s) complétée(s), ${stats.failed} sans enrichissement.",
+                    "Recherches TMDB cumulées sur ce profil : ${stats.attempted} tentative(s), ${stats.enriched} réponse(s) avec métadonnées, ${stats.failed} sans données exploitables.",
                     style = MaterialTheme.typography.bodySmall
                 )
                 Text(

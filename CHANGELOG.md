@@ -1,6 +1,11 @@
 # Historique des mises à jour TVFlow-v2
 
-## 1.0.129 (en préparation)
+## 1.0.130 (en préparation)
+
+- **Accueil / Pulse** : présentation plus compréhensible des préférences déclarées et des genres déduits de l'historique.
+- **TMDB** : clarification des statistiques cumulées : nombre de recherches, réponses exploitables et recherches sans métadonnées ; celles-ci ne représentent pas nécessairement des erreurs réseau.
+
+## 1.0.129
 
 - **Mises à jour fiables** : versionCode désormais déterministe selon le numéro de version TVFlow, y compris avec un historique Git partiel du runner local ; évite les blocages d'installation liés à un code Android inférieur.
 - **TNT** : conserve les 25 chaînes reconnues, la numérotation nationale et le libellé « ORDRE : TNT » vérifiés sur la Mi Box.
