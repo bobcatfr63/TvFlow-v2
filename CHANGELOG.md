@@ -1,6 +1,12 @@
 # Historique des mises à jour TVFlow-v2
 
-## 1.0.139 (en préparation)
+## 1.0.140 (en préparation)
+
+- **TMDB** : les tentatives d'enrichissement sont mémorisées pour les films et les séries, afin de ne pas retraiter constamment les mêmes titres sans résultat.
+- **Performances** : nouvelle tentative après 24 heures ; les passages successifs progressent sur d'autres fiches au lieu de bloquer sur les premières.
+- **Base de données** : migration Room v12 vers v13 sans effacement du catalogue ; historique des tentatives conservé lors des actualisations IPTV.
+
+## 1.0.139
 
 - **Genres TMDB** : les fiches déjà pourvues d'un synopsis mais sans genres officiels sont désormais éligibles à l'enrichissement progressif.
 - **Performances** : suppression d'appels Xtream superflus lorsque seule la liste de genres manque ; passage toujours limité à 12 fiches par catégorie.

@@ -850,12 +850,16 @@ class XtreamRepository @Inject constructor(
                     }
                 localBackfill.chunked(500).forEach { batch -> dao.upsertVod(batch) }
 
-                val candidates = dao.getVodMissingMetadata(profileId, categoryId, limit)
+                val cutoff = System.currentTimeMillis() - 24L * 60L * 60L * 1000L
+                val candidates = dao.getVodMissingMetadata(profileId, categoryId, limit, cutoff)
                 candidates.chunked(4).forEach { batch ->
                     coroutineScope {
                         batch.map { item ->
                             async {
-                                runCatching { enrichVodDetails(item.streamId) }
+                                runCatching {
+                                    dao.markVodGenreAttempt(profileId, item.streamId, System.currentTimeMillis())
+                                    enrichVodDetails(item.streamId)
+                                }
                                     .onFailure { error ->
                                         Log.d("TVFlowVodInfo", "Metadata enrichment failed for id=" + item.streamId + ": " + error.message)
                                     }
@@ -864,7 +868,10 @@ class XtreamRepository @Inject constructor(
                     }
                 }
             }
-            MediaType.SERIES -> dao.getSeriesMissingMetadata(profileId, categoryId, limit).forEach { item ->
+            MediaType.SERIES -> dao.getSeriesMissingMetadata(
+                profileId, categoryId, limit, System.currentTimeMillis() - 24L * 60L * 60L * 1000L
+            ).forEach { item ->
+                dao.markSeriesGenreAttempt(profileId, item.seriesId, System.currentTimeMillis())
                 val metadata = runCatching {
                     tmdbMetadataClient.search(MediaType.SERIES, item.name, item.releaseYear)
                 }.getOrNull()

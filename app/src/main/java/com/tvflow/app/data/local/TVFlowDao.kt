@@ -214,8 +214,14 @@ interface TVFlowDao {
     @Query("SELECT * FROM vod_items WHERE profileId = :profileId AND categoryId = :categoryId AND releaseYear IS NULL")
     suspend fun getVodMissingReleaseDates(profileId: String, categoryId: String): List<VodItemEntity>
 
-    @Query("SELECT * FROM vod_items WHERE profileId = :profileId AND categoryId = :categoryId AND (tmdbGenreIds IS NULL OR tmdbGenreIds = '' OR releaseYear IS NULL OR synopsis IS NULL OR synopsis = '') ORDER BY COALESCE(added, 0) DESC, CAST(streamId AS INTEGER) DESC LIMIT :limit")
-    suspend fun getVodMissingMetadata(profileId: String, categoryId: String, limit: Int): List<VodItemEntity>
+    @Query("SELECT * FROM vod_items WHERE profileId = :profileId AND categoryId = :categoryId AND (tmdbGenreAttemptAt IS NULL OR tmdbGenreAttemptAt < :before) AND (tmdbGenreIds IS NULL OR tmdbGenreIds = '' OR releaseYear IS NULL OR synopsis IS NULL OR synopsis = '') ORDER BY COALESCE(added, 0) DESC, CAST(streamId AS INTEGER) DESC LIMIT :limit")
+    suspend fun getVodMissingMetadata(profileId: String, categoryId: String, limit: Int, before: Long): List<VodItemEntity>
+
+    @Query("UPDATE vod_items SET tmdbGenreAttemptAt = :attemptAt WHERE profileId = :profileId AND streamId = :streamId")
+    suspend fun markVodGenreAttempt(profileId: String, streamId: Int, attemptAt: Long)
+
+    @Query("UPDATE series_items SET tmdbGenreAttemptAt = :attemptAt WHERE profileId = :profileId AND seriesId = :seriesId")
+    suspend fun markSeriesGenreAttempt(profileId: String, seriesId: Int, attemptAt: Long)
 
     @Query("UPDATE vod_items SET synopsis = COALESCE(:synopsis, synopsis), releaseYear = COALESCE(:year, releaseYear), releaseMonth = COALESCE(:month, releaseMonth), posterUrl = COALESCE(:posterUrl, posterUrl), rating = COALESCE(:rating, rating), tmdbGenreIds = COALESCE(:genreIds, tmdbGenreIds), detailsFetchedAt = COALESCE(:detailsFetchedAt, detailsFetchedAt) WHERE profileId = :profileId AND streamId = :streamId")
     suspend fun updateVodMetadata(profileId: String, streamId: Int, synopsis: String?, year: Int?, month: Int?, posterUrl: String?, rating: String?, detailsFetchedAt: Long? = null, genreIds: String? = null)
@@ -232,8 +238,8 @@ interface TVFlowDao {
     @Query("SELECT DISTINCT releaseMonth FROM series_items WHERE profileId = :profileId AND (:categoryId IS NULL OR categoryId = :categoryId) AND releaseYear = :year AND releaseMonth IS NOT NULL ORDER BY releaseMonth DESC")
     fun observeSeriesReleaseMonths(profileId: String, categoryId: String?, year: Int): Flow<List<Int>>
 
-    @Query("SELECT * FROM series_items WHERE profileId = :profileId AND categoryId = :categoryId AND (tmdbGenreIds IS NULL OR tmdbGenreIds = '' OR releaseYear IS NULL OR plot IS NULL OR plot = '') LIMIT :limit")
-    suspend fun getSeriesMissingMetadata(profileId: String, categoryId: String, limit: Int): List<SeriesItemEntity>
+    @Query("SELECT * FROM series_items WHERE profileId = :profileId AND categoryId = :categoryId AND (tmdbGenreAttemptAt IS NULL OR tmdbGenreAttemptAt < :before) AND (tmdbGenreIds IS NULL OR tmdbGenreIds = '' OR releaseYear IS NULL OR plot IS NULL OR plot = '') LIMIT :limit")
+    suspend fun getSeriesMissingMetadata(profileId: String, categoryId: String, limit: Int, before: Long): List<SeriesItemEntity>
 
     @Query("UPDATE series_items SET plot = COALESCE(:plot, plot), releaseYear = COALESCE(:year, releaseYear), releaseMonth = COALESCE(:month, releaseMonth), coverUrl = COALESCE(:coverUrl, coverUrl), rating = COALESCE(:rating, rating), tmdbGenreIds = COALESCE(:genreIds, tmdbGenreIds) WHERE profileId = :profileId AND seriesId = :seriesId")
     suspend fun updateSeriesMetadata(profileId: String, seriesId: Int, plot: String?, year: Int?, month: Int?, coverUrl: String?, rating: String?, genreIds: String? = null)
@@ -307,7 +313,8 @@ interface TVFlowDao {
                 posterUrl = incoming.posterUrl ?: previous?.posterUrl,
                 rating = incoming.rating ?: previous?.rating,
                 detailsFetchedAt = previous?.detailsFetchedAt,
-                tmdbGenreIds = incoming.tmdbGenreIds ?: previous?.tmdbGenreIds
+                tmdbGenreIds = incoming.tmdbGenreIds ?: previous?.tmdbGenreIds,
+                tmdbGenreAttemptAt = previous?.tmdbGenreAttemptAt
             )
         }.chunked(500).forEach { batch -> upsertVod(batch) }
 
@@ -319,7 +326,8 @@ interface TVFlowDao {
                 releaseMonth = incoming.releaseMonth ?: previous?.releaseMonth,
                 coverUrl = incoming.coverUrl ?: previous?.coverUrl,
                 rating = incoming.rating ?: previous?.rating,
-                tmdbGenreIds = incoming.tmdbGenreIds ?: previous?.tmdbGenreIds
+                tmdbGenreIds = incoming.tmdbGenreIds ?: previous?.tmdbGenreIds,
+                tmdbGenreAttemptAt = previous?.tmdbGenreAttemptAt
             )
         }.chunked(500).forEach { batch -> upsertSeries(batch) }
     }

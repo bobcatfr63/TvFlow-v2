@@ -23,6 +23,7 @@ object InstalledReleaseNotes {
         .take(4)
 
     private fun frenchSummary(subject: String): String = when {
+        "avoid repeat TMDB genre enrichment" in subject -> "TMDB : moins de recherches répétées, progression sur davantage de fiches."
         "backfill TMDB genres on existing titles" in subject -> "TMDB : genres ajoutés aussi aux fiches ayant déjà un synopsis, sans appels Xtream inutiles."
         "show TMDB genre coverage" in subject -> "TMDB : couverture des genres mesurée pour films et séries dans les réglages."
         "persist TMDB genre IDs" in subject -> "TVFlow AI : genres TMDB enregistrés et pris en compte dans les recommandations."
