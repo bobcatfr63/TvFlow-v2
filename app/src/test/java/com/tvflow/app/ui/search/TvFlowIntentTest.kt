@@ -92,6 +92,24 @@ class TvFlowIntentTest {
         assertTrue(titleMatch > synopsisMatch)
         assertEquals(0, TvFlowIntent.score(query, "Cuisine", "Des recettes de famille", 2025))
     }
+    @Test fun conversationalPhrasesDoNotPolluteSearchTerms() {
+        val terms = TvFlowIntent.searchTerms("Trouve-moi un bon film d'action récent")
+        assertEquals(listOf("action"), terms)
+        assertTrue(TvFlowIntent.parse("Je veux un bon film d'action récent").recent)
+    }
+    @Test fun frenchPoliceSeriesIntentIgnoresFillerWords() {
+        val intent = TvFlowIntent.parse("Recommande-moi une bonne série policière française")
+        assertTrue(intent.seriesOnly)
+        assertTrue(intent.terms.contains("police"))
+        assertTrue(intent.terms.contains("francais"))
+        assertFalse(intent.terms.contains("bonne"))
+    }
+    @Test fun conversationalRecentRequestIsRecognized() {
+        val intent = TvFlowIntent.parse("Un nouveau film")
+        assertTrue(intent.recent)
+        assertTrue(intent.filmOnly)
+        assertEquals(0, TvFlowIntent.score(intent, "Film ancien", null, 1990))
+    }
     @Test fun recognizesEverydayFrenchGenreRequests() {
         val parsed = TvFlowIntent.parse("Une comedie francaise")
         assertTrue(parsed.terms.contains("comedie"))

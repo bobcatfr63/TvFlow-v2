@@ -23,6 +23,7 @@ object InstalledReleaseNotes {
         .take(4)
 
     private fun frenchSummary(subject: String): String = when {
+        "understand natural French AI requests" in subject -> "TVFlow AI : meilleure compréhension du français naturel et suggestions mieux ciblées."
         "improve AI ranking" in subject -> "TVFlow AI : recherches plus pertinentes, moins de faux résultats et priorité aux vrais titres."
         "simplify Guide categories" in subject -> "Guide TV : suppression de Toutes les chaînes, ouverture sur TNT et accès direct aux favoris."
         "TNT category and rainbow animation" in subject -> "Nouvelle catégorie TNT dans le Guide et le Direct ; effet lumineux Rainbow animé amélioré."

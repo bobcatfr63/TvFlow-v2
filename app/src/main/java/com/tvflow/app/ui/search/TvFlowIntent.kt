@@ -11,13 +11,18 @@ internal object TvFlowIntent {
         "je", "veux", "un", "une", "des", "de", "du", "la", "le", "les", "avec",
         "pour", "ce", "cette", "soir", "trouve", "moi", "regarder", "film",
         "films", "serie", "series", "qui", "dans", "beaucoup", "plusieurs",
-        "comme", "ayant", "sur", "et", "en", "a", "au", "aux", "me", "propose"
+        "comme", "ayant", "sur", "et", "en", "a", "au", "aux", "me", "propose",
+        "bon", "bonne", "bons", "bonnes", "cherche", "recherche", "recommande",
+        "interessant", "interessante", "interessants", "envie", "quelque", "chose",
+        "plutot", "genre", "sorti", "sortie", "sortis", "sorties", "dernier", "derniere"
     )
     private val synonyms = mapOf(
         "extraterrestre" to "alien",
         "extraterrestres" to "alien",
         "policiere" to "police",
         "policier" to "police",
+        "enquete" to "police",
+        "enquetes" to "police",
         "dessin" to "animation",
         "anime" to "animation",
         "effrayant" to "horreur",
@@ -57,7 +62,7 @@ internal object TvFlowIntent {
             terms = terms,
             seriesOnly = tokens.any { it in setOf("serie", "series", "saison", "saisons", "episode") },
             filmOnly = tokens.any { it in setOf("film", "films") },
-            recent = tokens.any { it.startsWith("recent") || it == "nouveau" }
+            recent = tokens.any { it.startsWith("recent") || it.startsWith("nouveau") || it.startsWith("nouvel") || it == "dernier" || it == "derniere" }
         )
     }
 
@@ -93,7 +98,7 @@ internal object TvFlowIntent {
     )
 
     fun searchTerms(input: String): List<String> {
-        val words = normalized(input).split(' ').filter { it.length >= 3 && it !in stop && !it.startsWith("recent") && it != "nouveau" }
+        val words = normalized(input).split(' ').filter { it.length >= 3 && it !in stop && !it.startsWith("recent") && !it.startsWith("nouveau") && !it.startsWith("nouvel") && it != "dernier" && it != "derniere" }
         val related = words.flatMap { topicTerms[it].orEmpty() }
         return (words + related + parse(input).terms).distinct().take(16)
     }

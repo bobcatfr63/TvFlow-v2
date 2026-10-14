@@ -1,6 +1,11 @@
 # Historique des mises à jour TVFlow-v2
 
-## 1.0.124 (en préparation)
+## 1.0.125 (en préparation)
+
+- **TVFlow AI** : meilleure compréhension des demandes naturelles en français ; les mots de conversation inutiles sont exclus de la recherche tandis que les genres et périodes sont conservés.
+- **Tests IA** : nouveaux cas couvrant « bon film d'action récent », « bonne série policière française » et « nouveau film ».
+
+## 1.0.124
 
 - **TVFlow AI** : meilleure pertinence des recherches françaises, en privilégiant les mots entiers et leurs variantes longues dans les titres et synopsis ; réduction des faux résultats liés aux morceaux de mots.
 - **Tests IA** : nouveaux cas sur les correspondances parasites et le classement des titres face aux synopsis.
