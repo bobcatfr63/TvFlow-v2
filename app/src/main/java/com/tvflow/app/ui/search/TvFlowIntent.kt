@@ -101,10 +101,19 @@ internal object TvFlowIntent {
     fun score(query: Parsed, title: String, description: String?, year: Int?): Int {
         val name = normalized(title)
         val plot = normalized(description.orEmpty())
+        // Match whole words (and longer morphological forms), not arbitrary fragments:
+        // "art" should never rank "carton" as a relevant movie.
+        fun matches(text: String, term: String): Boolean {
+            if (term.isBlank()) return false
+            val normalizedTerm = normalized(term)
+            return text.split(' ').any { word ->
+                word == normalizedTerm || (normalizedTerm.length >= 5 && word.startsWith(normalizedTerm))
+            }
+        }
         val matching = query.terms.sumOf { term ->
             when {
-                name.contains(term) -> 12
-                plot.contains(term) -> 5
+                matches(name, term) -> 12
+                matches(plot, term) -> 5
                 else -> 0
             }
         }

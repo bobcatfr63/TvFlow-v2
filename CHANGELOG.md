@@ -1,6 +1,11 @@
 # Historique des mises à jour TVFlow-v2
 
-## 1.0.123 (en validation)
+## 1.0.124 (en préparation)
+
+- **TVFlow AI** : meilleure pertinence des recherches françaises, en privilégiant les mots entiers et leurs variantes longues dans les titres et synopsis ; réduction des faux résultats liés aux morceaux de mots.
+- **Tests IA** : nouveaux cas sur les correspondances parasites et le classement des titres face aux synopsis.
+
+## 1.0.123
 
 - **Guide TV** : retrait de l'entrée « Toutes les chaînes » devenue redondante avec l'organisation du catalogue dans les réglages.
 - **Navigation** : ouverture du Guide sur la catégorie TNT ; favoris et catégories du serveur restent accessibles, les chaînes masquées ne sont pas supprimées.

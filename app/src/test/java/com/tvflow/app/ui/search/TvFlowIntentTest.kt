@@ -80,6 +80,18 @@ class TvFlowIntentTest {
         assertEquals("leonardo dicaprio", TvFlowIntent.requestedPerson("Film avec Leonardo DiCaprio"))
         assertEquals(null, TvFlowIntent.requestedPerson("film avec du suspense"))
     }
+    @Test fun titleRankingAvoidsSubstringFalsePositives() {
+        val query = TvFlowIntent.parse("art")
+        assertEquals(0, TvFlowIntent.score(query, "Carton rouge", null, 2025))
+        assertTrue(TvFlowIntent.score(query, "Art contemporain", null, 2025) > 0)
+    }
+    @Test fun acceptsLongerFrenchWordFormsAndRanksTitlesBeforeDescriptions() {
+        val query = TvFlowIntent.parse("piratage informatique")
+        val titleMatch = TvFlowIntent.score(query, "Piratages informatiques", null, 2025)
+        val synopsisMatch = TvFlowIntent.score(query, "Enquête", "Piratages informatiques", 2025)
+        assertTrue(titleMatch > synopsisMatch)
+        assertEquals(0, TvFlowIntent.score(query, "Cuisine", "Des recettes de famille", 2025))
+    }
     @Test fun recognizesEverydayFrenchGenreRequests() {
         val parsed = TvFlowIntent.parse("Une comedie francaise")
         assertTrue(parsed.terms.contains("comedie"))
