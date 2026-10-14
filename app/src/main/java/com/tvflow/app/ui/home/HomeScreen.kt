@@ -141,7 +141,8 @@ fun HomeScreen(
                         ) { channel ->
                             ChannelRow(
                                 channel = channel,
-                                onClick = { onPlay(channel) }
+                                onClick = { onPlay(channel) },
+                                onToggleFavorite = { viewModel.toggleFavorite(channel.streamId) }
                             )
                         }
                     }
@@ -276,7 +277,7 @@ private fun SortToolbar(
 }
 
 @Composable
-private fun ChannelRow(channel: LiveChannel, onClick: () -> Unit) {
+private fun ChannelRow(channel: LiveChannel, onClick: () -> Unit, onToggleFavorite: () -> Unit) {
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
     Card(
@@ -315,8 +316,26 @@ private fun ChannelRow(channel: LiveChannel, onClick: () -> Unit) {
                     Text(channel.epgChannelId, style = MaterialTheme.typography.bodySmall)
                 }
             }
-            if (channel.isFavorite) {
-                Text("★", style = MaterialTheme.typography.titleLarge)
+            val favoriteInteraction = remember { MutableInteractionSource() }
+            val favoriteFocused by favoriteInteraction.collectIsFocusedAsState()
+            Card(
+                onClick = onToggleFavorite,
+                interactionSource = favoriteInteraction,
+                colors = CardDefaults.cardColors(
+                    containerColor = if (favoriteFocused) MaterialTheme.colorScheme.primaryContainer
+                    else MaterialTheme.colorScheme.surfaceVariant
+                ),
+                border = BorderStroke(
+                    if (favoriteFocused) 3.dp else 1.dp,
+                    if (favoriteFocused) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
+                )
+            ) {
+                Text(
+                    text = if (channel.isFavorite) "★" else "☆",
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
     }
