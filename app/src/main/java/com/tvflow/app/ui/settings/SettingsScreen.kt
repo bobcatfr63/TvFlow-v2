@@ -67,6 +67,7 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
+    val tmdbDiagnostics by viewModel.tmdbDiagnostics.collectAsState()
     val refreshProgress by viewModel.refreshProgress.collectAsState()
     val context = LocalContext.current
     val isTv = context.isTelevisionUi()
@@ -412,6 +413,10 @@ fun SettingsScreen(
                 Text(
                     if (stats.lastAttemptAt > 0) "Dernier essai : " + java.text.SimpleDateFormat("dd/MM/yyyy HH:mm", java.util.Locale.FRANCE).format(java.util.Date(stats.lastAttemptAt))
                     else "Aucun enrichissement TMDB enregistré sur ce profil.",
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Text(
+                    "Diagnostic TMDB depuis le dernier démarrage : ${tmdbDiagnostics.matched} correspondance(s), ${tmdbDiagnostics.noMatch} titre(s) introuvable(s), ${tmdbDiagnostics.unauthorized} refus d'accès, ${tmdbDiagnostics.rateLimited} limite(s) API, ${tmdbDiagnostics.serverErrors} erreur(s) HTTP, ${tmdbDiagnostics.networkErrors} erreur(s) réseau, ${tmdbDiagnostics.invalidResponses} réponse(s) invalide(s).",
                     style = MaterialTheme.typography.bodySmall
                 )
                 Spacer(Modifier.height(8.dp))

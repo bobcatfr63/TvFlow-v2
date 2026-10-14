@@ -1,6 +1,11 @@
 # Historique des mises à jour TVFlow-v2
 
-## 1.0.132 (en préparation)
+## 1.0.133 (en préparation)
+
+- **Diagnostics TMDB** : compteurs distincts pour correspondances, titres introuvables, refus d'accès, limitations d'API, erreurs HTTP, erreurs réseau et réponses invalides.
+- **Réglages** : nouveaux diagnostics de la session affichés séparément des statistiques historiques du profil.
+
+## 1.0.132
 
 - **TMDB** : nettoyage plus précis des noms de films et séries IPTV, sans perdre les sous-titres significatifs entre parenthèses.
 - **Tests** : cas de noms avec marqueurs FR, année, 4K et FHD, et vérification de conservation du titre réel.

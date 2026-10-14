@@ -14,6 +14,18 @@ import kotlinx.coroutines.withContext
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+
+data class TmdbRequestDiagnostics(
+    val matched: Int = 0,
+    val noMatch: Int = 0,
+    val unauthorized: Int = 0,
+    val rateLimited: Int = 0,
+    val serverErrors: Int = 0,
+    val invalidResponses: Int = 0,
+    val networkErrors: Int = 0
+)
 
 data class ExternalMediaMetadata(
     val synopsis: String?,
@@ -28,6 +40,22 @@ class TmdbMetadataClient @Inject constructor(
     private val client: OkHttpClient,
     private val settingsStore: SettingsStore
 ) {
+    private val _diagnostics = MutableStateFlow(TmdbRequestDiagnostics())
+    val diagnostics: StateFlow<TmdbRequestDiagnostics> = _diagnostics
+
+    @Synchronized private fun recordDiagnostic(kind: String) {
+        val current = _diagnostics.value
+        _diagnostics.value = when (kind) {
+            "matched" -> current.copy(matched = current.matched + 1)
+            "noMatch" -> current.copy(noMatch = current.noMatch + 1)
+            "unauthorized" -> current.copy(unauthorized = current.unauthorized + 1)
+            "rateLimited" -> current.copy(rateLimited = current.rateLimited + 1)
+            "serverErrors" -> current.copy(serverErrors = current.serverErrors + 1)
+            "invalid" -> current.copy(invalidResponses = current.invalidResponses + 1)
+            else -> current.copy(networkErrors = current.networkErrors + 1)
+        }
+    }
+
     // Prevent repeated enrichment requests when TMDB rejects the configured token.
     // A different token is allowed immediately, without app restart.
     @Volatile private var rejectedCredential: String? = null
@@ -123,9 +151,19 @@ class TmdbMetadataClient @Inject constructor(
         }
         val request = requestBuilder.build()
 
-        client.newCall(request).execute().use { response ->
+        val response = try { client.newCall(request).execute() } catch (error: java.io.IOException) {
+            recordDiagnostic("network")
+            Log.w("TVFlowTmdb", "type=$type query=$query network_failure", error)
+            return@withContext null
+        }
+        response.use { response ->
             if (!response.isSuccessful) {
                 if (response.code == 401 || response.code == 403) rejectedCredential = credential
+                recordDiagnostic(when (response.code) {
+                    401, 403 -> "unauthorized"
+                    429 -> "rateLimited"
+                    else -> "serverErrors"
+                })
                 Log.w("TVFlowTmdb", "type=$type query=$query year=$inferredYear http=${response.code}")
                 return@withContext null
             }
@@ -133,6 +171,7 @@ class TmdbMetadataClient @Inject constructor(
             val results = runCatching {
                 JsonParser.parseString(body).asJsonObject.getAsJsonArray("results")
             }.getOrNull() ?: run {
+                recordDiagnostic("invalid")
                 Log.w("TVFlowTmdb", "type=$type query=$query year=$inferredYear invalid_json")
                 return@withContext null
             }
@@ -148,9 +187,11 @@ class TmdbMetadataClient @Inject constructor(
                 "type=$type query=$query year=$inferredYear results=${results.size()} scored=${scored.size} best=${bestPair?.second}"
             )
             val best = bestPair?.takeIf { it.second >= 80 }?.first ?: run {
+                recordDiagnostic("noMatch")
                 synchronized(missedLookups) { missedLookups[lookupKey] = System.currentTimeMillis() }
                 return@withContext null
             }
+            recordDiagnostic("matched")
             synchronized(missedLookups) { missedLookups.remove(lookupKey) }
 
             val date = string(best, if (type == MediaType.VOD) "release_date" else "first_air_date")

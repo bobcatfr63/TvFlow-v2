@@ -23,6 +23,7 @@ object InstalledReleaseNotes {
         .take(4)
 
     private fun frenchSummary(subject: String): String = when {
+        "add TMDB outcome diagnostics" in subject -> "TMDB : diagnostics détaillés par cause dans les réglages."
         "clean IPTV titles for TMDB" in subject -> "TMDB : meilleure reconnaissance des titres IPTV, sous-titres préservés."
         "improve TMDB lookup reliability" in subject -> "TMDB : recherche par titre original et réduction des requêtes inutiles."
         "clarify Pulse and TMDB labels" in subject -> "Accueil : Pulse et statistiques TMDB expliqués plus clairement."
