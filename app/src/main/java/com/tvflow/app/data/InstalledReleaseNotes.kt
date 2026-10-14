@@ -23,6 +23,7 @@ object InstalledReleaseNotes {
         .take(4)
 
     private fun frenchSummary(subject: String): String = when {
+        "improve TMDB lookup reliability" in subject -> "TMDB : recherche par titre original et réduction des requêtes inutiles."
         "clarify Pulse and TMDB labels" in subject -> "Accueil : Pulse et statistiques TMDB expliqués plus clairement."
         "stable semantic Android versionCode" in subject -> "Mises à jour : numéro Android corrigé pour éviter les versions bloquées sur GitHub."
         "official TNT channel order" in subject -> "TNT : ordre officiel des chaînes conservé dans le Direct et le Guide TV."

@@ -31,6 +31,11 @@ class TmdbMetadataClient @Inject constructor(
     // Prevent repeated enrichment requests when TMDB rejects the configured token.
     // A different token is allowed immediately, without app restart.
     @Volatile private var rejectedCredential: String? = null
+    // Throttle repeated misses within a session; cap memory for large catalogs.
+    private val missedLookups = object : LinkedHashMap<String, Long>(256, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Long>?): Boolean = size > 512
+    }
+    private val missCooldownMs = 6L * 60L * 60L * 1000L
 
     suspend fun validateCredential(rawCredential: String): Int? = withContext(Dispatchers.IO) {
         val credential = normalizeCredential(rawCredential)
@@ -88,6 +93,13 @@ class TmdbMetadataClient @Inject constructor(
         val inferredYear = knownYear ?: extractYear(rawTitle)
         val query = cleanTitle(rawTitle)
         if (query.length < 2) return@withContext null
+        val lookupKey = "${type.name}:${normalize(query)}:${inferredYear ?: 0}:${credential.hashCode()}"
+        synchronized(missedLookups) {
+            val lastMiss = missedLookups[lookupKey]
+            if (lastMiss != null && System.currentTimeMillis() - lastMiss < missCooldownMs) {
+                return@withContext null
+            }
+        }
 
         val endpoint = when (type) {
             MediaType.VOD -> "https://api.themoviedb.org/3/search/movie"
@@ -113,7 +125,7 @@ class TmdbMetadataClient @Inject constructor(
 
         client.newCall(request).execute().use { response ->
             if (!response.isSuccessful) {
-                if (response.code == 401) rejectedCredential = credential
+                if (response.code == 401 || response.code == 403) rejectedCredential = credential
                 Log.w("TVFlowTmdb", "type=$type query=$query year=$inferredYear http=${response.code}")
                 return@withContext null
             }
@@ -135,10 +147,11 @@ class TmdbMetadataClient @Inject constructor(
                 "TVFlowTmdb",
                 "type=$type query=$query year=$inferredYear results=${results.size()} scored=${scored.size} best=${bestPair?.second}"
             )
-            val best = bestPair
-                ?.takeIf { it.second >= 80 }
-                ?.first
-                ?: return@withContext null
+            val best = bestPair?.takeIf { it.second >= 80 }?.first ?: run {
+                synchronized(missedLookups) { missedLookups[lookupKey] = System.currentTimeMillis() }
+                return@withContext null
+            }
+            synchronized(missedLookups) { missedLookups.remove(lookupKey) }
 
             val date = string(best, if (type == MediaType.VOD) "release_date" else "first_air_date")
             val parsed = parseDate(date)
@@ -161,11 +174,12 @@ class TmdbMetadataClient @Inject constructor(
         knownYear: Int?,
         candidate: JsonObject
     ): Int? {
-        val candidateTitle = string(candidate, if (type == MediaType.VOD) "title" else "name") ?: return null
+        val candidateTitle = string(candidate, if (type == MediaType.VOD) "title" else "name") ?: string(candidate, if (type == MediaType.VOD) "original_title" else "original_name") ?: return null
         val normalizedQuery = normalize(query)
         val normalizedCandidate = normalize(candidateTitle)
+        val originalTitle = string(candidate, if (type == MediaType.VOD) "original_title" else "original_name")?.let(::normalize)
         var score = when {
-            normalizedQuery == normalizedCandidate -> 100
+            normalizedQuery == normalizedCandidate || normalizedQuery == originalTitle -> 100
             normalizedQuery.length >= 6 && normalizedCandidate.length >= 6 &&
                 (" $normalizedCandidate ".contains(" $normalizedQuery ") ||
                     " $normalizedQuery ".contains(" $normalizedCandidate ")) -> 82

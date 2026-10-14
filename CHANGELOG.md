@@ -1,6 +1,12 @@
 # Historique des mises à jour TVFlow-v2
 
-## 1.0.130 (en préparation)
+## 1.0.131 (en préparation)
+
+- **TMDB** : reconnaît aussi le titre original des films et séries lorsque le titre traduit diffère.
+- **Performances TMDB** : évite pendant six heures les mêmes recherches sans correspondance dans une session, avec cache limité à 512 entrées ; contrôle de l'année conservé.
+- **Erreurs d'authentification** : arrêt des requêtes répétées si TMDB renvoie 401 ou 403, jusqu'au changement de clé.
+
+## 1.0.130
 
 - **Accueil / Pulse** : présentation plus compréhensible des préférences déclarées et des genres déduits de l'historique.
 - **TMDB** : clarification des statistiques cumulées : nombre de recherches, réponses exploitables et recherches sans métadonnées ; celles-ci ne représentent pas nécessairement des erreurs réseau.
