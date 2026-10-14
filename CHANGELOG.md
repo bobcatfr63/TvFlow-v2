@@ -1,6 +1,12 @@
 # Historique des mises à jour TVFlow-v2
 
-## 1.0.134 (en préparation)
+## 1.0.135 (en préparation)
+
+- **TVFlow AI** : une recherche « série d'action et aventure » exige des indices des deux genres dans les métadonnées ; évite les résultats jeunesse simplement intitulés « Aventures ».
+- **Recherche** : reconnaissance des pluriels « actions » et « aventures ».
+- **Affichage** : indication claire lorsqu'un titre de série fourni par le serveur semble être une copie du synopsis.
+
+## 1.0.134
 
 - **Mises à jour** : suppression du second popup et de la seconde recherche sur l'écran d'accueil ; conservation d'une seule fenêtre globale de mise à jour.
 - **Nouveautés** : le récapitulatif de la version installée reste accessible après l'installation.

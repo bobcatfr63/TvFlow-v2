@@ -6,6 +6,15 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class TvFlowIntentTest {
+    @Test fun actionAdventureRequiresBothGenresAndHandlesPlural() {
+        val request = TvFlowIntent.parse("cherche une série d'actions et aventure")
+        assertTrue(request.seriesOnly)
+        assertTrue(request.terms.contains("action"))
+        assertTrue(request.terms.contains("aventure"))
+        assertEquals(0, TvFlowIntent.score(request, "Les aventures de Mickey", "Série jeunesse comique", null))
+        assertEquals(0, TvFlowIntent.score(request, "Les aventures de Robin", "Un jeune homme combat le Baron", null))
+        assertTrue(TvFlowIntent.score(request, "Mission action", "Une grande aventure à travers le monde", null) > 0)
+    }
     @Test fun frenchRequestFindsGenreAndPeriod() {
         val intent = TvFlowIntent.parse("Je veux un film d'action récent avec beaucoup de suspense")
         assertTrue(intent.filmOnly)

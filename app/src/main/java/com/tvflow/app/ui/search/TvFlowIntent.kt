@@ -42,6 +42,8 @@ internal object TvFlowIntent {
         "pirate" to "hacker",
         "cybersecurite" to "cyber",
         "programmation" to "code",
+        "actions" to "action",
+        "aventures" to "aventure",
         "ordinateur" to "computer",
         "ordinateurs" to "computer"
     )
@@ -115,6 +117,11 @@ internal object TvFlowIntent {
                 word == normalizedTerm || (normalizedTerm.length >= 5 && word.startsWith(normalizedTerm))
             }
         }
+        // For compound genre requests, both genres must be supported by the item's metadata.
+        // A title containing only "Aventures" is not proof of "action et aventure".
+        val actionAdventure = query.terms.contains("action") && query.terms.contains("aventure")
+        if (actionAdventure && (!matches(name, "action") && !matches(plot, "action") ||
+                    !matches(name, "aventure") && !matches(plot, "aventure"))) return 0
         val matching = query.terms.sumOf { term ->
             when {
                 matches(name, term) -> 12

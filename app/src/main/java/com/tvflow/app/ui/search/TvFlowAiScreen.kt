@@ -260,7 +260,16 @@ fun TvFlowAiScreen(
                             AsyncImage(model = url, contentDescription = null, modifier = Modifier.width(72.dp).height(104.dp))
                         }
                         Column {
-                            Text(series.name, style = MaterialTheme.typography.titleMedium)
+                            val titleLooksLikeSynopsis = series.plot?.trim()?.let { plot ->
+                                series.name.trim().length > 90 &&
+                                    (plot.startsWith(series.name.trim().take(50), ignoreCase = true) ||
+                                        series.name.trim().startsWith(plot.take(50), ignoreCase = true))
+                            } == true
+                            Text(
+                                if (titleLooksLikeSynopsis || series.name.isBlank()) "Titre non renseigné par le serveur"
+                                else series.name,
+                                style = MaterialTheme.typography.titleMedium
+                            )
                             series.plot?.takeIf { it.isNotBlank() }?.let { Text(it.take(180)) }
                         }
                     }

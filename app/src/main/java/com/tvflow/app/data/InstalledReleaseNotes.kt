@@ -23,6 +23,7 @@ object InstalledReleaseNotes {
         .take(4)
 
     private fun frenchSummary(subject: String): String = when {
+        "improve compound genre intent" in subject -> "TVFlow AI : recherches action et aventure mieux ciblées, affichage des séries clarifié."
         "avoid duplicate update popup" in subject -> "Mises à jour : une seule fenêtre proposée, sans doublon sur l'accueil."
         "add TMDB outcome diagnostics" in subject -> "TMDB : diagnostics détaillés par cause dans les réglages."
         "clean IPTV titles for TMDB" in subject -> "TMDB : meilleure reconnaissance des titres IPTV, sous-titres préservés."
