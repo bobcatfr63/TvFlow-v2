@@ -614,11 +614,13 @@ class XtreamRepository @Inject constructor(
     suspend fun enrichVodDetails(streamId: Int) {
         val profileId = currentProfileId()
         val item = dao.getVodItem(profileId, streamId) ?: return
-        if (!item.synopsis.isNullOrBlank()) return
+        val needsGenres = item.tmdbGenreIds.isNullOrBlank() && !settingsStore.currentTmdbToken().isNullOrBlank()
+        if (!item.synopsis.isNullOrBlank() && !needsGenres) return
 
         val now = System.currentTimeMillis()
         val staleAfterMs = 7L * 24L * 60L * 60L * 1000L
-        val shouldQueryProvider = item.detailsFetchedAt == null || now - item.detailsFetchedAt > staleAfterMs
+        val shouldQueryProvider = item.synopsis.isNullOrBlank() &&
+            (item.detailsFetchedAt == null || now - item.detailsFetchedAt > staleAfterMs)
 
         if (shouldQueryProvider) {
             val credentials = savedCredentials.first()
@@ -648,7 +650,7 @@ class XtreamRepository @Inject constructor(
                         rating = info?.rating?.takeIf { it.isNotBlank() },
                         detailsFetchedAt = now
                     )
-                    if (!plot.isNullOrBlank()) {
+                    if (!plot.isNullOrBlank() && !needsGenres) {
                         Log.d("TVFlowVodInfo", "Xtream synopsis cached for id=$streamId")
                         return
                     }

@@ -1,6 +1,12 @@
 # Historique des mises à jour TVFlow-v2
 
-## 1.0.138 (en préparation)
+## 1.0.139 (en préparation)
+
+- **Genres TMDB** : les fiches déjà pourvues d'un synopsis mais sans genres officiels sont désormais éligibles à l'enrichissement progressif.
+- **Performances** : suppression d'appels Xtream superflus lorsque seule la liste de genres manque ; passage toujours limité à 12 fiches par catégorie.
+- **IA** : les nouveaux genres enregistrés alimentent le classement des suggestions dès leur disponibilité.
+
+## 1.0.138
 
 - **Genres TMDB** : affichage dans les Réglages de la couverture des genres officiels pour les films et les séries du profil Xtream actif, en nombres et pourcentages.
 - **Performances** : comptage SQL réactif depuis Room, sans charger ni parcourir les fiches en mémoire ; les résultats se rafraîchissent après enrichissement ou synchronisation du catalogue.

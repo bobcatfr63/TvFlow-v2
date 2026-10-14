@@ -23,6 +23,7 @@ object InstalledReleaseNotes {
         .take(4)
 
     private fun frenchSummary(subject: String): String = when {
+        "backfill TMDB genres on existing titles" in subject -> "TMDB : genres ajoutés aussi aux fiches ayant déjà un synopsis, sans appels Xtream inutiles."
         "show TMDB genre coverage" in subject -> "TMDB : couverture des genres mesurée pour films et séries dans les réglages."
         "persist TMDB genre IDs" in subject -> "TVFlow AI : genres TMDB enregistrés et pris en compte dans les recommandations."
         "rank AI results by catalog categories" in subject -> "TVFlow AI : classement amélioré par genres des catégories IPTV."
