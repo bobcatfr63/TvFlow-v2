@@ -1,6 +1,11 @@
 # Historique des mises à jour TVFlow-v2
 
-## 1.0.127 (en préparation)
+## 1.0.128 (en préparation)
+
+- **TNT** : ordre national TF1, France 2, France 3, France 4 et suivants dans le Guide TV et le Direct, sans appliquer le tri alphabétique à cette catégorie.
+- **Validation** : contrôle sur la Mi Box des chaînes visibles, doublons et lecture TV selon les capacités du serveur.
+
+## 1.0.127
 
 - **TNT** : filtre commun au Direct et Guide, reconnaissance stricte des chaînes nationales sans accepter de faux numéros de chaîne fournis par le serveur.
 - **Doublons et préférences** : une seule variante de chaque chaîne, priorité aux flux fonctionnels avec EPG et meilleure qualité ; exclusion des chaînes masquées.

@@ -78,7 +78,7 @@ class HomeViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
 
     val channels: StateFlow<List<LiveChannel>> = combine(channelLoadState, sort) { list, order ->
-        sortHomeChannels(list.orEmpty(), order)
+        if (source.value == ChannelSource.Tnt) list.orEmpty() else sortHomeChannels(list.orEmpty(), order)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
 

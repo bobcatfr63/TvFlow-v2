@@ -163,7 +163,11 @@ class GuideViewModel @Inject constructor(
         } else {
             value.channels
         }
-        val ordered = when (order) {
+        val ordered = if (value.selectedCategoryId == GUIDE_TNT) {
+            visible.sortedBy { com.tvflow.app.data.repository.frenchTntNumber(
+                com.tvflow.app.data.repository.canonicalFrenchChannelName(it.name)
+            ) ?: Int.MAX_VALUE }
+        } else when (order) {
             GuideSort.NAME -> visible.filterNot { it.isSectionMarker }.sortedBy { channelAlphabeticalKey(it.name) }
             GuideSort.FAVORITES -> visible.filterNot { it.isSectionMarker }
                 .sortedWith(compareByDescending<LiveChannel> { it.isFavorite }.thenBy { channelAlphabeticalKey(it.name) })
