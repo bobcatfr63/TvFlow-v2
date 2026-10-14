@@ -1,6 +1,11 @@
 # Historique des mises à jour TVFlow-v2
 
-## 1.0.128 (en préparation)
+## 1.0.129 (en préparation)
+
+- **Mises à jour fiables** : versionCode désormais déterministe selon le numéro de version TVFlow, y compris avec un historique Git partiel du runner local ; évite les blocages d'installation liés à un code Android inférieur.
+- **TNT** : conserve les 25 chaînes reconnues, la numérotation nationale et le libellé « ORDRE : TNT » vérifiés sur la Mi Box.
+
+## 1.0.128
 
 - **TNT** : ordre national TF1, France 2, France 3, France 4 et suivants dans le Guide TV et le Direct, sans appliquer le tri alphabétique à cette catégorie.
 - **Validation** : contrôle sur la Mi Box des chaînes visibles, doublons et lecture TV selon les capacités du serveur.

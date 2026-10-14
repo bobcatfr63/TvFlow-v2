@@ -37,16 +37,18 @@ val projectVersionName = rootProject.file("VERSION")
     ?.trim()
     ?.takeIf { it.isNotBlank() }
     ?: "0.0.0"
-val gitCommitCount = providers.exec {
-    commandLine("git", "-C", rootDir.absolutePath, "rev-list", "--count", "HEAD")
-}.standardOutput.asText.get().trim().toIntOrNull()?.coerceAtLeast(35) ?: 35
-// Keep Android upgrades monotonic even if DevServer supplies an older versionCode.
-// The previous release-manifest builds reused code 2020100035, below already installed builds
-// (for example 2020100102). Advance the baseline so in-app upgrades are monotonic.
-// Existing mobile installations already reached 2020100324 on version 1.0.112.
-// Reserve a higher monotonic baseline for all subsequent local and distribution builds.
-val tvFlowVersionCodeBase = 2_020_101_000
-val appVersionCode = maxOf(tvFlowVersionCodeBase + gitCommitCount, devServerVersionCode ?: 0)
+// Never derive versionCode from Git history length: shallow local runner checkouts
+// see fewer commits and previously published lower versionCodes than installed APKs.
+// The semantic version is stable in both the full PC repository and runner checkouts.
+val resolvedVersionName = devServerVersionName ?: projectVersionName
+val versionParts = resolvedVersionName.split('.').map { component ->
+    component.takeWhile { it.isDigit() }.toIntOrNull() ?: 0
+}
+val versionOrder = (versionParts.getOrElse(0) { 1 }.coerceAtLeast(1) - 1) * 100_000 +
+    versionParts.getOrElse(1) { 0 } * 10_000 +
+    versionParts.getOrElse(2) { 0 }
+val tvFlowVersionCodeBase = 2_020_102_000
+val appVersionCode = maxOf(tvFlowVersionCodeBase + versionOrder, devServerVersionCode ?: 0)
 val releaseKeystorePath = providers.environmentVariable("TVFLOW_KEYSTORE_PATH").orNull
 val releaseStorePassword = providers.environmentVariable("TVFLOW_STORE_PASSWORD").orNull
 val releaseKeyAlias = providers.environmentVariable("TVFLOW_KEY_ALIAS").orNull
@@ -67,7 +69,7 @@ extensions.configure<ApplicationExtension>("android") {
         minSdk = 24
         targetSdk = 36
         versionCode = appVersionCode
-        versionName = devServerVersionName ?: projectVersionName
+        versionName = resolvedVersionName
         buildConfigField("String", "AUTHOR_SIGNATURE", "\"by bobcatfr63\"")
 
         if (tvFlowTargetAbi != null) {

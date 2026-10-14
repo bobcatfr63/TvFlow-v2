@@ -23,6 +23,7 @@ object InstalledReleaseNotes {
         .take(4)
 
     private fun frenchSummary(subject: String): String = when {
+        "stable semantic Android versionCode" in subject -> "Mises à jour : numéro Android corrigé pour éviter les versions bloquées sur GitHub."
         "official TNT channel order" in subject -> "TNT : ordre officiel des chaînes conservé dans le Direct et le Guide TV."
         "fix TNT category filtering" in subject -> "TNT : catégorie plus fiable, doublons réduits et chaînes masquées respectées."
         "similar films from catalog" in subject -> "TVFlow AI : suggestions de films similaires basées sur ton catalogue et leurs synopsis."
