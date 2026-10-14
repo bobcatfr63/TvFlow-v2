@@ -55,6 +55,7 @@ fun SeriesDetailsScreen(
     viewModel: SeriesDetailsViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
+    val isFavorite by viewModel.isFavorite.collectAsState()
     val isTv = androidx.compose.ui.platform.LocalContext.current.isTelevisionUi()
     val seasons = state.episodes.map { it.season }.distinct()
     val episodes = state.episodes.filter {
@@ -91,6 +92,9 @@ fun SeriesDetailsScreen(
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Text("SÉRIE  •  TVFLOW CINÉMA", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
+                    Button(onClick = viewModel::toggleFavorite) {
+                        Text(if (isFavorite) "★ Favori" else "☆ Favoris")
+                    }
                     Text(
                         seriesName,
                         style = if (isTv) MaterialTheme.typography.headlineLarge else MaterialTheme.typography.titleLarge,

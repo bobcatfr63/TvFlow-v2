@@ -996,6 +996,16 @@ class XtreamRepository @Inject constructor(
         }
     }
 
+    fun observeMediaFavoriteIds(kind: String): Flow<Set<Int>> = activeProfileId.flatMapLatest { profileId ->
+        if (profileId == null) flowOf(emptySet())
+        else settingsStore.observeMediaFavorites(profileId, kind)
+    }
+
+    suspend fun toggleMediaFavorite(kind: String, mediaId: Int) {
+        require(kind == "vod" || kind == "series")
+        settingsStore.toggleMediaFavorite(currentProfileId(), kind, mediaId)
+    }
+
     suspend fun toggleFavorite(streamId: Int) {
         val profileId = currentProfileId()
         dao.toggleFavorite(profileId, streamId)

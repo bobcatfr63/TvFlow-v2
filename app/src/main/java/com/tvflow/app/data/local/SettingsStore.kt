@@ -191,6 +191,24 @@ class SettingsStore @Inject constructor(@ApplicationContext private val context:
             else prefs[Keys.categorySectionOverrides] = encodeCategoryOverrides(all)
         }
 
+    private fun mediaFavoriteKey(profileId: String, kind: String) =
+        stringPreferencesKey("media_favorites_${kind}_${profileId}")
+
+    fun observeMediaFavorites(profileId: String, kind: String): Flow<Set<Int>> =
+        context.playerSettingsDataStore.data.map { prefs ->
+            prefs[mediaFavoriteKey(profileId, kind)].orEmpty()
+                .split(',').mapNotNull(String::toIntOrNull).toSet()
+        }
+
+    suspend fun toggleMediaFavorite(profileId: String, kind: String, mediaId: Int) {
+        context.playerSettingsDataStore.edit { prefs ->
+            val key = mediaFavoriteKey(profileId, kind)
+            val ids = prefs[key].orEmpty().split(',').mapNotNull(String::toIntOrNull).toMutableSet()
+            if (!ids.add(mediaId)) ids.remove(mediaId)
+            prefs[key] = ids.sorted().joinToString(",")
+        }
+    }
+
     fun favoriteSyncTimestamp(profileId: String): Flow<Long> =
         context.playerSettingsDataStore.data.map { prefs ->
             prefs[longPreferencesKey("favorite_sync_" + profileId)] ?: 0L

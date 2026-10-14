@@ -58,6 +58,7 @@ fun VodDetailsScreen(
 ) {
     val suggestions by viewModel.suggestions.collectAsState()
     val enrichedItem by viewModel.item.collectAsState()
+    val isFavorite by viewModel.isFavorite.collectAsState()
     val isTv = LocalContext.current.isTelevisionUi()
     val posterWidth = if (isTv) 220.dp else 96.dp
     val posterHeight = if (isTv) 320.dp else 144.dp
@@ -132,6 +133,9 @@ fun VodDetailsScreen(
                     Spacer(Modifier.height(8.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         Button(onClick = onPlay) { Text("▶ Lecture") }
+                        OutlinedButton(onClick = viewModel::toggleFavorite) {
+                            Text(if (isFavorite) "★ Favori" else "☆ Favoris")
+                        }
                         OutlinedButton(onClick = onBack) { Text("Retour") }
                     }
                 }

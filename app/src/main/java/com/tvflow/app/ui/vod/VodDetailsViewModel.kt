@@ -21,6 +21,14 @@ class VodDetailsViewModel @Inject constructor(
     private val streamId: Int = checkNotNull(savedStateHandle["streamId"])
     private val categoryId: String = savedStateHandle.get<String>("categoryId").orEmpty()
 
+    val isFavorite: StateFlow<Boolean> = repository.observeMediaFavoriteIds("vod")
+        .map { streamId in it }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    fun toggleFavorite() {
+        viewModelScope.launch { repository.toggleMediaFavorite("vod", streamId) }
+    }
+
     val item: StateFlow<VodItem?> = repository.observeVodItem(streamId)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 

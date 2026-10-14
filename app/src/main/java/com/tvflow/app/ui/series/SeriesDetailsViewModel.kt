@@ -11,6 +11,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -32,6 +35,14 @@ class SeriesDetailsViewModel @Inject constructor(
     private val categoryId: String = savedStateHandle.get<String>("categoryId").orEmpty()
     private val _state = MutableStateFlow(SeriesDetailsUiState())
     val state: StateFlow<SeriesDetailsUiState> = _state.asStateFlow()
+
+    val isFavorite: StateFlow<Boolean> = repository.observeMediaFavoriteIds("series")
+        .map { seriesId in it }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    fun toggleFavorite() {
+        viewModelScope.launch { repository.toggleMediaFavorite("series", seriesId) }
+    }
 
     init {
         load()
