@@ -1,6 +1,11 @@
 # Historique des mises à jour TVFlow-v2
 
-## 1.0.125 (en préparation)
+## 1.0.126 (en préparation)
+
+- **TVFlow AI** : recherche de films similaires à une référence présente dans le catalogue (« un film comme Interstellar »), avec comparaison prudente des thèmes de synopsis et sans proposer de films absents du serveur.
+- **Qualité des recommandations** : message explicite si le film de référence ou ses métadonnées sont indisponibles ; nouveaux tests sur la reconnaissance de la demande et les points communs des synopsis.
+
+## 1.0.125
 
 - **TVFlow AI** : meilleure compréhension des demandes naturelles en français ; les mots de conversation inutiles sont exclus de la recherche tandis que les genres et périodes sont conservés.
 - **Tests IA** : nouveaux cas couvrant « bon film d'action récent », « bonne série policière française » et « nouveau film ».

@@ -66,6 +66,7 @@ private val suggestions = listOf(
     "Une comédie française",
     "Un film d'action avec du suspense",
     "Une série policière",
+    "Un film comme Interstellar",
     "Un film avec une invasion extraterrestre",
     "Est-ce qu'il y a un film d'action ce soir ?",
     "Quel documentaire passe ce soir ?",

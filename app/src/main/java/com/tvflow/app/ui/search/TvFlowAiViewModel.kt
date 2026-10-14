@@ -46,13 +46,45 @@ class TvFlowAiViewModel @Inject constructor(
     val results = query.debounce(300).mapLatest { raw ->
         if (raw.trim().length < 2) return@mapLatest TvFlowAiResults(searchedQuery = raw)
         val parsed = TvFlowIntent.parse(raw)
+        val similarityReference = TvFlowSimilarity.referenceTitle(raw)
         val tvQuestion = TvProgramMatcher.isTvQuestion(raw)
         val requestedPerson = TvFlowIntent.requestedPerson(raw)
-        if (parsed.terms.isEmpty() && !tvQuestion) return@mapLatest TvFlowAiResults(searchedQuery = raw)
+        if (parsed.terms.isEmpty() && !tvQuestion && similarityReference == null) return@mapLatest TvFlowAiResults(searchedQuery = raw)
         try {
             // Catalog, EPG and metadata lookups may block on network or database I/O.
             // Keep them off the CPU-bound Default dispatcher.
             withContext(Dispatchers.IO) {
+                if (similarityReference != null) {
+                    val referenceCandidates = repository.searchGlobal(similarityReference, limitPerType = 35).vod
+                    val reference = referenceCandidates.firstOrNull { item ->
+                        TvFlowSimilarity.normalize(item.name).contains(similarityReference)
+                    }
+                    val terms = TvFlowSimilarity.keywords(reference?.synopsis)
+                    if (reference == null || terms.size < 2) {
+                        return@withContext TvFlowAiResults(
+                            searchedQuery = raw,
+                            notice = "Impossible de proposer des films similaires : film de référence ou synopsis indisponible dans le catalogue actif."
+                        )
+                    }
+                    val candidates = LinkedHashMap<Int, VodItem>()
+                    for (term in terms) {
+                        repository.searchGlobal(term, limitPerType = 70).vod.forEach { candidate ->
+                            if (candidate.streamId != reference.streamId) candidates[candidate.streamId] = candidate
+                        }
+                    }
+                    val matches = candidates.values
+                        .map { it to TvFlowSimilarity.overlap(terms, it.name, it.synopsis) }
+                        .filter { it.second >= 2 }
+                        .sortedWith(compareByDescending<Pair<VodItem, Int>> { it.second }
+                            .thenByDescending { it.first.releaseYear ?: 0 })
+                        .take(40).map { it.first }
+                    return@withContext TvFlowAiResults(
+                        searchedQuery = raw,
+                        movies = matches,
+                        notice = if (matches.isEmpty()) "Aucun film similaire confirmé dans ton catalogue pour ce synopsis."
+                            else "Suggestions selon les thèmes communs avec ${reference.name}, disponibles sur ton serveur."
+                    )
+                }
                 val sportsTeam = TvProgramMatcher.requestedTeam(raw)
                 val footballAnswer = if (sportsTeam != null && TvProgramMatcher.normalize(raw).contains("soir") && (TvProgramMatcher.normalize(raw).contains("match") || TvProgramMatcher.normalize(raw).contains("joue") || TvProgramMatcher.normalize(raw).contains("foot"))) {
                     runCatching { sports.teamTonight(sportsTeam) }.getOrElse {

@@ -110,6 +110,20 @@ class TvFlowIntentTest {
         assertTrue(intent.filmOnly)
         assertEquals(0, TvFlowIntent.score(intent, "Film ancien", null, 1990))
     }
+    @Test fun similarMovieReferenceRequiresExplicitComparison() {
+        assertEquals("interstellar", TvFlowSimilarity.referenceTitle("Trouve-moi un film comme Interstellar"))
+        assertEquals("avatar", TvFlowSimilarity.referenceTitle("un film similaire à Avatar"))
+        assertEquals(null, TvFlowSimilarity.referenceTitle("trouve-moi un film de science-fiction"))
+    }
+    @Test fun similarMovieKeywordsRequireSharedCatalogMetadata() {
+        val keywords = TvFlowSimilarity.keywords(
+            "Voyage interstellaire, exploration spatiale, planete et aventure. Une exploration spatiale."
+        )
+        assertTrue(keywords.contains("exploration"))
+        assertTrue(TvFlowSimilarity.overlap(keywords, "Exploration interstellaire", "Voyage sur une planete") >= 2)
+        assertEquals(0, TvFlowSimilarity.overlap(keywords, "Cuisine", "Recettes et famille"))
+        assertEquals(emptyList<String>(), TvFlowSimilarity.keywords(null))
+    }
     @Test fun recognizesEverydayFrenchGenreRequests() {
         val parsed = TvFlowIntent.parse("Une comedie francaise")
         assertTrue(parsed.terms.contains("comedie"))
