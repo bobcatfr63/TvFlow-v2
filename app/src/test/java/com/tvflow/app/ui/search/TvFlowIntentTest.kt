@@ -6,6 +6,13 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class TvFlowIntentTest {
+    @Test fun combinedGenresUseExplicitProviderCategoryAndDoNotTrustAdventureTitleAlone() {
+        val query = TvFlowIntent.parse("une série d'action et d'aventure")
+        assertTrue(TvFlowIntent.score(query, "Aucune indication", null, null, "FR Action Aventure") > 0)
+        assertEquals(0, TvFlowIntent.score(query, "Les Aventures de Mickey", null, null, "FR Dessins animés"))
+        assertEquals(0, TvFlowIntent.score(query, "Les Aventures de Mickey", null, null, "FR Aventure"))
+        assertEquals(0, TvFlowIntent.score(query, "Mission Action", "Une aventure", null, "FR Comédie"))
+    }
     @Test fun actionAdventureRequiresBothGenresAndHandlesPlural() {
         val request = TvFlowIntent.parse("cherche une série d'actions et aventure")
         assertTrue(request.seriesOnly)
@@ -13,7 +20,7 @@ class TvFlowIntentTest {
         assertTrue(request.terms.contains("aventure"))
         assertEquals(0, TvFlowIntent.score(request, "Les aventures de Mickey", "Série jeunesse comique", null))
         assertEquals(0, TvFlowIntent.score(request, "Les aventures de Robin", "Un jeune homme combat le Baron", null))
-        assertTrue(TvFlowIntent.score(request, "Mission action", "Une grande aventure à travers le monde", null) > 0)
+        assertTrue(TvFlowIntent.score(request, "Mission action", "Une grande aventure à travers le monde", null, "FR Action") > 0)
     }
     @Test fun frenchRequestFindsGenreAndPeriod() {
         val intent = TvFlowIntent.parse("Je veux un film d'action récent avec beaucoup de suspense")

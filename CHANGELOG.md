@@ -1,6 +1,12 @@
 # Historique des mises à jour TVFlow-v2
 
-## 1.0.135 (en préparation)
+## 1.0.136 (en préparation)
+
+- **TVFlow AI** : les catégories IPTV explicites (Action, Aventure, etc.) servent d'indices de genre pour classer les résultats du catalogue.
+- **Recherche combinée** : « action et aventure » exige des indices corroborés par les catégories ou les synopsis, sans confondre un titre « aventures » avec un genre confirmé.
+- **Tests** : couverture des catégories Action/Aventure et exclusion des séries jeunesse faussement associées.
+
+## 1.0.135
 
 - **TVFlow AI** : une recherche « série d'action et aventure » exige des indices des deux genres dans les métadonnées ; évite les résultats jeunesse simplement intitulés « Aventures ».
 - **Recherche** : reconnaissance des pluriels « actions » et « aventures ».

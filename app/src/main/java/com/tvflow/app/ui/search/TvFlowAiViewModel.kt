@@ -7,6 +7,7 @@ import com.tvflow.app.data.metadata.TmdbMetadataClient
 import com.tvflow.app.domain.EpgProgram
 import com.tvflow.app.domain.LiveChannel
 import com.tvflow.app.domain.SeriesItem
+import com.tvflow.app.domain.MediaType
 import java.util.Calendar
 import kotlinx.coroutines.flow.first
 import com.tvflow.app.domain.VodItem
@@ -93,6 +94,10 @@ class TvFlowAiViewModel @Inject constructor(
                 } else null
                 val movies = LinkedHashMap<Int, VodItem>()
                 val series = LinkedHashMap<Int, SeriesItem>()
+                val movieCategoryNames = repository.observeMediaCategories(MediaType.VOD).first()
+                    .associate { it.id to it.name }
+                val seriesCategoryNames = repository.observeMediaCategories(MediaType.SERIES).first()
+                    .associate { it.id to it.name }
                 // Live-TV requests must not wait for sequential VOD catalog searches.
                 val verifiedCredits = if (requestedPerson != null && !tvQuestion) {
                     runCatching { metadata.movieCreditsForPerson(requestedPerson) }.getOrNull()
@@ -137,12 +142,12 @@ class TvFlowAiViewModel @Inject constructor(
                     footballAnswer = footballAnswer,
                     tvQuestion = tvQuestion,
                     movies = if (parsed.seriesOnly && !parsed.filmOnly) emptyList() else (personCheck?.first ?: movies.values)
-                        .filter { requestedPerson != null || TvFlowIntent.score(parsed, it.name, it.synopsis, it.releaseYear) > 0 }
-                        .sortedByDescending { TvFlowIntent.score(parsed, it.name, it.synopsis, it.releaseYear) }
+                        .filter { requestedPerson != null || TvFlowIntent.score(parsed, it.name, it.synopsis, it.releaseYear, movieCategoryNames[it.categoryId]) > 0 }
+                        .sortedByDescending { TvFlowIntent.score(parsed, it.name, it.synopsis, it.releaseYear, movieCategoryNames[it.categoryId]) }
                         .take(80),
                     series = if (parsed.filmOnly && !parsed.seriesOnly) emptyList() else (personCheck?.second ?: series.values)
-                        .filter { TvFlowIntent.score(parsed, it.name, it.plot, it.releaseYear) > 0 }
-                        .sortedByDescending { TvFlowIntent.score(parsed, it.name, it.plot, it.releaseYear) }
+                        .filter { TvFlowIntent.score(parsed, it.name, it.plot, it.releaseYear, seriesCategoryNames[it.categoryId]) > 0 }
+                        .sortedByDescending { TvFlowIntent.score(parsed, it.name, it.plot, it.releaseYear, seriesCategoryNames[it.categoryId]) }
                         .take(80)
                 )
             }

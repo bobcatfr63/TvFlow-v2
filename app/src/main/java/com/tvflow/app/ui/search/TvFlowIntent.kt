@@ -105,9 +105,10 @@ internal object TvFlowIntent {
         return (words + related + parse(input).terms).distinct().take(16)
     }
 
-    fun score(query: Parsed, title: String, description: String?, year: Int?): Int {
+    fun score(query: Parsed, title: String, description: String?, year: Int?, categoryName: String? = null): Int {
         val name = normalized(title)
         val plot = normalized(description.orEmpty())
+        val category = normalized(categoryName.orEmpty())
         // Match whole words (and longer morphological forms), not arbitrary fragments:
         // "art" should never rank "carton" as a relevant movie.
         fun matches(text: String, term: String): Boolean {
@@ -120,10 +121,11 @@ internal object TvFlowIntent {
         // For compound genre requests, both genres must be supported by the item's metadata.
         // A title containing only "Aventures" is not proof of "action et aventure".
         val actionAdventure = query.terms.contains("action") && query.terms.contains("aventure")
-        if (actionAdventure && (!matches(name, "action") && !matches(plot, "action") ||
-                    !matches(name, "aventure") && !matches(plot, "aventure"))) return 0
+        if (actionAdventure && (!matches(plot, "action") && !matches(category, "action") ||
+                    !matches(plot, "aventure") && !matches(category, "aventure"))) return 0
         val matching = query.terms.sumOf { term ->
             when {
+                matches(category, term) -> 16
                 matches(name, term) -> 12
                 matches(plot, term) -> 5
                 else -> 0
