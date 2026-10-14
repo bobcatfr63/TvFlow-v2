@@ -893,6 +893,25 @@ class XtreamRepository @Inject constructor(
     fun searchVod(query: String): Flow<List<VodItem>> = activeProfileId.flatMapLatest { id -> if (id == null) flowOf(emptyList()) else dao.searchVod(id, query) }.map { list -> list.map { it.toDomain() } }
     fun searchSeries(query: String): Flow<List<SeriesItem>> = activeProfileId.flatMapLatest { id -> if (id == null) flowOf(emptyList()) else dao.searchSeries(id, query) }.map { list -> list.map { it.toDomain() } }
 
+    /**
+     * Read a bounded set of AI candidates from provider categories, including titles
+     * without any matching words. Queries stay in Room; no full catalog scan in the UI.
+     */
+    suspend fun searchAiCategoryCandidates(
+        vodCategoryIds: List<String>,
+        seriesCategoryIds: List<String>,
+        limitPerType: Int = 120
+    ): GlobalSearchResults = withContext(Dispatchers.IO) {
+        val profileId = currentProfileId()
+        val limit = limitPerType.coerceIn(0, 150)
+        GlobalSearchResults(
+            vod = if (limit == 0 || vodCategoryIds.isEmpty()) emptyList()
+                else dao.getVodAiCategoryCandidates(profileId, vodCategoryIds.distinct().take(8), limit).map { it.toDomain() },
+            series = if (limit == 0 || seriesCategoryIds.isEmpty()) emptyList()
+                else dao.getSeriesAiCategoryCandidates(profileId, seriesCategoryIds.distinct().take(8), limit).map { it.toDomain() }
+        )
+    }
+
     suspend fun searchGlobal(query: String, limitPerType: Int = 60): GlobalSearchResults = withContext(Dispatchers.Default) {
         val profileId = currentProfileId()
         val normalizedQuery = normalizeSearchText(query)

@@ -1,6 +1,12 @@
 # Historique des mises à jour TVFlow-v2
 
-## 1.0.140 (en préparation)
+## 1.0.141 (en préparation)
+
+- **TVFlow AI** : la recherche par genre récupère aussi des films et séries via les catégories IPTV du serveur, même si le titre et le synopsis ne contiennent aucun mot-clé.
+- **Performance** : lecture Room bornée à huit catégories et 120 éléments par type, complémentaire au classement existant ; pas de chargement intégral du catalogue pour cette découverte.
+- **Tests** : cas de recherche Action + Aventure et Comédie sans correspondance dans le titre.
+
+## 1.0.140
 
 - **TMDB** : les tentatives d'enrichissement sont mémorisées pour les films et les séries, afin de ne pas retraiter constamment les mêmes titres sans résultat.
 - **Performances** : nouvelle tentative après 24 heures ; les passages successifs progressent sur d'autres fiches au lieu de bloquer sur les premières.

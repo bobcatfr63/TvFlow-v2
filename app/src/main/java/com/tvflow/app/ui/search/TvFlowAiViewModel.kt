@@ -94,10 +94,10 @@ class TvFlowAiViewModel @Inject constructor(
                 } else null
                 val movies = LinkedHashMap<Int, VodItem>()
                 val series = LinkedHashMap<Int, SeriesItem>()
-                val movieCategoryNames = repository.observeMediaCategories(MediaType.VOD).first()
-                    .associate { it.id to it.name }
-                val seriesCategoryNames = repository.observeMediaCategories(MediaType.SERIES).first()
-                    .associate { it.id to it.name }
+                val movieCategories = repository.observeMediaCategories(MediaType.VOD).first()
+                val seriesCategories = repository.observeMediaCategories(MediaType.SERIES).first()
+                val movieCategoryNames = movieCategories.associate { it.id to it.name }
+                val seriesCategoryNames = seriesCategories.associate { it.id to it.name }
                 // Live-TV requests must not wait for sequential VOD catalog searches.
                 val verifiedCredits = if (requestedPerson != null && !tvQuestion) {
                     runCatching { metadata.movieCreditsForPerson(requestedPerson) }.getOrNull()
@@ -108,6 +108,21 @@ class TvFlowAiViewModel @Inject constructor(
                     val batch = repository.searchGlobal(term, limitPerType = 70)
                     batch.vod.forEach { movies[it.streamId] = it }
                     batch.series.forEach { series[it.seriesId] = it }
+                }
+                // Provider categories can identify a genre even when the title and plot do not.
+                // The supplemental Room queries are limited to 8 categories and 120 items per type.
+                if (!tvQuestion && requestedPerson == null && parsed.terms.isNotEmpty()) {
+                    val vodIds = movieCategories.filter {
+                        TvFlowIntent.score(parsed, "", null, null, it.name) > 0
+                    }.map { it.id }.take(8)
+                    val seriesIds = seriesCategories.filter {
+                        TvFlowIntent.score(parsed, "", null, null, it.name) > 0
+                    }.map { it.id }.take(8)
+                    if (vodIds.isNotEmpty() || seriesIds.isNotEmpty()) {
+                        val categoryResults = repository.searchAiCategoryCandidates(vodIds, seriesIds)
+                        categoryResults.vod.forEach { movies[it.streamId] = it }
+                        categoryResults.series.forEach { series[it.seriesId] = it }
+                    }
                 }
                 val programs = if (tvQuestion) {
                     val (start, end) = TvProgramMatcher.window(raw)

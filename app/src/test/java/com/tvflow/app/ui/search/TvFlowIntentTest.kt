@@ -86,6 +86,14 @@ class TvFlowIntentTest {
         assertTrue(TvFlowIntent.score(query, "Robot", "Un programmeur lutte contre des pirates informatiques", null) > 0)
         assertEquals(0, TvFlowIntent.score(query, "Cuisine et voyage", "Recettes et découvertes", null))
     }
+    @Test fun providerCategoriesCanDiscoverGenreTitlesWithoutKeywords() {
+        val request = TvFlowIntent.parse("cherche une série d'action et aventure")
+        assertTrue(TvFlowIntent.score(request, "", null, null, "FR Action Aventure") > 0)
+        assertEquals(0, TvFlowIntent.score(request, "", null, null, "FR Action"))
+        assertEquals(0, TvFlowIntent.score(request, "", null, null, "FR Comédie"))
+        val comedy = TvFlowIntent.parse("une comédie")
+        assertTrue(TvFlowIntent.score(comedy, "", null, null, "FR Comédie") > 0)
+    }
     @Test fun emptyRequestCannotReturnInventedRecommendations() {
         val intent = TvFlowIntent.parse("je veux un film")
         assertTrue(intent.terms.isEmpty())

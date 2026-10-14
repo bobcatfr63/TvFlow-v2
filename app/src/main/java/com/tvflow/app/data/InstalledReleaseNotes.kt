@@ -23,6 +23,7 @@ object InstalledReleaseNotes {
         .take(4)
 
     private fun frenchSummary(subject: String): String = when {
+        "discover AI candidates from provider categories" in subject -> "TVFlow AI : recherche par genre élargie aux catégories IPTV, même sans mots-clés dans les titres."
         "avoid repeat TMDB genre enrichment" in subject -> "TMDB : moins de recherches répétées, progression sur davantage de fiches."
         "backfill TMDB genres on existing titles" in subject -> "TMDB : genres ajoutés aussi aux fiches ayant déjà un synopsis, sans appels Xtream inutiles."
         "show TMDB genre coverage" in subject -> "TMDB : couverture des genres mesurée pour films et séries dans les réglages."
