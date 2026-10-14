@@ -142,12 +142,12 @@ class TvFlowAiViewModel @Inject constructor(
                     footballAnswer = footballAnswer,
                     tvQuestion = tvQuestion,
                     movies = if (parsed.seriesOnly && !parsed.filmOnly) emptyList() else (personCheck?.first ?: movies.values)
-                        .filter { requestedPerson != null || TvFlowIntent.score(parsed, it.name, it.synopsis, it.releaseYear, movieCategoryNames[it.categoryId]) > 0 }
-                        .sortedByDescending { TvFlowIntent.score(parsed, it.name, it.synopsis, it.releaseYear, movieCategoryNames[it.categoryId]) }
+                        .filter { requestedPerson != null || TvFlowIntent.score(parsed, it.name, it.synopsis, it.releaseYear, movieCategoryNames[it.categoryId], it.tmdbGenreIds) > 0 }
+                        .sortedByDescending { TvFlowIntent.score(parsed, it.name, it.synopsis, it.releaseYear, movieCategoryNames[it.categoryId], it.tmdbGenreIds) }
                         .take(80),
                     series = if (parsed.filmOnly && !parsed.seriesOnly) emptyList() else (personCheck?.second ?: series.values)
-                        .filter { TvFlowIntent.score(parsed, it.name, it.plot, it.releaseYear, seriesCategoryNames[it.categoryId]) > 0 }
-                        .sortedByDescending { TvFlowIntent.score(parsed, it.name, it.plot, it.releaseYear, seriesCategoryNames[it.categoryId]) }
+                        .filter { TvFlowIntent.score(parsed, it.name, it.plot, it.releaseYear, seriesCategoryNames[it.categoryId], it.tmdbGenreIds) > 0 }
+                        .sortedByDescending { TvFlowIntent.score(parsed, it.name, it.plot, it.releaseYear, seriesCategoryNames[it.categoryId], it.tmdbGenreIds) }
                         .take(80)
                 )
             }

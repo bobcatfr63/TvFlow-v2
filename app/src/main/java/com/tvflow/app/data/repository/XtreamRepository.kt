@@ -654,7 +654,8 @@ class XtreamRepository @Inject constructor(
                     month = metadata.releaseMonth,
                     posterUrl = metadata.imageUrl,
                     rating = metadata.rating,
-                    detailsFetchedAt = now
+                    detailsFetchedAt = now,
+                    genreIds = metadata.genreIds
                 )
             }
         }
@@ -855,7 +856,8 @@ class XtreamRepository @Inject constructor(
                     year = metadata.releaseYear,
                     month = metadata.releaseMonth,
                     coverUrl = metadata.imageUrl,
-                    rating = metadata.rating
+                    rating = metadata.rating,
+                    genreIds = metadata.genreIds
                 )
             }
         }
@@ -1548,9 +1550,10 @@ class XtreamRepository @Inject constructor(
         containerExtension = containerExtension,
         synopsis = synopsis,
         releaseYear = releaseYear,
-        releaseMonth = releaseMonth
+        releaseMonth = releaseMonth,
+        tmdbGenreIds = tmdbGenreIds
     )
-    private fun SeriesItemEntity.toDomain() = SeriesItem(seriesId, name, categoryId, coverUrl, rating, plot, releaseYear, releaseMonth)
+    private fun SeriesItemEntity.toDomain() = SeriesItem(seriesId, name, categoryId, coverUrl, rating, plot, releaseYear, releaseMonth, tmdbGenreIds)
     private fun PlaybackPositionEntity.toDomain() = PlaybackPosition(
         mediaKey, positionMs, durationMs, updatedAt, title, imageUrl, kind, mediaId, containerExtension, seriesId
     )

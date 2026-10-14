@@ -22,7 +22,8 @@ data class VodItem(
     val containerExtension: String?,
     val synopsis: String? = null,
     val releaseYear: Int? = null,
-    val releaseMonth: Int? = null
+    val releaseMonth: Int? = null,
+    val tmdbGenreIds: String? = null
 )
 
 data class SeriesItem(
@@ -33,7 +34,8 @@ data class SeriesItem(
     val rating: String?,
     val plot: String?,
     val releaseYear: Int? = null,
-    val releaseMonth: Int? = null
+    val releaseMonth: Int? = null,
+    val tmdbGenreIds: String? = null
 )
 
 data class Episode(

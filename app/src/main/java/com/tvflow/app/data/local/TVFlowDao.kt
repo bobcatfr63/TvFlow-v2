@@ -217,8 +217,8 @@ interface TVFlowDao {
     @Query("SELECT * FROM vod_items WHERE profileId = :profileId AND categoryId = :categoryId AND (releaseYear IS NULL OR synopsis IS NULL OR synopsis = '') ORDER BY COALESCE(added, 0) DESC, CAST(streamId AS INTEGER) DESC LIMIT :limit")
     suspend fun getVodMissingMetadata(profileId: String, categoryId: String, limit: Int): List<VodItemEntity>
 
-    @Query("UPDATE vod_items SET synopsis = COALESCE(:synopsis, synopsis), releaseYear = COALESCE(:year, releaseYear), releaseMonth = COALESCE(:month, releaseMonth), posterUrl = COALESCE(:posterUrl, posterUrl), rating = COALESCE(:rating, rating), detailsFetchedAt = COALESCE(:detailsFetchedAt, detailsFetchedAt) WHERE profileId = :profileId AND streamId = :streamId")
-    suspend fun updateVodMetadata(profileId: String, streamId: Int, synopsis: String?, year: Int?, month: Int?, posterUrl: String?, rating: String?, detailsFetchedAt: Long? = null)
+    @Query("UPDATE vod_items SET synopsis = COALESCE(:synopsis, synopsis), releaseYear = COALESCE(:year, releaseYear), releaseMonth = COALESCE(:month, releaseMonth), posterUrl = COALESCE(:posterUrl, posterUrl), rating = COALESCE(:rating, rating), tmdbGenreIds = COALESCE(:genreIds, tmdbGenreIds), detailsFetchedAt = COALESCE(:detailsFetchedAt, detailsFetchedAt) WHERE profileId = :profileId AND streamId = :streamId")
+    suspend fun updateVodMetadata(profileId: String, streamId: Int, synopsis: String?, year: Int?, month: Int?, posterUrl: String?, rating: String?, detailsFetchedAt: Long? = null, genreIds: String? = null)
 
     @Query("SELECT * FROM series_items WHERE profileId = :profileId AND categoryId = :categoryId ORDER BY name")
     fun observeSeries(profileId: String, categoryId: String): Flow<List<SeriesItemEntity>>
@@ -235,8 +235,8 @@ interface TVFlowDao {
     @Query("SELECT * FROM series_items WHERE profileId = :profileId AND categoryId = :categoryId AND (releaseYear IS NULL OR plot IS NULL OR plot = '') LIMIT :limit")
     suspend fun getSeriesMissingMetadata(profileId: String, categoryId: String, limit: Int): List<SeriesItemEntity>
 
-    @Query("UPDATE series_items SET plot = COALESCE(:plot, plot), releaseYear = COALESCE(:year, releaseYear), releaseMonth = COALESCE(:month, releaseMonth), coverUrl = COALESCE(:coverUrl, coverUrl), rating = COALESCE(:rating, rating) WHERE profileId = :profileId AND seriesId = :seriesId")
-    suspend fun updateSeriesMetadata(profileId: String, seriesId: Int, plot: String?, year: Int?, month: Int?, coverUrl: String?, rating: String?)
+    @Query("UPDATE series_items SET plot = COALESCE(:plot, plot), releaseYear = COALESCE(:year, releaseYear), releaseMonth = COALESCE(:month, releaseMonth), coverUrl = COALESCE(:coverUrl, coverUrl), rating = COALESCE(:rating, rating), tmdbGenreIds = COALESCE(:genreIds, tmdbGenreIds) WHERE profileId = :profileId AND seriesId = :seriesId")
+    suspend fun updateSeriesMetadata(profileId: String, seriesId: Int, plot: String?, year: Int?, month: Int?, coverUrl: String?, rating: String?, genreIds: String? = null)
 
     @Query("SELECT * FROM vod_items WHERE profileId = :profileId AND name LIKE '%' || :query || '%' ORDER BY name LIMIT :limit")
     fun searchVod(profileId: String, query: String, limit: Int = 100): Flow<List<VodItemEntity>>
@@ -294,7 +294,8 @@ interface TVFlowDao {
                 releaseMonth = incoming.releaseMonth ?: previous?.releaseMonth,
                 posterUrl = incoming.posterUrl ?: previous?.posterUrl,
                 rating = incoming.rating ?: previous?.rating,
-                detailsFetchedAt = previous?.detailsFetchedAt
+                detailsFetchedAt = previous?.detailsFetchedAt,
+                tmdbGenreIds = incoming.tmdbGenreIds ?: previous?.tmdbGenreIds
             )
         }.chunked(500).forEach { batch -> upsertVod(batch) }
 
@@ -305,7 +306,8 @@ interface TVFlowDao {
                 releaseYear = incoming.releaseYear ?: previous?.releaseYear,
                 releaseMonth = incoming.releaseMonth ?: previous?.releaseMonth,
                 coverUrl = incoming.coverUrl ?: previous?.coverUrl,
-                rating = incoming.rating ?: previous?.rating
+                rating = incoming.rating ?: previous?.rating,
+                tmdbGenreIds = incoming.tmdbGenreIds ?: previous?.tmdbGenreIds
             )
         }.chunked(500).forEach { batch -> upsertSeries(batch) }
     }

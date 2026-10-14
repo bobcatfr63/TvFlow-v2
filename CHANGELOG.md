@@ -1,6 +1,12 @@
 # Historique des mises à jour TVFlow-v2
 
-## 1.0.136 (en préparation)
+## 1.0.137 (en préparation)
+
+- **TVFlow AI / TMDB** : mémorisation progressive des identifiants de genres officiels TMDB dans les fiches films et séries, sans effacer les données existantes.
+- **Classement AI** : les genres TMDB confirmés ont priorité sur les catégories IPTV et les mots isolés ; les recherches combinées action + aventure acceptent les identifiants officiels correspondants.
+- **Base locale** : migration Room v11 → v12 conservant les catalogues et les genres enrichis lors des actualisations du serveur ; tests unitaires de classement.
+
+## 1.0.136
 
 - **TVFlow AI** : les catégories IPTV explicites (Action, Aventure, etc.) servent d'indices de genre pour classer les résultats du catalogue.
 - **Recherche combinée** : « action et aventure » exige des indices corroborés par les catégories ou les synopsis, sans confondre un titre « aventures » avec un genre confirmé.

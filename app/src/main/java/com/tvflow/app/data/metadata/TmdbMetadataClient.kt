@@ -32,7 +32,8 @@ data class ExternalMediaMetadata(
     val releaseYear: Int?,
     val releaseMonth: Int?,
     val imageUrl: String?,
-    val rating: String?
+    val rating: String?,
+    val genreIds: String? = null
 )
 
 @Singleton
@@ -198,6 +199,7 @@ class TmdbMetadataClient @Inject constructor(
             val parsed = parseDate(date)
             val posterPath = string(best, "poster_path")
             ExternalMediaMetadata(
+                genreIds = best.getAsJsonArray("genre_ids")?.mapNotNull { id -> runCatching { id.asInt }.getOrNull() }?.distinct()?.joinToString(",")?.takeIf { it.isNotBlank() },
                 synopsis = string(best, "overview")?.takeIf { it.isNotBlank() },
                 releaseYear = parsed.first,
                 releaseMonth = parsed.second,

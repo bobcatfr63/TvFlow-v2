@@ -6,6 +6,14 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class TvFlowIntentTest {
+    @Test fun tmdbGenreIdsImproveCombinedGenreMatches() {
+        val query = TvFlowIntent.parse("une série action et aventure")
+        assertTrue(TvFlowIntent.score(query, "Série sans mots-clés", null, 2024, null, "10759") > 0)
+        assertEquals(0, TvFlowIntent.score(query, "Les aventures", "Un conte", 2024, null, "16"))
+        val movie = TvFlowIntent.parse("film action")
+        assertTrue(TvFlowIntent.score(movie, "Mission", null, 2024, null, "28") >
+            TvFlowIntent.score(movie, "Mission", null, 2024))
+    }
     @Test fun combinedGenresUseExplicitProviderCategoryAndDoNotTrustAdventureTitleAlone() {
         val query = TvFlowIntent.parse("une série d'action et d'aventure")
         assertTrue(TvFlowIntent.score(query, "Aucune indication", null, null, "FR Action Aventure") > 0)
