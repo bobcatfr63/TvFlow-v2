@@ -1,6 +1,12 @@
 # Historique des mises à jour TVFlow-v2
 
-## 1.0.126 (en préparation)
+## 1.0.127 (en préparation)
+
+- **TNT** : filtre commun au Direct et Guide, reconnaissance stricte des chaînes nationales sans accepter de faux numéros de chaîne fournis par le serveur.
+- **Doublons et préférences** : une seule variante de chaque chaîne, priorité aux flux fonctionnels avec EPG et meilleure qualité ; exclusion des chaînes masquées.
+- **Tests** : nouveaux contrôles de non-régression sur les numéros erronés, doublons et chaînes masquées.
+
+## 1.0.126
 
 - **TVFlow AI** : recherche de films similaires à une référence présente dans le catalogue (« un film comme Interstellar »), avec comparaison prudente des thèmes de synopsis et sans proposer de films absents du serveur.
 - **Qualité des recommandations** : message explicite si le film de référence ou ses métadonnées sont indisponibles ; nouveaux tests sur la reconnaissance de la demande et les points communs des synopsis.

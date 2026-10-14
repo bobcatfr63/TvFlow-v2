@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.tvflow.app.data.repository.XtreamRepository
 import com.tvflow.app.data.repository.channelAlphabeticalKey
 import com.tvflow.app.data.repository.sortTntChannels
+import com.tvflow.app.data.repository.selectTntChannels
 import com.tvflow.app.data.local.SettingsStore
 import com.tvflow.app.domain.EpgProgram
 import com.tvflow.app.domain.LiveCategory
@@ -264,11 +265,7 @@ class GuideViewModel @Inject constructor(
         GUIDE_ALL -> repository.observeAllChannels()
         GUIDE_FAVORITES -> repository.observeFavorites()
         GUIDE_TNT -> repository.observeAllChannels().map { channels ->
-            sortTntChannels(channels).filter { channel ->
-                channel.logicalNumber != null || com.tvflow.app.data.repository.frenchTntNumber(
-                    com.tvflow.app.data.repository.canonicalFrenchChannelName(channel.name)
-                ) != null
-            }.distinctBy { it.logicalNumber ?: com.tvflow.app.data.repository.canonicalFrenchChannelName(it.name) }
+            selectTntChannels(channels)
         }
         else -> repository.observeChannels(filterId ?: categoryId)
     }

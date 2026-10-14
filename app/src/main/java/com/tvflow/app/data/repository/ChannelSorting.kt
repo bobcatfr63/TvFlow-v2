@@ -17,6 +17,33 @@ internal fun channelAlphabeticalKey(name: String): String {
         .lowercase(Locale.ROOT)
 }
 
+/** One French TNT stream per recognised channel, regardless of IPTV category.
+ * Never trust arbitrary provider logical numbers as proof of TNT membership.
+ */
+internal fun selectTntChannels(channels: List<LiveChannel>): List<LiveChannel> {
+    return channels.asSequence()
+        .filterNot { it.isSectionMarker || it.isHidden }
+        .mapNotNull { channel ->
+            val number = frenchTntNumber(canonicalFrenchChannelName(channel.name)) ?: return@mapNotNull null
+            number to channel
+        }
+        .groupBy({ it.first }, { it.second })
+        .toSortedMap()
+        .values
+        .map { variants ->
+            variants.maxWithOrNull(compareBy<LiveChannel> {
+                when (it.health) {
+                    com.tvflow.app.domain.StreamHealth.ONLINE -> 4
+                    com.tvflow.app.domain.StreamHealth.UNKNOWN -> 3
+                    com.tvflow.app.domain.StreamHealth.CHECKING -> 2
+                    com.tvflow.app.domain.StreamHealth.UNSTABLE -> 1
+                    else -> 0
+                }
+            }.thenBy { if (it.epgChannelId.isNullOrBlank()) 0 else 1 }
+                .thenBy { if (it.name.contains("HD", ignoreCase = true)) 1 else 0 })!!
+        }
+}
+
 /** Numbered French TNT channels first, followed by other channels in stable provider order. */
 internal fun sortTntChannels(channels: List<LiveChannel>): List<LiveChannel> =
     channels.filterNot { it.isSectionMarker }.sortedWith(

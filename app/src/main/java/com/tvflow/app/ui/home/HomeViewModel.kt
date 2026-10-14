@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.tvflow.app.data.repository.XtreamRepository
 import com.tvflow.app.data.repository.channelAlphabeticalKey
 import com.tvflow.app.data.repository.sortTntChannels
+import com.tvflow.app.data.repository.selectTntChannels
 import com.tvflow.app.data.local.SettingsStore
 import com.tvflow.app.domain.LiveCategory
 import com.tvflow.app.domain.LiveChannel
@@ -62,9 +63,7 @@ class HomeViewModel @Inject constructor(
     }.flatMapLatest { (selected, filterId) ->
         val stream = when (selected) {
             ChannelSource.Tnt -> repository.observeAllChannels().map { channels ->
-                com.tvflow.app.data.repository.sortTntChannels(channels)
-                    .filter { channel -> channel.logicalNumber != null || com.tvflow.app.data.repository.frenchTntNumber(com.tvflow.app.data.repository.canonicalFrenchChannelName(channel.name)) != null }
-                    .distinctBy { it.logicalNumber ?: com.tvflow.app.data.repository.canonicalFrenchChannelName(it.name) }
+                selectTntChannels(channels)
             }
             ChannelSource.Favorites -> repository.observeFavorites()
             ChannelSource.Recent -> repository.observeRecentChannels()

@@ -23,6 +23,7 @@ object InstalledReleaseNotes {
         .take(4)
 
     private fun frenchSummary(subject: String): String = when {
+        "fix TNT category filtering" in subject -> "TNT : catégorie plus fiable, doublons réduits et chaînes masquées respectées."
         "similar films from catalog" in subject -> "TVFlow AI : suggestions de films similaires basées sur ton catalogue et leurs synopsis."
         "understand natural French AI requests" in subject -> "TVFlow AI : meilleure compréhension du français naturel et suggestions mieux ciblées."
         "improve AI ranking" in subject -> "TVFlow AI : recherches plus pertinentes, moins de faux résultats et priorité aux vrais titres."

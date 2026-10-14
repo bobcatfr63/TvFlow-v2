@@ -50,6 +50,20 @@ class HomeSortingTest {
         assertEquals(listOf(23, 21, 22, 20, 24), com.tvflow.app.data.repository.sortTntChannels(channels).map { it.streamId })
     }
 
+    @Test
+    fun tntCategoryRejectsArbitraryLogicalNumbersAndDeduplicates() {
+        val channels = listOf(
+            channel(1, "FR - TF1 SD", false, null).copy(logicalNumber = 1),
+            channel(2, "FR - TF1 HD", false, "tf1.epg"),
+            channel(3, "FR - M6", false, null),
+            channel(4, "FR - Canal Cinema", false, null).copy(logicalNumber = 1),
+            channel(5, "FR - Arte HD", false, null).copy(isHidden = true),
+            channel(6, "FR - TF1 4K", false, null)
+        )
+        val result = com.tvflow.app.data.repository.selectTntChannels(channels)
+        assertEquals(listOf(2, 3), result.map { it.streamId })
+    }
+
     private fun channel(
         id: Int,
         name: String,
