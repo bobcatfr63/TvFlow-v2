@@ -23,6 +23,9 @@ object InstalledReleaseNotes {
         .take(4)
 
     private fun frenchSummary(subject: String): String = when {
+        "unified TV and mobile favorites library" in subject -> "Favoris : nouvel écran commun pour retrouver chaînes, films et séries sur mobile et TV."
+        "save VOD and series favorites per profile" in subject -> "Favoris : films et séries enregistrés séparément pour chaque profil IPTV."
+        "toggle channel favorites from channel list" in subject -> "Favoris : ajout ou retrait d'une chaîne directement depuis la liste."
         "filter requested genres before ranking" in subject -> "TVFlow AI : genres respectés et recherches par catégories accélérées sur les gros catalogues."
         "compact global search index" in subject -> "TVFlow AI : recherche plus économe en mémoire sur les catalogues volumineux."
         "balance AI candidates across IPTV categories" in subject -> "TVFlow AI : suggestions mieux réparties entre les catégories IPTV sur les gros catalogues."
@@ -67,10 +70,9 @@ object InstalledReleaseNotes {
         "integrate Google Play billing" in subject -> "Préparation du paiement Premium et de la restauration des achats Google Play."
         "prepare lifetime offer" in subject -> "Préparation de TVFlow Premium, disponible à terme par achat unique."
         "premium" in subject.lowercase() -> "Améliorations de l'expérience TVFlow Premium."
-        else -> if (subject.any { it in "éèêàùçôîû" } || subject.startsWith("Correction") || subject.startsWith("Rendre")) {
-            subject.replaceFirstChar { it.uppercaseChar() }
-        } else {
-            "Améliorations de l'application et de sa stabilité."
-        }
+        // Preserve release notes supplied by the signed release manifest, even when a
+        // new feature has no dedicated translation yet. Never replace real notes with
+        // the same generic sentence on every release.
+        else -> subject.trim().removePrefix("•").trim().replaceFirstChar { it.uppercaseChar() }
     }
 }
