@@ -1,5 +1,8 @@
 package com.tvflow.app.ui.theme
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.Modifier
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
@@ -137,7 +140,12 @@ private fun ThemePalette.toColorScheme(): ColorScheme = darkColorScheme(
 fun TVFlowTheme(accent: String = "RAINBOW", content: @Composable () -> Unit) {
     CompositionLocalProvider(LocalRainbowEnabled provides (accent in setOf("RAINBOW", "NEBULA", "INFERNO", "CRYSTAL", "QUANTUM", "OCEAN", "AURORA"))) {
         CompositionLocalProvider(LocalSignatureTheme provides accent) {
-            MaterialTheme(colorScheme = palette(accent).toColorScheme(), content = content)
+            MaterialTheme(colorScheme = palette(accent).toColorScheme()) {
+                Box(Modifier.fillMaxSize()) {
+                    content()
+                    SignatureAtmosphere(accent)
+                }
+            }
         }
     }
 }
