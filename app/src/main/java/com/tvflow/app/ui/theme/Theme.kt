@@ -156,12 +156,15 @@ private fun ThemePalette.toColorScheme(): ColorScheme = darkColorScheme(
 
 @Composable
 fun TVFlowTheme(accent: String = "RAINBOW", content: @Composable () -> Unit) {
-    CompositionLocalProvider(LocalRainbowEnabled provides (accent in setOf("RAINBOW", "NEBULA", "INFERNO", "CRYSTAL", "QUANTUM", "OCEAN", "AURORA", "ECLIPSE", "INTERSTELLAR", "HOLOGRAPHIC"))) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val isLegacyTv = (context.resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_TYPE_MASK) == android.content.res.Configuration.UI_MODE_TYPE_TELEVISION && android.os.Build.VERSION.SDK_INT <= 28
+    CompositionLocalProvider(LocalRainbowEnabled provides (!isLegacyTv && accent in setOf("RAINBOW", "NEBULA", "INFERNO", "CRYSTAL", "QUANTUM", "OCEAN", "AURORA", "ECLIPSE", "INTERSTELLAR", "HOLOGRAPHIC"))) {
         CompositionLocalProvider(LocalSignatureTheme provides accent) {
             MaterialTheme(colorScheme = palette(accent).toColorScheme()) {
                 Box(Modifier.fillMaxSize()) {
                     content()
-                    SignatureAtmosphere(accent)
+                    // Legacy Android TV hardware cannot always sustain continuous fullscreen gradients.
+                    SignatureAtmosphere(accent, animate = !isLegacyTv)
                 }
             }
         }

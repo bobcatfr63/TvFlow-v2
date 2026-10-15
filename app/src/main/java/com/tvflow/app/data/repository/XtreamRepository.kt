@@ -149,12 +149,24 @@ class XtreamRepository @Inject constructor(
             .digest("${credentials.serverUrl.trim().lowercase()}|${credentials.username}".toByteArray())
             .take(8).joinToString("") { "%02x".format(it) }
 
+    // Hash all account fields so replay capability is never shared between distinct credentials.
+    // A digest also keeps credentials out of cache keys and diagnostics.
+    private fun accountCacheKey(credentials: XtreamCredentials): String = MessageDigest.getInstance("SHA-256")
+        .digest("${credentials.serverUrl.trim().lowercase()}|${credentials.username}|${credentials.password}".toByteArray())
+        .joinToString("") { "%02x".format(it) }
+
     private fun playlistFile(profileId: String) = File(context.filesDir, "m3u_${profileId}.m3u")
 
-    private val liveResultCache = object : LinkedHashMap<String, List<LiveChannel>>(12, 0.75f, true) {
-        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, List<LiveChannel>>?): Boolean = size > 12
+    // Visible-channel lists can be large; keep only a few recent filter results.
+    // Accesses below are synchronized on liveResultCache.
+    private val liveResultCache = object : LinkedHashMap<String, List<LiveChannel>>(4, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, List<LiveChannel>>?): Boolean = size > 4
     }
-    private val searchCache = mutableMapOf<String, SearchCache>()
+    // Limit indexed catalogs retained across IPTV profiles to avoid unbounded memory growth.
+    // All reads and writes remain protected by searchCacheMutex.
+    private val searchCache = object : LinkedHashMap<String, SearchCache>(4, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, SearchCache>?): Boolean = size > 4
+    }
     private val searchCacheMutex = Mutex()
     private val xmltvMutex = Mutex()
     private val catchupProbeCache = LinkedHashMap<String, Boolean>(32, 0.75f, true)
@@ -1158,7 +1170,8 @@ class XtreamRepository @Inject constructor(
         val url = buildCatchupStreamUrl(credentials, channel.streamId, program.startTimestamp, program.stopTimestamp)
         if (channel.tvArchive || program.hasArchive) return@withContext url
 
-        val cacheKey = "${channel.streamId}:${program.startTimestamp}"
+        // Scope replay probe results to the IPTV account: stream IDs are not globally unique.
+        val cacheKey = "${accountCacheKey(credentials)}:${channel.streamId}:${program.startTimestamp}"
         synchronized(catchupProbeCache) { catchupProbeCache[cacheKey] }?.let { supported ->
             return@withContext url.takeIf { supported }
         }
@@ -1574,8 +1587,9 @@ class XtreamRepository @Inject constructor(
     suspend fun logout() { credentialsStore.clear() }
 
     suspend fun prewarmLivePresentation() {
-        val firstCategory = observeCategories().first { it.isNotEmpty() }.first()
-        observeChannels(firstCategory.id).first { it.isNotEmpty() }
+        // Empty catalogs and fully hidden categories are valid states: never wait forever.
+        val firstCategory = observeCategories().first().firstOrNull() ?: return
+        observeChannels(firstCategory.id).first()
     }
 
     private suspend fun currentProfileId(): String = activeProfileId.first() ?: error("Aucun profil IPTV actif")

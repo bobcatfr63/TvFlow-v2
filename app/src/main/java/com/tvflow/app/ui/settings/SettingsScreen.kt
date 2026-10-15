@@ -85,10 +85,11 @@ fun SettingsScreen(
     if (showPremium) {
         AlertDialog(
             onDismissRequest = { showPremium = false },
-            title = { Text("TVFlow Premium · À vie") },
+            title = { Text("TVFlow Premium") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("4,99 € · Achat unique, sans abonnement", style = MaterialTheme.typography.titleMedium)
+                    Text("${PremiumPlan.monthlyPriceLabel} ou ${PremiumPlan.introductoryPriceLabel} à vie", style = MaterialTheme.typography.titleMedium)
+                    Text("Tarifs indicatifs : les prix définitifs seront affichés par Google Play.")
                     Text("Votre formule actuelle : TVFlow Free")
                     if (BuildConfig.IS_PLAY_STORE) {
                         Text("Google Play : ${billingState.message}")

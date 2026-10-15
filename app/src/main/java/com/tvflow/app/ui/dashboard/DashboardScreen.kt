@@ -1402,10 +1402,11 @@ private fun InstalledReleaseNotesPopup(
     val scrollState = rememberScrollState()
     val scope = rememberCoroutineScope()
     val contentFocusRequester = remember { FocusRequester() }
+    val confirmFocusRequester = remember { FocusRequester() }
 
     LaunchedEffect(isTv, notes) {
         if (isTv) {
-            contentFocusRequester.requestFocus()
+            confirmFocusRequester.requestFocus()
         }
     }
 
@@ -1494,6 +1495,7 @@ private fun InstalledReleaseNotesPopup(
                 text = "J’ai compris",
                 enabled = true,
                 primary = true,
+                modifier = Modifier.focusRequester(confirmFocusRequester),
                 onClick = onDismiss
             )
         }
@@ -1505,6 +1507,7 @@ private fun UpdateActionButton(
     text: String,
     enabled: Boolean,
     primary: Boolean,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
     val interaction = remember { MutableInteractionSource() }
@@ -1524,7 +1527,7 @@ private fun UpdateActionButton(
 
     Text(
         text = text,
-        modifier = Modifier
+        modifier = modifier
             .clip(RoundedCornerShape(12.dp))
             .background(background)
             .border(

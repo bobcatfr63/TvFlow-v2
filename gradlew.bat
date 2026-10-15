@@ -1,7 +1,13 @@
 @echo off
 setlocal
 set GRADLE_VERSION=9.6.0
-if "%GRADLE_USER_HOME%"=="" set GRADLE_USER_HOME=%USERPROFILE%\.gradle
+if "%GRADLE_USER_HOME%"=="" (
+  if exist "G:\DevServer\gradle-cache" (
+    set "GRADLE_USER_HOME=G:\DevServer\gradle-cache"
+  ) else (
+    set "GRADLE_USER_HOME=%USERPROFILE%\.gradle"
+  )
+)
 set CACHE_DIR=%GRADLE_USER_HOME%\wrapper\dists\tvflow-gradle-%GRADLE_VERSION%
 set GRADLE_HOME=%CACHE_DIR%\gradle-%GRADLE_VERSION%
 set ZIP=%CACHE_DIR%\gradle-%GRADLE_VERSION%-bin.zip

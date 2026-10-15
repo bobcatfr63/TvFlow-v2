@@ -22,7 +22,7 @@ import kotlin.math.sin
  * existing screens. Different geometric motifs per Signature identity.
  */
 @Composable
-fun SignatureAtmosphere(theme: String, modifier: Modifier = Modifier) {
+fun SignatureAtmosphere(theme: String, modifier: Modifier = Modifier, animate: Boolean = true) {
     val tones = when (theme) {
         "NEBULA" -> listOf(Color(0xFFBD78FF), Color(0xFF447AFF), Color(0xFFE59BFF))
         "INFERNO" -> listOf(Color(0xFFFF6737), Color(0xFFFFC05A), Color(0xFFE03A62))
@@ -35,16 +35,18 @@ fun SignatureAtmosphere(theme: String, modifier: Modifier = Modifier) {
         "HOLOGRAPHIC" -> listOf(Color(0xFF59FDE5), Color(0xFF8A91FF), Color(0xFF51BEFC))
         else -> return
     }
-    val transition = rememberInfiniteTransition(label = "signatureScene")
-    val phase = transition.animateFloat(
-        initialValue = 0f, targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(24000, easing = LinearEasing), RepeatMode.Restart),
-        label = "cinematicDrift"
-    )
+    val phase = if (animate) {
+        val transition = rememberInfiniteTransition(label = "signatureScene")
+        transition.animateFloat(
+            initialValue = 0f, targetValue = 1f,
+            animationSpec = infiniteRepeatable(tween(24000, easing = LinearEasing), RepeatMode.Restart),
+            label = "cinematicDrift"
+        ).value
+    } else 0.28f
     Canvas(modifier.fillMaxSize()) {
         val w = size.width
         val h = size.height
-        val time = phase.value * 6.283185f
+        val time = phase * 6.283185f
         val large = maxOf(w, h)
         val glowCenters = listOf(
             Offset(w * (0.13f + 0.08f * sin(time)), h * 0.12f),
@@ -74,7 +76,7 @@ fun SignatureAtmosphere(theme: String, modifier: Modifier = Modifier) {
                 drawCircle(tones[0].copy(alpha = 0.32f), large * 0.16f, center, style = Stroke(2.5f))
                 repeat(22) { i ->
                     val x = w * ((i * 0.618034f) % 1f)
-                    val y = h * ((i * 0.371f + phase.value * 0.016f) % 1f)
+                    val y = h * ((i * 0.371f + phase * 0.016f) % 1f)
                     drawCircle(tones[i % 3].copy(alpha = 0.26f), 1f + i % 2, Offset(x, y))
                 }
             }
@@ -85,12 +87,12 @@ fun SignatureAtmosphere(theme: String, modifier: Modifier = Modifier) {
             }
             "NEBULA" -> repeat(26) { index ->
                 val x = w * ((index * 0.618034f) % 1f)
-                val y = h * ((index * 0.414214f + phase.value * (0.025f + (index % 3) * 0.01f)) % 1f)
+                val y = h * ((index * 0.414214f + phase * (0.025f + (index % 3) * 0.01f)) % 1f)
                 drawCircle(tones[index % 3].copy(alpha = 0.3f), 0.7f + index % 3, Offset(x, y))
             }
             "INFERNO" -> repeat(16) { index ->
                 val x = w * ((index * 0.537f + sin(time + index) * 0.014f) % 1f)
-                val y = h * (1f - ((index * 0.129f + phase.value * (0.18f + index % 4 * 0.03f)) % 1f))
+                val y = h * (1f - ((index * 0.129f + phase * (0.18f + index % 4 * 0.03f)) % 1f))
                 drawCircle(tones[index % 3].copy(alpha = 0.25f), 1.3f + index % 3, Offset(x, y))
             }
             "CRYSTAL" -> repeat(6) { index ->

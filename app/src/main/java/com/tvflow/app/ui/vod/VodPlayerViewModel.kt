@@ -8,6 +8,8 @@ import com.tvflow.app.data.local.SettingsStore
 import com.tvflow.app.domain.Episode
 import com.tvflow.app.domain.VodItem
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -66,6 +68,25 @@ class VodPlayerViewModel @Inject constructor(
         val current = _state.value
         val key = current.mediaKey.takeIf { it.isNotBlank() } ?: return
         viewModelScope.launch {
+            repository.savePlaybackPosition(
+                mediaKey = key,
+                positionMs = positionMs,
+                durationMs = durationMs,
+                title = current.title,
+                imageUrl = current.imageUrl,
+                kind = kind,
+                mediaId = mediaId,
+                containerExtension = ext,
+                seriesId = seriesId
+            )
+        }
+    }
+
+    fun saveFinalProgress(positionMs: Long, durationMs: Long) {
+        val current = _state.value
+        val key = current.mediaKey.takeIf { it.isNotBlank() } ?: return
+        // Finish the last Room write even if navigation clears this ViewModel.
+        viewModelScope.launch(Dispatchers.IO + NonCancellable) {
             repository.savePlaybackPosition(
                 mediaKey = key,
                 positionMs = positionMs,
@@ -196,6 +217,7 @@ class VodPlayerViewModel @Inject constructor(
                     error = null
                 )
             }.onFailure { error ->
+                if (error is kotlinx.coroutines.CancellationException) throw error
                 _state.value = _state.value.copy(error = "Lecture indisponible. Vérifiez la connexion au serveur IPTV puis réessayez.")
             }
         }

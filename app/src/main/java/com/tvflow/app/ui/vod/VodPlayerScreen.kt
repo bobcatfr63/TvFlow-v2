@@ -82,6 +82,8 @@ fun VodPlayerScreen(
     var infoVisible by remember { mutableStateOf(false) }
     var gestureLabel by remember { mutableStateOf<String?>(null) }
     var useVlcFallback by remember { mutableStateOf(false) }
+    var vlcHandoffPositionMs by remember { mutableStateOf(0L) }
+    var lastVlcProgressSaveMs by remember { mutableStateOf(0L) }
     var episodeNavigationVisible by remember { mutableStateOf(false) }
     var playbackControlsVisible by remember { mutableStateOf(false) }
     val previousEpisodeFocusRequester = remember { FocusRequester() }
@@ -130,6 +132,7 @@ fun VodPlayerScreen(
                     cause = cause.cause
                 }
                 if (shouldUseVlcFallback(httpCode, error.errorCodeName)) {
+                    vlcHandoffPositionMs = player.currentPosition.coerceAtLeast(state.resumePositionMs)
                     player.pause()
                     useVlcFallback = true
                 } else {
@@ -149,6 +152,8 @@ fun VodPlayerScreen(
 
     LaunchedEffect(state.streamUrl) {
         useVlcFallback = false
+        vlcHandoffPositionMs = 0L
+        lastVlcProgressSaveMs = 0L
         val url = state.streamUrl ?: return@LaunchedEffect
         Log.i(VOD_PLAYER_TAG, "Preparing Media3: media=${state.mediaKey}, extension=${state.containerExtension ?: "unknown"}, resumeMs=${state.resumePositionMs}")
         player.setMediaItem(MediaItem.fromUri(url))
@@ -176,7 +181,7 @@ fun VodPlayerScreen(
     DisposableEffect(player) {
         onDispose {
             if (!vlcFallbackActive) {
-                viewModel.saveProgress(
+                viewModel.saveFinalProgress(
                     player.currentPosition.coerceAtLeast(0L),
                     player.duration.coerceAtLeast(0L)
                 )
@@ -272,12 +277,18 @@ fun VodPlayerScreen(
             useVlcFallback -> VlcFallbackPlayer(
                 url = state.streamUrl.orEmpty(),
                 modifier = Modifier.fillMaxSize(),
-                startPositionMs = state.resumePositionMs,
+                startPositionMs = vlcHandoffPositionMs.coerceAtLeast(state.resumePositionMs),
                 onPlaybackEnded = { viewModel.onPlaybackEnded() },
                 onProgress = { position, duration ->
                     viewModel.updatePlaybackProgress(position, duration)
-                    viewModel.saveProgress(position, duration)
+                    // Save roughly every 15 seconds, including after backward seeks.
+                    if (position > 0L && (lastVlcProgressSaveMs == 0L ||
+                            kotlin.math.abs(position - lastVlcProgressSaveMs) >= 15_000L)) {
+                        lastVlcProgressSaveMs = position
+                        viewModel.saveProgress(position, duration)
+                    }
                 },
+                onFinalProgress = { position, duration -> viewModel.saveFinalProgress(position, duration) },
                 onError = { error ->
                     useVlcFallback = false
                     viewModel.onPlaybackError(error)

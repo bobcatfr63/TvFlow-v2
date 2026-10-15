@@ -30,6 +30,7 @@ fun VlcFallbackPlayer(
     startPositionMs: Long = 0L,
     onPlaybackEnded: () -> Unit = {},
     onProgress: (Long, Long) -> Unit = { _, _ -> },
+    onFinalProgress: (Long, Long) -> Unit = { _, _ -> },
     onReady: () -> Unit = {},
     onError: (String) -> Unit = {}
 ) {
@@ -57,6 +58,10 @@ fun VlcFallbackPlayer(
             }
         }
         onDispose {
+            runCatching {
+                val position = mediaPlayer.time.coerceAtLeast(0L)
+                if (position > 0L) onFinalProgress(position, mediaPlayer.length.coerceAtLeast(0L))
+            }
             runCatching { mediaPlayer.stop() }
             runCatching { mediaPlayer.detachViews() }
             mediaPlayer.release()
