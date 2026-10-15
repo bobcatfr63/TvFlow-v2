@@ -216,6 +216,21 @@ class SettingsStore @Inject constructor(@ApplicationContext private val context:
         }
     }
 
+    private fun pendingLiveFavoritesKey(profileId: String) =
+        stringPreferencesKey("pending_live_favorites_" + profileId)
+
+    fun pendingLiveFavorites(profileId: String): Flow<Set<Int>> =
+        context.playerSettingsDataStore.data.map { prefs ->
+            prefs[pendingLiveFavoritesKey(profileId)].orEmpty().split(',')
+                .mapNotNull(String::toIntOrNull).filter { it > 0 }.toSet()
+        }
+
+    suspend fun setPendingLiveFavorites(profileId: String, ids: Set<Int>) {
+        context.playerSettingsDataStore.edit { prefs ->
+            prefs[pendingLiveFavoritesKey(profileId)] = ids.filter { it > 0 }.sorted().joinToString(",")
+        }
+    }
+
     fun favoriteSyncTimestamp(profileId: String): Flow<Long> =
         context.playerSettingsDataStore.data.map { prefs ->
             prefs[longPreferencesKey("favorite_sync_" + profileId)] ?: 0L

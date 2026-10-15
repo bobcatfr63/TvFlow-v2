@@ -34,7 +34,7 @@ class PortableBackupManager @Inject constructor(
             p.put("username", profile.credentials.username)
             p.put("password", profile.credentials.password)
             p.put("outputFormat", profile.credentials.outputFormat)
-            p.put("liveFavorites", JSONArray(dao.getFavoriteIds(profile.id)))
+            p.put("liveFavorites", JSONArray((dao.getFavoriteIds(profile.id).toSet() + settingsStore.pendingLiveFavorites(profile.id).first()).sorted()))
             p.put("vodFavorites", JSONArray(settingsStore.observeMediaFavorites(profile.id, "vod").first().sorted()))
             p.put("seriesFavorites", JSONArray(settingsStore.observeMediaFavorites(profile.id, "series").first().sorted()))
             rows.put(p)
@@ -77,7 +77,10 @@ class PortableBackupManager @Inject constructor(
             } ?: error("Profil non enregistré")
             settingsStore.replaceMediaFavorites(effective.id, "vod", profile.vod)
             settingsStore.replaceMediaFavorites(effective.id, "series", profile.series)
-            dao.setFavoriteIds(effective.id, profile.live.toList())
+            val present = dao.getAllChannels(effective.id).map { it.streamId }.toSet()
+            val ready = profile.live.intersect(present)
+            settingsStore.setPendingLiveFavorites(effective.id, profile.live - ready)
+            if (ready.isNotEmpty()) dao.setFavoriteIds(effective.id, ready.toList())
         }
         val original = data.optString("activeProfileId")
         val active = profiles.firstOrNull { it.id == original }

@@ -217,6 +217,7 @@ class XtreamRepository @Inject constructor(
                 )
             }
         )
+        applyPendingLiveFavorites(id)
         synchronized(playlistLock) { playlistUrls[id] = stations.mapIndexed { i, entry -> i + 1 to entry.url }.toMap() }
         invalidateSearchCache(id)
     }
@@ -316,6 +317,7 @@ class XtreamRepository @Inject constructor(
                 )
             }
         )
+        applyPendingLiveFavorites(profileId)
         onProgress(48, "Direct enregistré")
 
         val vodCategoriesDeferred = async {
@@ -383,6 +385,17 @@ class XtreamRepository @Inject constructor(
         if (!authenticated) error(response.userInfo?.message ?: "Identifiants Xtream refusés")
     }
 
+    private suspend fun applyPendingLiveFavorites(profileId: String) {
+        val pending = settingsStore.pendingLiveFavorites(profileId).first()
+        if (pending.isEmpty()) return
+        val available = dao.getAllChannels(profileId).map { it.streamId }.toSet()
+        val resolved = pending.intersect(available)
+        if (resolved.isNotEmpty()) {
+            dao.setFavoriteIds(profileId, resolved.toList())
+            settingsStore.setPendingLiveFavorites(profileId, pending - resolved)
+        }
+    }
+
     private suspend fun refreshCatalog(credentials: XtreamCredentials, profileId: String) {
         if (isPlaylist(credentials)) return refreshPlaylist(credentials, profileId)
         val apiUrl = playerApi(credentials.serverUrl)
@@ -407,6 +420,7 @@ class XtreamRepository @Inject constructor(
                 )
             }
         )
+        applyPendingLiveFavorites(profileId)
         invalidateSearchCache(profileId)
     }
 
