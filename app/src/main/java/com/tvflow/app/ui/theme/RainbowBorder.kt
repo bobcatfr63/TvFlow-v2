@@ -34,6 +34,9 @@ private fun signatureColors(id: String): List<Color> = when (id) {
     "QUANTUM" -> listOf(Color(0xFF00BDAE), Color(0xFF79FFDA), Color(0xFF62B8FF), Color(0xFF00BDAE))
     "OCEAN" -> listOf(Color(0xFF125C94), Color(0xFF43D8EA), Color(0xFF2379C4), Color(0xFF125C94))
     "AURORA" -> listOf(Color(0xFF61E4AA), Color(0xFF79BAF2), Color(0xFFBB85EB), Color(0xFF61E4AA))
+    "ECLIPSE" -> listOf(Color(0xFF8A572A), Color(0xFFFFDF9A), Color(0xFFF6A349), Color(0xFF8A572A))
+    "INTERSTELLAR" -> listOf(Color(0xFF4A61C9), Color(0xFFB8CFFF), Color(0xFF8673E7), Color(0xFF4A61C9))
+    "HOLOGRAPHIC" -> listOf(Color(0xFF28EEDE), Color(0xFF9EA4FF), Color(0xFF54D6FF), Color(0xFF28EEDE))
     else -> rainbow
 }
 

@@ -81,6 +81,24 @@ private fun palette(id: String): ThemePalette = when (id) {
         surfaceVariant = Color(0xFF274650), text = Color.White,
         textSecondary = Color(0xFFD3F5E8)
     )
+    "ECLIPSE" -> ThemePalette(
+        primary = Color(0xFFFFD18A), onPrimary = Color(0xFF211403),
+        background = Color.Black, surface = Color(0xFF100F10),
+        surfaceVariant = Color(0xFF30271C), text = Color.White,
+        textSecondary = Color(0xFFE8D8BC)
+    )
+    "INTERSTELLAR" -> ThemePalette(
+        primary = Color(0xFF99BDFF), onPrimary = Color(0xFF07101F),
+        background = Color(0xFF040712), surface = Color(0xFF10182C),
+        surfaceVariant = Color(0xFF233753), text = Color.White,
+        textSecondary = Color(0xFFC9DBFF)
+    )
+    "HOLOGRAPHIC" -> ThemePalette(
+        primary = Color(0xFF5DFDE9), onPrimary = Color(0xFF04211F),
+        background = Color(0xFF060D17), surface = Color(0xFF102433),
+        surfaceVariant = Color(0xFF234759), text = Color.White,
+        textSecondary = Color(0xFFCBF7F5)
+    )
     "PURPLE" -> ThemePalette(
         primary = Color(0xFFC6A8FF),
         onPrimary = Color(0xFF160A27),
@@ -138,7 +156,7 @@ private fun ThemePalette.toColorScheme(): ColorScheme = darkColorScheme(
 
 @Composable
 fun TVFlowTheme(accent: String = "RAINBOW", content: @Composable () -> Unit) {
-    CompositionLocalProvider(LocalRainbowEnabled provides (accent in setOf("RAINBOW", "NEBULA", "INFERNO", "CRYSTAL", "QUANTUM", "OCEAN", "AURORA"))) {
+    CompositionLocalProvider(LocalRainbowEnabled provides (accent in setOf("RAINBOW", "NEBULA", "INFERNO", "CRYSTAL", "QUANTUM", "OCEAN", "AURORA", "ECLIPSE", "INTERSTELLAR", "HOLOGRAPHIC"))) {
         CompositionLocalProvider(LocalSignatureTheme provides accent) {
             MaterialTheme(colorScheme = palette(accent).toColorScheme()) {
                 Box(Modifier.fillMaxSize()) {

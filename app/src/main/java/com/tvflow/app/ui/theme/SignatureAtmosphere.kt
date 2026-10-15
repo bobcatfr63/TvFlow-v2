@@ -30,6 +30,9 @@ fun SignatureAtmosphere(theme: String, modifier: Modifier = Modifier) {
         "QUANTUM" -> listOf(Color(0xFF55FCD0), Color(0xFF529AFF), Color(0xFF9FFFE1))
         "OCEAN" -> listOf(Color(0xFF38D1E5), Color(0xFF2375C9), Color(0xFF91F4EC))
         "AURORA" -> listOf(Color(0xFF6DFAC0), Color(0xFFA08AF2), Color(0xFF47C9DA))
+        "ECLIPSE" -> listOf(Color(0xFFFFD28C), Color(0xFFC77835), Color(0xFFFFEBBD))
+        "INTERSTELLAR" -> listOf(Color(0xFF6788F8), Color(0xFFA7C6FF), Color(0xFFAF8CF2))
+        "HOLOGRAPHIC" -> listOf(Color(0xFF59FDE5), Color(0xFF8A91FF), Color(0xFF51BEFC))
         else -> return
     }
     val transition = rememberInfiniteTransition(label = "signatureScene")
@@ -60,6 +63,26 @@ fun SignatureAtmosphere(theme: String, modifier: Modifier = Modifier) {
             )
         }
         when (theme) {
+            "ECLIPSE" -> {
+                val center = Offset(w * (0.76f + 0.02f * sin(time)), h * 0.32f)
+                drawCircle(tones[0].copy(alpha = 0.24f), large * 0.15f, center, style = Stroke(large * 0.018f))
+                drawCircle(Color.Black.copy(alpha = 0.55f), large * 0.135f, center)
+            }
+            "INTERSTELLAR" -> {
+                val center = Offset(w * 0.8f, h * 0.58f)
+                drawCircle(tones[1].copy(alpha = 0.12f), large * 0.2f, center)
+                drawCircle(tones[0].copy(alpha = 0.32f), large * 0.16f, center, style = Stroke(2.5f))
+                repeat(22) { i ->
+                    val x = w * ((i * 0.618034f) % 1f)
+                    val y = h * ((i * 0.371f + phase.value * 0.016f) % 1f)
+                    drawCircle(tones[i % 3].copy(alpha = 0.26f), 1f + i % 2, Offset(x, y))
+                }
+            }
+            "HOLOGRAPHIC" -> repeat(12) { i ->
+                val x = w * (0.11f + i * 0.068f)
+                val y = h * (0.1f + 0.05f * sin(time + i))
+                drawLine(tones[i % 3].copy(alpha = 0.15f), Offset(x, y), Offset(x, y + h * 0.36f), strokeWidth = 1.2f)
+            }
             "NEBULA" -> repeat(26) { index ->
                 val x = w * ((index * 0.618034f) % 1f)
                 val y = h * ((index * 0.414214f + phase.value * (0.025f + (index % 3) * 0.01f)) % 1f)

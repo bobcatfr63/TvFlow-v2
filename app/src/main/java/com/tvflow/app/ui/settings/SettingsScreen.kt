@@ -290,7 +290,7 @@ fun SettingsScreen(
                 ChoiceRow("Image", listOf("FIT", "FILL", "ZOOM"), state.player.videoScale, viewModel::setScale)
                 ChoiceRow(
                     "Thème",
-                    listOf("RAINBOW", "NEBULA", "INFERNO", "CRYSTAL", "QUANTUM", "OCEAN", "AURORA", "BLUE", "DARK", "OLED", "PURPLE", "GREEN", "HIGH_CONTRAST"),
+                    listOf("RAINBOW", "NEBULA", "INFERNO", "CRYSTAL", "QUANTUM", "OCEAN", "AURORA", "ECLIPSE", "INTERSTELLAR", "HOLOGRAPHIC", "BLUE", "DARK", "OLED", "PURPLE", "GREEN", "HIGH_CONTRAST"),
                     state.player.accent,
                     viewModel::setAccent
                 )
@@ -797,6 +797,9 @@ private fun ChoiceRow(label: String, choices: List<String>, selected: String, on
                     "QUANTUM" -> "Quantum Flow"
                     "OCEAN" -> "Ocean Depth"
                     "AURORA" -> "Aurora Cinema"
+                    "ECLIPSE" -> "Eclipse Black"
+                    "INTERSTELLAR" -> "Interstellar"
+                    "HOLOGRAPHIC" -> "Holographic 2077"
                     "GREEN" -> "Vert"
                     "HIGH_CONTRAST" -> "Contraste"
                     else -> value
