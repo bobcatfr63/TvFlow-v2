@@ -19,6 +19,7 @@ import com.tvflow.app.ui.dashboard.DashboardScreen
 import com.tvflow.app.ui.home.HomeScreen
 import com.tvflow.app.ui.guide.GuideScreen
 import com.tvflow.app.ui.library.MediaLibraryScreen
+import com.tvflow.app.ui.favorites.FavoritesScreen
 import com.tvflow.app.ui.login.DemoScreen
 import com.tvflow.app.ui.login.LoginScreen
 import com.tvflow.app.ui.player.PlayerScreen
@@ -125,6 +126,7 @@ fun TVFlowNavHost(
                 onSeries = { navController.navigate("library/${MediaType.SERIES.name}") },
                 onSearch = { navController.navigate("tvflowAi") },
                 onSettings = { navController.navigate("settings") },
+                onFavorites = { navController.navigate("favorites") },
                 onChannel = { channel -> openLive(channel.streamId, channel.name, channel.categoryId) },
                 onVodItem = ::openVodDetails,
                 onSeriesItem = ::openSeriesDetails,
@@ -134,6 +136,14 @@ fun TVFlowNavHost(
                             "?seriesId=${item.seriesId ?: -1}"
                     )
                 }
+            )
+        }
+        composable("favorites") {
+            FavoritesScreen(
+                onBack = { navController.popBackStack() },
+                onChannel = { channel -> openLive(channel.streamId, channel.name, channel.categoryId) },
+                onVod = ::openVodDetails,
+                onSeries = ::openSeriesDetails
             )
         }
         composable("home") {

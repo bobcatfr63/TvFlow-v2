@@ -112,6 +112,7 @@ fun DashboardScreen(
     onSeries: () -> Unit,
     onSearch: () -> Unit,
     onSettings: () -> Unit,
+    onFavorites: () -> Unit,
     onResume: (PlaybackPosition) -> Unit,
     onChannel: (LiveChannel) -> Unit,
     onVodItem: (VodItem) -> Unit,
@@ -227,6 +228,12 @@ fun DashboardScreen(
                         onMoment = { showMoment = true },
                         onSettings = onSettings
                     )
+                }
+            }
+
+            item {
+                androidx.compose.material3.OutlinedButton(onClick = onFavorites) {
+                    Text("★ Mes favoris  ·  Chaînes / Films / Séries")
                 }
             }
 

@@ -189,6 +189,12 @@ interface TVFlowDao {
     @Query("SELECT * FROM vod_items WHERE profileId = :profileId AND streamId = :streamId LIMIT 1")
     suspend fun getVodItem(profileId: String, streamId: Int): VodItemEntity?
 
+    @Query("SELECT * FROM vod_items WHERE profileId = :profileId AND streamId IN (:ids) ORDER BY name")
+    fun observeFavoriteVodItems(profileId: String, ids: List<Int>): Flow<List<VodItemEntity>>
+
+    @Query("SELECT * FROM series_items WHERE profileId = :profileId AND seriesId IN (:ids) ORDER BY name")
+    fun observeFavoriteSeriesItems(profileId: String, ids: List<Int>): Flow<List<SeriesItemEntity>>
+
     @Query("SELECT * FROM series_items WHERE profileId = :profileId AND seriesId = :seriesId LIMIT 1")
     suspend fun getSeriesItem(profileId: String, seriesId: Int): SeriesItemEntity?
 

@@ -996,6 +996,22 @@ class XtreamRepository @Inject constructor(
         }
     }
 
+    fun observeFavoriteVodItems(): Flow<List<VodItem>> = activeProfileId.flatMapLatest { profileId ->
+        if (profileId == null) flowOf(emptyList())
+        else settingsStore.observeMediaFavorites(profileId, "vod").flatMapLatest { ids ->
+            if (ids.isEmpty()) flowOf(emptyList())
+            else dao.observeFavoriteVodItems(profileId, ids.toList()).map { entries -> entries.map { it.toDomain() } }
+        }
+    }
+
+    fun observeFavoriteSeriesItems(): Flow<List<SeriesItem>> = activeProfileId.flatMapLatest { profileId ->
+        if (profileId == null) flowOf(emptyList())
+        else settingsStore.observeMediaFavorites(profileId, "series").flatMapLatest { ids ->
+            if (ids.isEmpty()) flowOf(emptyList())
+            else dao.observeFavoriteSeriesItems(profileId, ids.toList()).map { entries -> entries.map { it.toDomain() } }
+        }
+    }
+
     fun observeMediaFavoriteIds(kind: String): Flow<Set<Int>> = activeProfileId.flatMapLatest { profileId ->
         if (profileId == null) flowOf(emptySet())
         else settingsStore.observeMediaFavorites(profileId, kind)
