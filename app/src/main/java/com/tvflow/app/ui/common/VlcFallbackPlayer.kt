@@ -18,6 +18,10 @@ import org.videolan.libvlc.Media
 import org.videolan.libvlc.MediaPlayer
 import org.videolan.libvlc.util.VLCVideoLayout
 
+internal fun shouldSaveVlcProgress(positionMs: Long, lastSavedPositionMs: Long): Boolean =
+    positionMs > 0L && (lastSavedPositionMs == 0L ||
+        kotlin.math.abs(positionMs - lastSavedPositionMs) >= 15_000L)
+
 internal fun shouldUseVlcFallback(httpCode: Int?, errorName: String?): Boolean {
     if (httpCode != null && httpCode in 400..499) return false
     return !errorName.isNullOrBlank()

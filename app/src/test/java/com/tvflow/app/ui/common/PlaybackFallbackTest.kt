@@ -19,6 +19,20 @@ class PlaybackFallbackTest {
     }
 
     @Test
+    fun vlcProgress_savesAtStartAndAfterFifteenSeconds() {
+        assertFalse(shouldSaveVlcProgress(0L, 0L))
+        assertTrue(shouldSaveVlcProgress(5_000L, 0L))
+        assertFalse(shouldSaveVlcProgress(19_999L, 5_000L))
+        assertTrue(shouldSaveVlcProgress(20_000L, 5_000L))
+    }
+
+    @Test
+    fun vlcProgress_handlesBackwardSeeks() {
+        assertTrue(shouldSaveVlcProgress(10_000L, 90_000L))
+        assertFalse(shouldSaveVlcProgress(86_000L, 90_000L))
+    }
+
+    @Test
     fun fallback_requiresAnActualPlaybackError() {
         assertFalse(shouldUseVlcFallback(null, null))
         assertFalse(shouldUseVlcFallback(null, ""))

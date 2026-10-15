@@ -60,6 +60,7 @@ import com.tvflow.app.domain.Episode
 import com.tvflow.app.ui.common.PlayerLifecycleEffect
 import com.tvflow.app.ui.common.VlcFallbackPlayer
 import com.tvflow.app.ui.common.iptvMediaSourceFactory
+import com.tvflow.app.ui.common.shouldSaveVlcProgress
 import com.tvflow.app.ui.common.shouldUseVlcFallback
 import kotlinx.coroutines.delay
 
@@ -282,8 +283,7 @@ fun VodPlayerScreen(
                 onProgress = { position, duration ->
                     viewModel.updatePlaybackProgress(position, duration)
                     // Save roughly every 15 seconds, including after backward seeks.
-                    if (position > 0L && (lastVlcProgressSaveMs == 0L ||
-                            kotlin.math.abs(position - lastVlcProgressSaveMs) >= 15_000L)) {
+                    if (shouldSaveVlcProgress(position, lastVlcProgressSaveMs)) {
                         lastVlcProgressSaveMs = position
                         viewModel.saveProgress(position, duration)
                     }
