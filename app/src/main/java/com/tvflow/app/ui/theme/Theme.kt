@@ -98,7 +98,7 @@ private fun ThemePalette.toColorScheme(): ColorScheme = darkColorScheme(
 )
 
 @Composable
-fun TVFlowTheme(accent: String = "BLUE", content: @Composable () -> Unit) {
+fun TVFlowTheme(accent: String = "RAINBOW", content: @Composable () -> Unit) {
     CompositionLocalProvider(LocalRainbowEnabled provides (accent == "RAINBOW")) {
         MaterialTheme(colorScheme = palette(accent).toColorScheme(), content = content)
     }
