@@ -8,6 +8,8 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -288,7 +290,7 @@ fun SettingsScreen(
                 ChoiceRow("Image", listOf("FIT", "FILL", "ZOOM"), state.player.videoScale, viewModel::setScale)
                 ChoiceRow(
                     "Thème",
-                    listOf("BLUE", "DARK", "OLED", "PURPLE", "GREEN", "RAINBOW", "HIGH_CONTRAST"),
+                    listOf("RAINBOW", "NEBULA", "INFERNO", "CRYSTAL", "QUANTUM", "OCEAN", "AURORA", "BLUE", "DARK", "OLED", "PURPLE", "GREEN", "HIGH_CONTRAST"),
                     state.player.accent,
                     viewModel::setAccent
                 )
@@ -777,10 +779,11 @@ private fun ProfileRow(profile: ServerProfile, active: Boolean, onActivate: () -
 }
 
 @Composable
+@OptIn(ExperimentalLayoutApi::class)
 private fun ChoiceRow(label: String, choices: List<String>, selected: String, onSelect: (String) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(label, fontWeight = FontWeight.SemiBold)
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             choices.forEach { value ->
                 val display = when (value) {
                     "BLUE" -> "Bleu"
@@ -788,6 +791,12 @@ private fun ChoiceRow(label: String, choices: List<String>, selected: String, on
                     "OLED" -> "OLED"
                     "PURPLE" -> "Violet"
                     "RAINBOW" -> "Arc-en-ciel animé"
+                    "NEBULA" -> "Nebula Flow"
+                    "INFERNO" -> "Inferno Pulse"
+                    "CRYSTAL" -> "Crystal Vision"
+                    "QUANTUM" -> "Quantum Flow"
+                    "OCEAN" -> "Ocean Depth"
+                    "AURORA" -> "Aurora Cinema"
                     "GREEN" -> "Vert"
                     "HIGH_CONTRAST" -> "Contraste"
                     else -> value

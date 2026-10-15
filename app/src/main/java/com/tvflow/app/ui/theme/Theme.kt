@@ -42,6 +42,42 @@ private fun palette(id: String): ThemePalette = when (id) {
         surfaceVariant = Color(0xFF1A2A42), text = Color.White,
         textSecondary = Color(0xFFD5E4F5)
     )
+    "NEBULA" -> ThemePalette(
+        primary = Color(0xFFA994FF), onPrimary = Color(0xFF0C0920),
+        background = Color(0xFF09091B), surface = Color(0xFF16112B),
+        surfaceVariant = Color(0xFF29204D), text = Color.White,
+        textSecondary = Color(0xFFDDD4FF)
+    )
+    "INFERNO" -> ThemePalette(
+        primary = Color(0xFFFFA24B), onPrimary = Color(0xFF241007),
+        background = Color(0xFF150B0A), surface = Color(0xFF29120F),
+        surfaceVariant = Color(0xFF4D2516), text = Color(0xFFFFF4E9),
+        textSecondary = Color(0xFFFFD5AF)
+    )
+    "CRYSTAL" -> ThemePalette(
+        primary = Color(0xFFB7E9FF), onPrimary = Color(0xFF09202B),
+        background = Color(0xFF09151E), surface = Color(0xFF142733),
+        surfaceVariant = Color(0xFF284858), text = Color.White,
+        textSecondary = Color(0xFFDBF4FF)
+    )
+    "QUANTUM" -> ThemePalette(
+        primary = Color(0xFF69F8DA), onPrimary = Color(0xFF021B17),
+        background = Color(0xFF061716), surface = Color(0xFF0B2926),
+        surfaceVariant = Color(0xFF184941), text = Color(0xFFF3FFFB),
+        textSecondary = Color(0xFFBCEFE4)
+    )
+    "OCEAN" -> ThemePalette(
+        primary = Color(0xFF4BC9E6), onPrimary = Color(0xFF03212A),
+        background = Color(0xFF04121F), surface = Color(0xFF09283A),
+        surfaceVariant = Color(0xFF14445A), text = Color.White,
+        textSecondary = Color(0xFFBDE6F4)
+    )
+    "AURORA" -> ThemePalette(
+        primary = Color(0xFF8EF2C1), onPrimary = Color(0xFF051D18),
+        background = Color(0xFF07141B), surface = Color(0xFF122934),
+        surfaceVariant = Color(0xFF274650), text = Color.White,
+        textSecondary = Color(0xFFD3F5E8)
+    )
     "PURPLE" -> ThemePalette(
         primary = Color(0xFFC6A8FF),
         onPrimary = Color(0xFF160A27),
@@ -99,7 +135,9 @@ private fun ThemePalette.toColorScheme(): ColorScheme = darkColorScheme(
 
 @Composable
 fun TVFlowTheme(accent: String = "RAINBOW", content: @Composable () -> Unit) {
-    CompositionLocalProvider(LocalRainbowEnabled provides (accent == "RAINBOW")) {
-        MaterialTheme(colorScheme = palette(accent).toColorScheme(), content = content)
+    CompositionLocalProvider(LocalRainbowEnabled provides (accent in setOf("RAINBOW", "NEBULA", "INFERNO", "CRYSTAL", "QUANTUM", "OCEAN", "AURORA"))) {
+        CompositionLocalProvider(LocalSignatureTheme provides accent) {
+            MaterialTheme(colorScheme = palette(accent).toColorScheme(), content = content)
+        }
     }
 }

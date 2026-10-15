@@ -20,16 +20,28 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 val LocalRainbowEnabled = compositionLocalOf { false }
+val LocalSignatureTheme = compositionLocalOf { "RAINBOW" }
 
 private val rainbow = listOf(
     Color(0xFFFF355E), Color(0xFFFFA600), Color(0xFFFFFF55),
     Color(0xFF4AFB9C), Color(0xFF34CBFF), Color(0xFFAD66FF), Color(0xFFFF355E)
 )
 
+private fun signatureColors(id: String): List<Color> = when (id) {
+    "NEBULA" -> listOf(Color(0xFF7256D9), Color(0xFFAC8CFF), Color(0xFF3AACEF), Color(0xFF7256D9))
+    "INFERNO" -> listOf(Color(0xFF9C271C), Color(0xFFFF6B24), Color(0xFFFFCB55), Color(0xFF9C271C))
+    "CRYSTAL" -> listOf(Color(0xFF79A8FF), Color(0xFFD8F8FF), Color(0xFFB499FF), Color(0xFF79A8FF))
+    "QUANTUM" -> listOf(Color(0xFF00BDAE), Color(0xFF79FFDA), Color(0xFF62B8FF), Color(0xFF00BDAE))
+    "OCEAN" -> listOf(Color(0xFF125C94), Color(0xFF43D8EA), Color(0xFF2379C4), Color(0xFF125C94))
+    "AURORA" -> listOf(Color(0xFF61E4AA), Color(0xFF79BAF2), Color(0xFFBB85EB), Color(0xFF61E4AA))
+    else -> rainbow
+}
+
 /** Animated sweep across the outline itself. The content and typography never rotate. */
 @Composable
 fun Modifier.rainbowBorder(active: Boolean, radius: Dp, width: Dp = 3.dp): Modifier {
     if (!LocalRainbowEnabled.current || !active) return this
+    val colorsForTheme = signatureColors(LocalSignatureTheme.current)
     val transition = rememberInfiniteTransition(label = "rainbowOutline")
     val angle = transition.animateFloat(
         initialValue = 0f,
@@ -37,12 +49,12 @@ fun Modifier.rainbowBorder(active: Boolean, radius: Dp, width: Dp = 3.dp): Modif
         animationSpec = infiniteRepeatable(tween(2600, easing = LinearEasing), RepeatMode.Restart),
         label = "rainbowRotation"
     )
-    val offset = angle.value / 360f * (rainbow.size - 1)
+    val offset = angle.value / 360f * (colorsForTheme.size - 1)
     val shift = offset.toInt()
     val fraction = offset - shift
-    val colors = (0 until rainbow.size).map { i ->
-        val size = rainbow.size - 1
-        lerp(rainbow[(i + shift) % size], rainbow[(i + shift + 1) % size], fraction)
+    val colors = (0 until colorsForTheme.size).map { i ->
+        val size = colorsForTheme.size - 1
+        lerp(colorsForTheme[(i + shift) % size], colorsForTheme[(i + shift + 1) % size], fraction)
     }
     return this.drawWithContent {
         drawContent()
