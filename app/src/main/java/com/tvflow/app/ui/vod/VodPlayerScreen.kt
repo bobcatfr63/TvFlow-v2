@@ -141,7 +141,19 @@ fun VodPlayerScreen(
                 }
             }
 
+            override fun onIsPlayingChanged(isPlaying: Boolean) {
+                Log.i(VOD_PLAYER_TAG, "Media3 playing=$isPlaying, state=${player.playbackState}, positionMs=${player.currentPosition.coerceAtLeast(0L)}")
+            }
+
             override fun onPlaybackStateChanged(playbackState: Int) {
+                val stateName = when (playbackState) {
+                    Player.STATE_IDLE -> "IDLE"
+                    Player.STATE_BUFFERING -> "BUFFERING"
+                    Player.STATE_READY -> "READY"
+                    Player.STATE_ENDED -> "ENDED"
+                    else -> "UNKNOWN"
+                }
+                Log.i(VOD_PLAYER_TAG, "Media3 state=$stateName, positionMs=${player.currentPosition.coerceAtLeast(0L)}, durationMs=${player.duration.coerceAtLeast(0L)}")
                 if (playbackState == Player.STATE_ENDED) {
                     viewModel.onPlaybackEnded(player.duration.coerceAtLeast(0L))
                 }
@@ -174,6 +186,7 @@ fun VodPlayerScreen(
             saveTick++
             if (saveTick >= 15) {
                 saveTick = 0
+                Log.i(VOD_PLAYER_TAG, "Media3 checkpoint: state=${player.playbackState}, playing=${player.isPlaying}, positionMs=$position, durationMs=$duration")
                 viewModel.saveProgress(position, duration)
             }
         }
