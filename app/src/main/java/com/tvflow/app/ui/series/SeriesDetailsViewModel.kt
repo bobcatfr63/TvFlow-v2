@@ -1,5 +1,6 @@
 package com.tvflow.app.ui.series
 
+import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -86,6 +87,9 @@ class SeriesDetailsViewModel @Inject constructor(
                     error = null
                 )
             }.onFailure { error ->
+                if (error is kotlinx.coroutines.CancellationException) throw error
+                // Never log Xtream URLs or exception messages: they can contain credentials.
+                Log.w("TVFlowSeries", "Episode loading failed: type=${error.javaClass.simpleName}, seriesId=$seriesId")
                 _state.value = _state.value.copy(
                     loading = false,
                     error = "Impossible de charger les épisodes. Vérifiez la connexion au serveur IPTV, puis réessayez."
