@@ -45,7 +45,18 @@ internal object TvFlowIntent {
         "actions" to "action",
         "aventures" to "aventure",
         "ordinateur" to "computer",
-        "ordinateurs" to "computer"
+        "ordinateurs" to "computer",
+        "dinosaures" to "dinosaure",
+        "dinosaur" to "dinosaure",
+        "martien" to "mars",
+        "martiens" to "mars",
+        "spatial" to "espace",
+        "spatiale" to "espace",
+        "vaisseau" to "espace",
+        "vaisseaux" to "espace",
+        "survivre" to "survie",
+        "survivant" to "survie",
+        "survivants" to "survie"
     )
 
     private fun normalized(value: String) =

@@ -6,6 +6,14 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class TvFlowIntentTest {
+    @Test fun descriptiveRequestsExpandIntoKnownSynopsisConcepts() {
+        val mars = TvFlowIntent.searchTerms("un homme doit survivre sur Mars")
+        assertTrue(mars.contains("survie"))
+        assertTrue(mars.contains("mars"))
+        val dinosaurs = TvFlowIntent.searchTerms("film avec des dinosaures")
+        assertTrue(dinosaurs.contains("dinosaure"))
+        assertTrue(TvFlowIntent.score(TvFlowIntent.parse("film avec des dinosaures"), "Parc", "Des dinosaures sont en liberte", null) > 0)
+    }
     @Test fun expandedSearchUsesCorrectedGenresWithoutLosingOriginalWords() {
         val terms = TvFlowIntent.searchTerms("film avanture thriler avec Tom Cruise")
         assertTrue(terms.contains("aventure"))
