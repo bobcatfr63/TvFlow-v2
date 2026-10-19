@@ -1,5 +1,7 @@
 package com.tvflow.app.data.backup
 
+import com.tvflow.app.data.local.BackupCategoryPreference
+import com.tvflow.app.data.local.BackupChannelPreference
 import com.tvflow.app.data.local.CredentialsStore
 import com.tvflow.app.data.local.SettingsStore
 import com.tvflow.app.data.local.TVFlowDao
@@ -23,7 +25,8 @@ class PortableBackupManager @Inject constructor(
     suspend fun exportPlain(): String {
         val profiles = credentialsStore.profiles.first()
         val data = JSONObject()
-        data.put("schema", 2)
+        data.put("schema", 3)
+        settingsStore.currentTmdbToken()?.let { data.put("tmdbToken", it) }
         data.put("activeProfileId", credentialsStore.activeProfileId.first())
         val rows = JSONArray()
         for (profile in profiles) {
@@ -65,7 +68,13 @@ class PortableBackupManager @Inject constructor(
             PortableBackupCrypto.decrypt(content, legacyPassword).toString(Charsets.UTF_8)
         } else content
         val data = JSONObject(text)
-        require(data.getInt("schema") in 1..2) { "Version de sauvegarde incompatible" }
+        require(data.getInt("schema") in 1..3) { "Version de sauvegarde incompatible" }
+        // Old files have no TMDB field: do not erase the configured key.
+        val importedTmdbToken = if (data.has("tmdbToken") && !data.isNull("tmdbToken")) {
+            data.getString("tmdbToken").trim().also {
+                require(it.length <= 4096 && !it.contains('\n') && !it.contains('\r')) { "Clé TMDB invalide" }
+            }
+        } else null
         val rows = data.getJSONArray("profiles")
         require(rows.length() in 1..50) { "Nombre de profils invalide" }
         // Validate the entire document before any persistent changes.
@@ -103,16 +112,24 @@ class PortableBackupManager @Inject constructor(
             // Schema 1 backups do not contain organization: preserve existing settings.
             profile.hiddenMedia?.let { settingsStore.replaceHiddenMediaCategories(effective.id, it) }
             profile.sections?.let { settingsStore.replaceCategorySectionOverrides(effective.id, it) }
-            profile.categories?.forEach { row ->
-                dao.setCategoryHidden(effective.id, row.id, row.hidden)
-                dao.setCategoryLocked(effective.id, row.id, row.locked)
-                row.order?.let { dao.setCategoryOrder(effective.id, row.id, it) }
+            if (profile.categories != null && profile.channels != null) {
+                // Keep imported preferences for catalogs that arrive after restoration.
+                val pending = JSONObject()
+                    .put("categories", JSONArray().also { a -> profile.categories.forEach { c ->
+                        a.put(JSONObject().put("id", c.id).put("hidden", c.hidden).put("locked", c.locked)
+                            .put("order", c.order))
+                    } })
+                    .put("channels", JSONArray().also { a -> profile.channels.forEach { c ->
+                        a.put(JSONObject().put("id", c.id).put("hidden", c.hidden).put("order", c.order))
+                    } })
+                settingsStore.setRestoredLiveOrganization(effective.id, pending.toString())
             }
-            profile.channels?.forEach { row ->
-                dao.setChannelHidden(effective.id, row.id, row.hidden)
-                row.order?.let { dao.setChannelOrder(effective.id, row.id, it) }
-            }
-            val present = dao.getAllChannels(effective.id).map { it.streamId }.toSet()
+            dao.applyBackupOrganization(
+                effective.id,
+                profile.categories.orEmpty().map { BackupCategoryPreference(it.id, it.hidden, it.locked, it.order) },
+                profile.channels.orEmpty().map { BackupChannelPreference(it.id, it.hidden, it.order) }
+            )
+            val present = dao.getChannelIds(effective.id).toSet()
             val ready = profile.live.intersect(present)
             settingsStore.setPendingLiveFavorites(effective.id, profile.live - ready)
             if (ready.isNotEmpty()) dao.setFavoriteIds(effective.id, ready.toList())
@@ -126,6 +143,7 @@ class PortableBackupManager @Inject constructor(
             }?.id
             if (effectiveId != null) credentialsStore.switchProfile(effectiveId)
         }
+        importedTmdbToken?.let { settingsStore.setTmdbToken(it) }
         return profiles.size
     }
 

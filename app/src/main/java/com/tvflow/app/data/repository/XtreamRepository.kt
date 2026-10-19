@@ -432,8 +432,31 @@ class XtreamRepository @Inject constructor(
                 )
             }
         )
+        applyRestoredLiveOrganization(profileId)
         applyPendingLiveFavorites(profileId)
         invalidateSearchCache(profileId)
+    }
+
+    private suspend fun applyRestoredLiveOrganization(profileId: String) {
+        val raw = settingsStore.restoredLiveOrganization(profileId).first() ?: return
+        val json = org.json.JSONObject(raw)
+        val categories = json.getJSONArray("categories")
+        val categoryPrefs = (0 until categories.length()).map { i ->
+            categories.getJSONObject(i).let { row ->
+                com.tvflow.app.data.local.BackupCategoryPreference(row.getString("id"),
+                    row.getBoolean("hidden"), row.getBoolean("locked"),
+                    if (row.isNull("order")) null else row.getInt("order"))
+            }
+        }
+        val channels = json.getJSONArray("channels")
+        val channelPrefs = (0 until channels.length()).map { i ->
+            channels.getJSONObject(i).let { row ->
+                com.tvflow.app.data.local.BackupChannelPreference(row.getInt("id"),
+                    row.getBoolean("hidden"), if (row.isNull("order")) null else row.getInt("order"))
+            }
+        }
+        dao.applyBackupOrganization(profileId, categoryPrefs, channelPrefs)
+        settingsStore.clearRestoredLiveOrganization(profileId)
     }
 
     private suspend fun refreshMediaCatalog(credentials: XtreamCredentials, profileId: String) = coroutineScope {
@@ -571,7 +594,13 @@ class XtreamRepository @Inject constructor(
         }
     }
     fun observeManageChannels(categoryId: String): Flow<List<LiveChannel>> = activeProfileId.flatMapLatest { id -> if (id == null) flowOf(emptyList()) else dao.observeManageChannels(id, categoryId) }.map(::mapChannels)
-    fun observeAllChannels(): Flow<List<LiveChannel>> = applyStreamVisibility(activeProfileId.flatMapLatest { id -> if (id == null) flowOf(emptyList()) else dao.observeAllChannels(id) })
+    fun observeAllChannels(): Flow<List<LiveChannel>> = applyStreamVisibility(activeProfileId.flatMapLatest { id ->
+        if (id == null) flowOf(emptyList()) else dao.observeVisibleChannelIds(id).map { ids ->
+            val items = ids.chunked(250).flatMap { batch -> dao.getVisibleChannelBatch(id, batch) }
+                .associateBy { it.streamId }
+            ids.mapNotNull(items::get)
+        }
+    })
     fun observeChannel(streamId: Int): Flow<LiveChannel?> = activeProfileId.flatMapLatest { id -> if (id == null) flowOf(null) else dao.observeChannel(id, streamId) }.map { it?.toDomain() }
     fun observeFavorites(): Flow<List<LiveChannel>> = applyStreamVisibility(activeProfileId.flatMapLatest { id -> if (id == null) flowOf(emptyList()) else dao.observeFavorites(id) })
     fun observeRecentChannels(limit: Int = 20): Flow<List<LiveChannel>> = applyStreamVisibility(activeProfileId.flatMapLatest { id -> if (id == null) flowOf(emptyList()) else dao.observeRecentChannels(id, limit) })

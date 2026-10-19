@@ -12,6 +12,10 @@ class TmdbTitleCleanerTest {
         assertEquals("Le Seigneur des anneaux La Communaute de l anneau",
             TmdbTitleCleaner.clean("Le Seigneur des anneaux (La Communaute de l anneau)"))
     }
+    @Test fun stripsLeadingIptvLanguageTags() {
+        assertEquals("Le Comte de Monte Cristo", TmdbTitleCleaner.clean("[FR] [4K] Le Comte de Monte Cristo (2024)"))
+        assertEquals("Dark", TmdbTitleCleaner.clean("(VOSTFR) |FR| Dark [HD]"))
+    }
     @Test fun doesNotDropFilmTitleWhenNoPackagingMarkers() {
         assertEquals("Un film comme les autres", TmdbTitleCleaner.clean("Un film comme les autres"))
     }

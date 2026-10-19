@@ -202,6 +202,18 @@ class SettingsStore @Inject constructor(@ApplicationContext private val context:
         }
     }
 
+    private fun restoredLiveOrganizationKey(profileId: String) =
+        stringPreferencesKey("restored_live_organization_" + profileId)
+
+    fun restoredLiveOrganization(profileId: String): Flow<String?> =
+        context.playerSettingsDataStore.data.map { it[restoredLiveOrganizationKey(profileId)] }
+
+    suspend fun setRestoredLiveOrganization(profileId: String, json: String) =
+        context.playerSettingsDataStore.edit { it[restoredLiveOrganizationKey(profileId)] = json }
+
+    suspend fun clearRestoredLiveOrganization(profileId: String) =
+        context.playerSettingsDataStore.edit { it.remove(restoredLiveOrganizationKey(profileId)) }
+
     private fun pendingLiveFavoritesKey(profileId: String) =
         stringPreferencesKey("pending_live_favorites_" + profileId)
 

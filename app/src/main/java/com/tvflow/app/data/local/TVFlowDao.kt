@@ -11,6 +11,9 @@ import kotlinx.coroutines.flow.Flow
 /** Minimal search index row: avoid materializing posters, synopsis and EPG metadata. */
 data class MediaSearchKey(val id: Int, val name: String)
 
+data class BackupCategoryPreference(val id: String, val hidden: Boolean, val locked: Boolean, val order: Int?)
+data class BackupChannelPreference(val id: Int, val hidden: Boolean, val order: Int?)
+
 @Dao
 interface TVFlowDao {
     @Query("SELECT streamId AS id, name FROM live_channels WHERE profileId = :profileId AND isHidden = 0")
@@ -46,8 +49,13 @@ interface TVFlowDao {
     @Query("SELECT * FROM live_channels WHERE profileId = :profileId AND categoryId = :categoryId ORDER BY CASE WHEN customOrder IS NULL THEN 1 ELSE 0 END, customOrder, name")
     fun observeManageChannels(profileId: String, categoryId: String): Flow<List<LiveChannelEntity>>
 
-    @Query("SELECT * FROM live_channels WHERE profileId = :profileId AND isHidden = 0 AND categoryId NOT IN (SELECT id FROM live_categories WHERE profileId = :profileId AND (isHidden = 1 OR isLocked = 1)) ORDER BY CASE WHEN customOrder IS NULL THEN 1 ELSE 0 END, customOrder, name")
-    fun observeAllChannels(profileId: String): Flow<List<LiveChannelEntity>>
+    // CursorWindow cannot materialize tens of thousands of full channel records at once.
+    // Observe lightweight identifiers, then fetch records in bounded batches.
+    @Query("SELECT streamId FROM live_channels WHERE profileId = :profileId AND isHidden = 0 AND categoryId NOT IN (SELECT id FROM live_categories WHERE profileId = :profileId AND (isHidden = 1 OR isLocked = 1)) ORDER BY CASE WHEN customOrder IS NULL THEN 1 ELSE 0 END, customOrder, name")
+    fun observeVisibleChannelIds(profileId: String): Flow<List<Int>>
+
+    @Query("SELECT * FROM live_channels WHERE profileId = :profileId AND streamId IN (:ids)")
+    suspend fun getVisibleChannelBatch(profileId: String, ids: List<Int>): List<LiveChannelEntity>
 
     @Query("SELECT * FROM live_channels WHERE profileId = :profileId AND streamId = :streamId LIMIT 1")
     fun observeChannel(profileId: String, streamId: Int): Flow<LiveChannelEntity?>
@@ -121,6 +129,9 @@ interface TVFlowDao {
     @Query("SELECT streamId FROM live_channels WHERE profileId = :profileId AND isFavorite = 1")
     suspend fun getFavoriteIds(profileId: String): List<Int>
 
+    @Query("SELECT streamId FROM live_channels WHERE profileId = :profileId")
+    suspend fun getChannelIds(profileId: String): List<Int>
+
     @Query("SELECT * FROM live_channels WHERE profileId = :profileId")
     suspend fun getAllChannels(profileId: String): List<LiveChannelEntity>
 
@@ -134,6 +145,19 @@ interface TVFlowDao {
     suspend fun replaceFavorites(profileId: String, streamIds: List<Int>) {
         clearFavorites(profileId)
         if (streamIds.isNotEmpty()) setFavoriteIds(profileId, streamIds.distinct())
+    }
+
+    @Transaction
+    suspend fun applyBackupOrganization(profileId: String, categories: List<BackupCategoryPreference>, channels: List<BackupChannelPreference>) {
+        categories.forEach { row ->
+            setCategoryHidden(profileId, row.id, row.hidden)
+            setCategoryLocked(profileId, row.id, row.locked)
+            row.order?.let { setCategoryOrder(profileId, row.id, it) }
+        }
+        channels.forEach { row ->
+            setChannelHidden(profileId, row.id, row.hidden)
+            row.order?.let { setChannelOrder(profileId, row.id, it) }
+        }
     }
 
     @Query("SELECT * FROM live_channels WHERE profileId = :profileId AND lastWatchedAt IS NOT NULL")

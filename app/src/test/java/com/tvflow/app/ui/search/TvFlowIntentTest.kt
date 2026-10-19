@@ -6,6 +6,21 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class TvFlowIntentTest {
+    @Test fun scienceFictionPhraseUsesTmdbGenreWithoutInventingMatches() {
+        val query = TvFlowIntent.parse("je cherche un film de science-fiction récent")
+        assertTrue(query.terms.contains("science"))
+        assertTrue(TvFlowIntent.score(query, "Étoiles", null, 2024, null, "878") > 0)
+        assertEquals(0, TvFlowIntent.score(query, "Comédie", null, 2024, null, "35"))
+        assertTrue(TvFlowIntent.searchTerms("science-fiction").contains("science"))
+    }
+
+    @Test fun familyRequestsUseTmdbFamilyGenreWithoutInventingMatches() {
+        val query = TvFlowIntent.parse("des films pour enfants")
+        assertTrue(query.terms.contains("famille"))
+        assertTrue(TvFlowIntent.score(query, "Aventure familiale", null, 2024, null, "10751") > 0)
+        assertEquals(0, TvFlowIntent.score(query, "Film de guerre", null, 2024, null, "10752"))
+    }
+
     @Test fun explicitYearAndSeriesRequestExcludeOldAndUndatedTitles() {
         val query = TvFlowIntent.parse("Une série policière sortie en 2025")
         assertTrue(query.seriesOnly)

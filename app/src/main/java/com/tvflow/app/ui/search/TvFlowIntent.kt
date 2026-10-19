@@ -17,6 +17,13 @@ internal object TvFlowIntent {
         "plutot", "genre", "sorti", "sortie", "sortis", "sorties", "dernier", "derniere"
     )
     private val synonyms = mapOf(
+        "enfant" to "famille",
+        "enfants" to "famille",
+        "familial" to "famille",
+        "familiale" to "famille",
+        "familiaux" to "famille",
+        "jeunesse" to "famille",
+        "sf" to "science",
         "extraterrestre" to "alien",
         "extraterrestres" to "alien",
         "policiere" to "police",
@@ -36,7 +43,7 @@ internal object TvFlowIntent {
         "francaises" to "francais",
         "policieres" to "police",
         "policiers" to "police",
-        "sciencefiction" to "science fiction",
+        "sciencefiction" to "science",
         "informatique" to "hacker",
         "piratage" to "hacker",
         "pirate" to "hacker",
@@ -56,7 +63,7 @@ internal object TvFlowIntent {
             .trim()
 
     fun parse(input: String): Parsed {
-        val normalized = normalized(input)
+        val normalized = normalized(input).replace(Regex("\\bscience fiction\\b"), "sciencefiction")
         val tokens = normalized.split(' ').filter { it.isNotBlank() }
         val terms = tokens.filterNot { it.length < 2 || it in stop || it.matches(Regex("(19|20)\\d{2}")) || it in setOf("recent", "recente", "recents", "recentes") }
             .flatMap { word -> (listOfNotNull(word, synonyms[word]) + topicTerms[word].orEmpty()).distinct() }.distinct().take(16)
@@ -101,7 +108,7 @@ internal object TvFlowIntent {
     )
 
     fun searchTerms(input: String): List<String> {
-        val words = normalized(input).split(' ').filter { it.length >= 3 && it !in stop && !it.startsWith("recent") && !it.startsWith("nouveau") && !it.startsWith("nouvel") && it != "dernier" && it != "derniere" && !it.matches(Regex("(19|20)\\d{2}")) }
+        val words = normalized(input).replace(Regex("\\bscience fiction\\b"), "sciencefiction").split(' ').filter { it.length >= 3 && it !in stop && !it.startsWith("recent") && !it.startsWith("nouveau") && !it.startsWith("nouvel") && it != "dernier" && it != "derniere" && !it.matches(Regex("(19|20)\\d{2}")) }
         val related = words.flatMap { topicTerms[it].orEmpty() }
         return (words + related + parse(input).terms).distinct().take(16)
     }
@@ -110,6 +117,7 @@ internal object TvFlowIntent {
         "action" to setOf(28, 10759),
         "aventure" to setOf(12, 10759),
         "animation" to setOf(16),
+        "famille" to setOf(10751),
         "comedie" to setOf(35),
         "police" to setOf(80, 9648),
         "thriller" to setOf(53, 80, 9648),

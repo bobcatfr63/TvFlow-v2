@@ -51,7 +51,7 @@ class BackupViewModel @Inject constructor(
                         it.write(data.toByteArray(Charsets.UTF_8))
                     } ?: error("Impossible d'écrire le fichier")
                 }
-                message.value = "Sauvegarde enregistrée. Attention : identifiants IPTV non chiffrés."
+                message.value = "Sauvegarde enregistrée. Attention : identifiants IPTV et éventuelle clé TMDB non chiffrés."
             } catch (_: Exception) { message.value = "Enregistrement impossible." }
             finally { busy.value = false }
         }
@@ -99,7 +99,7 @@ fun BackupControls(viewModel: BackupViewModel = hiltViewModel()) {
     }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("Sauvegarde de migration", style = MaterialTheme.typography.titleMedium)
-        Text("Profils IPTV, favoris et organisation des catégories. Aucune saisie de mot de passe pour les nouvelles sauvegardes. Attention : le fichier contient tes identifiants IPTV non chiffrés.")
+        Text("Profils IPTV, favoris, organisation des catégories et clé API TMDB si configurée. Aucune saisie de mot de passe pour les nouvelles sauvegardes. Attention : le fichier contient tes identifiants IPTV et éventuelle clé TMDB non chiffrés.")
         TextButton(onClick = { showLegacyPassword = !showLegacyPassword }) {
             Text(if (showLegacyPassword) "Masquer l’option ancienne sauvegarde" else "Restaurer une ancienne sauvegarde chiffrée ?")
         }
