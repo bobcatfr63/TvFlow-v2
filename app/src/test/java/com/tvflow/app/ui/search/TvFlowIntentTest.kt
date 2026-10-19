@@ -6,6 +6,16 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class TvFlowIntentTest {
+    @Test fun explicitYearAndSeriesRequestExcludeOldAndUndatedTitles() {
+        val query = TvFlowIntent.parse("Une série policière sortie en 2025")
+        assertTrue(query.seriesOnly)
+        assertEquals(2025, query.requestedYear)
+        assertFalse(query.terms.contains("2025"))
+        assertFalse(TvFlowIntent.searchTerms("Une série policière sortie en 2025").contains("2025"))
+        assertEquals(0, TvFlowIntent.score(query, "Police Squad!", "Police comedy", 1982))
+        assertEquals(0, TvFlowIntent.score(query, "Enquête", "Police thriller", null))
+        assertTrue(TvFlowIntent.score(query, "Police 2025", "Enquête policière", 2025) > 0)
+    }
     @Test fun tmdbGenreIdsImproveCombinedGenreMatches() {
         val query = TvFlowIntent.parse("une série action et aventure")
         assertTrue(TvFlowIntent.score(query, "Série sans mots-clés", null, 2024, null, "10759") > 0)

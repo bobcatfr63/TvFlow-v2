@@ -6,6 +6,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.navigation.NavType
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -34,9 +35,15 @@ import com.tvflow.app.ui.vod.VodPlayerScreen
 
 @Composable
 fun TVFlowNavHost(
-    bootLiveTarget: BootLiveTarget? = null
+    bootLiveTarget: BootLiveTarget? = null,
+    onPlaybackRouteChanged: (Boolean) -> Unit = {}
 ) {
     val navController = rememberNavController()
+    val currentEntry by navController.currentBackStackEntryAsState()
+    val route = currentEntry?.destination?.route.orEmpty()
+    LaunchedEffect(route) {
+        onPlaybackRouteChanged(route.isBlank() || route == "startup" || route.startsWith("player/") || route.startsWith("vodPlayer/"))
+    }
     val pendingTransfer by TvFlowConnect.pendingTransfer.collectAsState()
 
     fun openLive(streamId: Int, name: String, categoryId: String) {

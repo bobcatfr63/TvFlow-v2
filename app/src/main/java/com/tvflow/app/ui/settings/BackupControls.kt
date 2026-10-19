@@ -29,14 +29,11 @@ class BackupViewModel @Inject constructor(
     val message = MutableStateFlow("")
     private var prepared: String? = null
 
-    fun prepareExport(password: String, onReady: () -> Unit) {
-        if (password.length < 12) { message.value = "Choisis au moins 12 caractères."; return }
+    fun prepareExport(onReady: () -> Unit) {
         viewModelScope.launch {
             busy.value = true
             try {
-                val pass = password.toCharArray()
-                try { prepared = withContext(Dispatchers.IO) { manager.exportEncrypted(pass) } }
-                finally { pass.fill('\u0000') }
+                prepared = withContext(Dispatchers.IO) { manager.exportPlain() }
                 onReady()
             } catch (_: Exception) { message.value = "Impossible de préparer la sauvegarde." }
             finally { busy.value = false }
@@ -54,18 +51,16 @@ class BackupViewModel @Inject constructor(
                         it.write(data.toByteArray(Charsets.UTF_8))
                     } ?: error("Impossible d'écrire le fichier")
                 }
-                message.value = "Sauvegarde chiffrée enregistrée."
+                message.value = "Sauvegarde enregistrée. Attention : identifiants IPTV non chiffrés."
             } catch (_: Exception) { message.value = "Enregistrement impossible." }
             finally { busy.value = false }
         }
     }
 
     fun restore(uri: android.net.Uri, password: String) {
-        if (password.length < 12) { message.value = "Mot de passe manquant ou trop court."; return }
         viewModelScope.launch {
             busy.value = true
             try {
-                val pass = password.toCharArray()
                 val count = try {
                     withContext(Dispatchers.IO) {
                         val bytes = application.contentResolver.openInputStream(uri)?.use { input ->
@@ -79,12 +74,12 @@ class BackupViewModel @Inject constructor(
                             }
                             buffer.toString("UTF-8")
                         } ?: error("Fichier indisponible")
-                        manager.importEncrypted(bytes, pass)
+                        manager.importBackup(bytes, password.takeIf { it.isNotBlank() }?.toCharArray())
                     }
-                } finally { pass.fill('\u0000') }
+                } finally { }
                 message.value = "$count profil(s) restauré(s). Actualise le catalogue pour retrouver les chaînes."
             } catch (_: Exception) {
-                message.value = "Restauration impossible : vérifie le mot de passe et le fichier."
+                message.value = "Restauration impossible : vérifie le fichier. Une ancienne sauvegarde chiffrée exige son mot de passe."
             } finally { busy.value = false }
         }
     }
@@ -93,6 +88,7 @@ class BackupViewModel @Inject constructor(
 @Composable
 fun BackupControls(viewModel: BackupViewModel = hiltViewModel()) {
     var password by remember { mutableStateOf("") }
+    var showLegacyPassword by remember { mutableStateOf(false) }
     val busy by viewModel.busy.collectAsState()
     val message by viewModel.message.collectAsState()
     val saveFile = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) { uri ->
@@ -103,20 +99,25 @@ fun BackupControls(viewModel: BackupViewModel = hiltViewModel()) {
     }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("Sauvegarde de migration", style = MaterialTheme.typography.titleMedium)
-        Text("Profils IPTV et favoris (chaînes, films, séries). Le fichier est chiffré par ton mot de passe. Conserve-le avant de désinstaller TVFlow.")
-        OutlinedTextField(
-            value = password,
-            onValueChange = { password = it },
-            label = { Text("Mot de passe de sauvegarde (12 caractères minimum)") },
-            visualTransformation = PasswordVisualTransformation(),
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
-        )
+        Text("Profils IPTV, favoris et organisation des catégories. Aucune saisie de mot de passe pour les nouvelles sauvegardes. Attention : le fichier contient tes identifiants IPTV non chiffrés.")
+        TextButton(onClick = { showLegacyPassword = !showLegacyPassword }) {
+            Text(if (showLegacyPassword) "Masquer l’option ancienne sauvegarde" else "Restaurer une ancienne sauvegarde chiffrée ?")
+        }
+        if (showLegacyPassword) {
+            OutlinedTextField(
+                value = password,
+                onValueChange = { password = it },
+                label = { Text("Mot de passe de l’ancienne sauvegarde") },
+                visualTransformation = PasswordVisualTransformation(),
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(enabled = !busy && password.length >= 12, onClick = {
-                viewModel.prepareExport(password) { saveFile.launch("TVFlow-backup.tvfb") }
+            Button(enabled = !busy, onClick = {
+                viewModel.prepareExport() { saveFile.launch("TVFlow-backup.tvfb") }
             }) { Text("Sauvegarder") }
-            OutlinedButton(enabled = !busy && password.length >= 12, onClick = {
+            OutlinedButton(enabled = !busy, onClick = {
                 openFile.launch(arrayOf("*/*"))
             }) { Text("Restaurer") }
         }

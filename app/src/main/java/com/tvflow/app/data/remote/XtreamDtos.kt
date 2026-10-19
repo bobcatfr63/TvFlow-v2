@@ -132,7 +132,9 @@ data class SeriesDto(
 )
 
 data class SeriesInfoResponse(
+    @JsonAdapter(FlexibleSeriesInfoAdapter::class)
     val info: SeriesInfoDto? = null,
+    @JsonAdapter(FlexibleSeriesEpisodesAdapter::class)
     val episodes: Map<String, List<EpisodeDto>> = emptyMap()
 )
 
@@ -156,3 +158,34 @@ data class EpisodeInfoDto(
     @SerializedName("movie_image") val movieImage: String? = null,
     val duration: String? = null
 )
+
+class FlexibleSeriesInfoAdapter : JsonDeserializer<SeriesInfoDto> {
+    override fun deserialize(json: JsonElement?, typeOfT: Type?, context: JsonDeserializationContext?): SeriesInfoDto? {
+        val value = when {
+            json == null || json.isJsonNull -> null
+            json.isJsonObject -> json
+            json.isJsonArray -> json.asJsonArray.firstOrNull { it.isJsonObject }
+            else -> null
+        } ?: return null
+        return context?.deserialize(value, SeriesInfoDto::class.java)
+    }
+}
+
+class FlexibleSeriesEpisodesAdapter : JsonDeserializer<Map<String, List<EpisodeDto>>> {
+    override fun deserialize(json: JsonElement?, typeOfT: Type?, context: JsonDeserializationContext?): Map<String, List<EpisodeDto>> {
+        if (json == null || !json.isJsonObject) return emptyMap()
+        return buildMap {
+            for ((season, raw) in json.asJsonObject.entrySet()) {
+                if (!raw.isJsonArray) continue
+                val valid = raw.asJsonArray.mapNotNull { element ->
+                    if (!element.isJsonObject) return@mapNotNull null
+                    runCatching {
+                        context?.deserialize<EpisodeDto>(element, EpisodeDto::class.java)
+                            ?.takeIf { it.id.isNotBlank() }
+                    }.getOrNull()
+                }
+                put(season, valid)
+            }
+        }
+    }
+}

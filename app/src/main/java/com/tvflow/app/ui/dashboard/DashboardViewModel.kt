@@ -11,11 +11,9 @@ import com.tvflow.app.data.AppUpdateManager
 import com.tvflow.app.data.InstalledReleaseNotes
 import com.tvflow.app.data.UpdateDownloadState
 import com.tvflow.app.data.local.SettingsStore
-import com.tvflow.app.data.local.TastePreferences
 import com.tvflow.app.data.repository.XtreamRepository
 import com.tvflow.app.domain.EpgProgram
 import com.tvflow.app.domain.LiveChannel
-import com.tvflow.app.domain.MediaSection
 import com.tvflow.app.domain.MediaType
 import com.tvflow.app.domain.PlaybackPosition
 import com.tvflow.app.domain.SeriesItem
@@ -56,11 +54,8 @@ data class DashboardUiState(
     val tonightPrograms: List<TonightProgram> = emptyList(),
     val recentVodReleases: List<VodItem> = emptyList(),
     val recentSeriesReleases: List<SeriesItem> = emptyList(),
-    val pulseVod: List<VodItem> = emptyList(),
-    val pulseSeries: List<SeriesItem> = emptyList(),
-    val tasteThemes: Set<String> = emptySet(),
-    val learnedThemes: List<String> = emptyList(),
-    val showTasteOnboarding: Boolean = false,
+    val recommendedVod: List<VodItem> = emptyList(),
+    val recommendedSeries: List<SeriesItem> = emptyList(),
     val backgroundVideoUrl: String? = null,
     val backgroundVideoTitle: String? = null,
     val mobileHomePreviewMode: String = "WIFI",
@@ -163,7 +158,6 @@ class DashboardViewModel @Inject constructor(
             runCatching {
                 repository.observeMediaCategories(MediaType.VOD)
                     .first { it.isNotEmpty() }
-                    .filter { it.section == MediaSection.FRANCE }
                     .take(2)
                     .forEach { category ->
                         repository.enrichMissingMediaMetadata(MediaType.VOD, category.id, limit = 6)
@@ -174,7 +168,6 @@ class DashboardViewModel @Inject constructor(
             runCatching {
                 repository.observeMediaCategories(MediaType.SERIES)
                     .first { it.isNotEmpty() }
-                    .filter { it.section == MediaSection.FRANCE }
                     .take(2)
                     .forEach { category ->
                         repository.enrichMissingMediaMetadata(MediaType.SERIES, category.id, limit = 6)
@@ -196,70 +189,10 @@ class DashboardViewModel @Inject constructor(
         val recentSeries: List<SeriesItem>
     )
 
-    private data class TasteState(
-        val preferences: TastePreferences,
-        val learnedThemes: List<String>,
-        val pulseVod: List<VodItem>,
-        val pulseSeries: List<SeriesItem>
-    )
-
-    private val recentVodForTaste = repository.observeFrenchVodForPulse()
-    private val recentSeriesForTaste = repository.observeFrenchSeriesForPulse()
-    private val learnedThemes = repository.observeWatchHistory(40).map {
-        runCatching { repository.learnedMediaCategoryNames(40) }
-            .getOrDefault(emptyList())
-            .flatMap(::detectTasteThemes)
-            .groupingBy { it }
-            .eachCount()
-            .entries
-            .sortedByDescending { it.value }
-            .map { it.key }
-            .take(5)
-    }.flowOn(Dispatchers.Default)
-
-    private val tasteState = combine(
-        settingsStore.tastePreferences,
-        learnedThemes,
-        recentVodForTaste,
-        recentSeriesForTaste,
-        repository.observeMediaCategories(MediaType.VOD)
-    ) { preferences, learned, vodItems, seriesItems, vodCategories ->
-        val categoryNames = vodCategories.associate { it.id to it.name }
-        val seriesCategoryNames = repository.observeMediaCategories(MediaType.SERIES).first()
-            .associate { it.id to it.name }
-        val activeThemes = (preferences.themes + learned).toSet()
-
-        val scoredVod = vodItems.map { item ->
-            item to recommendationScore(
-                text = listOfNotNull(categoryNames[item.categoryId], item.name, item.synopsis).joinToString(" "),
-                explicitThemes = preferences.themes,
-                learnedThemes = learned
-            )
-        }.sortedByDescending { it.second }
-        val pulseVod = scoredVod.let { scored ->
-            val matched = scored.filter { it.second > 0 }
-            (if (matched.isNotEmpty()) matched else scored).take(12).map { it.first }
-        }
-
-        val scoredSeries = seriesItems.map { item ->
-            item to recommendationScore(
-                text = listOfNotNull(seriesCategoryNames[item.categoryId], item.name, item.plot).joinToString(" "),
-                explicitThemes = preferences.themes,
-                learnedThemes = learned
-            )
-        }.sortedByDescending { it.second }
-        val pulseSeries = scoredSeries.let { scored ->
-            val matched = scored.filter { it.second > 0 }
-            (if (matched.isNotEmpty()) matched else scored).take(12).map { it.first }
-        }
-
-        TasteState(
-            preferences = preferences,
-            learnedThemes = learned,
-            pulseVod = if (activeThemes.isEmpty()) emptyList() else pulseVod,
-            pulseSeries = if (activeThemes.isEmpty()) emptyList() else pulseSeries
-        )
-    }.flowOn(Dispatchers.Default)
+    // Recommendations follow the visible categories selected in Settings.
+    // No Pulse onboarding, explicit taste profile, or legacy France-only filter.
+    private val recommendedVod = repository.observeRecommendedVod()
+    private val recommendedSeries = repository.observeRecommendedSeries()
 
     private val supplementalState = combine(
         updateInfo,
@@ -324,13 +257,15 @@ class DashboardViewModel @Inject constructor(
         content.copy(tonight = tonight)
     }
 
+    private val recommendations = combine(recommendedVod, recommendedSeries) { vod, series -> vod to series }
+
     val state: StateFlow<DashboardUiState> = combine(
         contentState,
         supplementalState,
         installedReleaseNotes,
-        tasteState,
+        recommendations,
         settingsStore.playerPreferences
-    ) { content, supplemental, installedNotes, taste, playerPreferences ->
+    ) { content, supplemental, installedNotes, suggested, playerPreferences ->
         DashboardUiState(
             serverName = content.serverName,
             continueWatching = content.watching,
@@ -340,11 +275,8 @@ class DashboardViewModel @Inject constructor(
             tonightPrograms = content.tonight.take(16),
             recentVodReleases = supplemental.recentVod,
             recentSeriesReleases = supplemental.recentSeries,
-            pulseVod = taste.pulseVod,
-            pulseSeries = taste.pulseSeries,
-            tasteThemes = taste.preferences.themes,
-            learnedThemes = taste.learnedThemes,
-            showTasteOnboarding = !taste.preferences.onboardingCompleted,
+            recommendedVod = suggested.first,
+            recommendedSeries = suggested.second,
             backgroundVideoUrl = supplemental.backdrop?.url,
             backgroundVideoTitle = supplemental.backdrop?.title,
             mobileHomePreviewMode = playerPreferences.mobileHomePreviewMode,
@@ -406,60 +338,13 @@ class DashboardViewModel @Inject constructor(
         }
     }
 
-    fun saveTasteProfile(themes: Set<String>) {
-        viewModelScope.launch {
-            settingsStore.saveTastePreferences(themes, completed = true)
-        }
-    }
 
-    fun skipTasteProfile() {
-        viewModelScope.launch {
-            settingsStore.saveTastePreferences(emptySet(), completed = true)
-        }
-    }
 }
-
-private val TASTE_THEME_TOKENS = mapOf(
-    "Action" to listOf("action"),
-    "Aventure" to listOf("aventure", "adventure"),
-    "Comédie" to listOf("comedie", "comedy", "humour"),
-    "Thriller" to listOf("thriller", "suspense"),
-    "Science-fiction" to listOf("science fiction", "science-fiction", "sci fi", "sci-fi", "sf"),
-    "Fantastique" to listOf("fantastique", "fantasy"),
-    "Romance" to listOf("romance", "romantique"),
-    "Policier" to listOf("policier", "crime", "detective"),
-    "Horreur" to listOf("horreur", "horror"),
-    "Documentaire" to listOf("documentaire", "documentary"),
-    "Animation" to listOf("animation", "anime", "manga"),
-    "Famille" to listOf("famille", "family", "kids", "enfant")
-)
 
 private fun normalizedTasteText(value: String): String =
     Normalizer.normalize(value, Normalizer.Form.NFD)
         .replace(Regex("\\p{M}+"), "")
         .lowercase(Locale.ROOT)
-
-private fun detectTasteThemes(value: String): List<String> {
-    val normalized = normalizedTasteText(value)
-    return TASTE_THEME_TOKENS.mapNotNull { (theme, tokens) ->
-        theme.takeIf { tokens.any(normalized::contains) }
-    }
-}
-
-private fun recommendationScore(
-    text: String,
-    explicitThemes: Set<String>,
-    learnedThemes: List<String>
-): Int {
-    val detected = detectTasteThemes(text).toSet()
-    if (detected.isEmpty()) return 0
-    val explicitScore = detected.count { it in explicitThemes } * 5
-    val learnedScore = detected.sumOf { theme ->
-        val index = learnedThemes.indexOf(theme)
-        if (index < 0) 0 else (learnedThemes.size - index).coerceAtLeast(1)
-    }
-    return explicitScore + learnedScore
-}
 
 private fun buildTonightPrograms(
     channels: List<LiveChannel>,

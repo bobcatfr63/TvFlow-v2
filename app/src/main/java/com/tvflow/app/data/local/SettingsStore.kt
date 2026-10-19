@@ -39,11 +39,6 @@ data class LastLiveChannel(
     val categoryId: String
 )
 
-data class TastePreferences(
-    val onboardingCompleted: Boolean = false,
-    val themes: Set<String> = emptySet()
-)
-
 @Singleton
 class SettingsStore @Inject constructor(@ApplicationContext private val context: Context) {
     private object Keys {
@@ -66,8 +61,6 @@ class SettingsStore @Inject constructor(@ApplicationContext private val context:
         val nextEpisodeCountdownSeconds = intPreferencesKey("next_episode_countdown_seconds")
         val categorySectionOverrides = stringPreferencesKey("category_section_overrides")
         val hiddenMediaCategories = stringPreferencesKey("hidden_media_categories")
-        val tasteOnboardingCompleted = booleanPreferencesKey("taste_onboarding_completed")
-        val tasteThemes = stringPreferencesKey("taste_themes")
         val mobileHomePreviewMode = stringPreferencesKey("mobile_home_preview_mode")
     }
 
@@ -92,18 +85,6 @@ class SettingsStore @Inject constructor(@ApplicationContext private val context:
     val tmdbToken: Flow<String?> = context.playerSettingsDataStore.data.map { it[Keys.tmdbToken]?.takeIf(String::isNotBlank) }
     val lastReleaseNotesVersion: Flow<String?> = context.playerSettingsDataStore.data.map {
         it[Keys.lastReleaseNotesVersion]?.takeIf(String::isNotBlank)
-    }
-
-    val tastePreferences: Flow<TastePreferences> = context.playerSettingsDataStore.data.map { prefs ->
-        TastePreferences(
-            onboardingCompleted = prefs[Keys.tasteOnboardingCompleted] ?: false,
-            themes = prefs[Keys.tasteThemes]
-                ?.split('|')
-                ?.map(String::trim)
-                ?.filter(String::isNotBlank)
-                ?.toSet()
-                .orEmpty()
-        )
     }
 
     val lastLiveChannel: Flow<LastLiveChannel?> = context.playerSettingsDataStore.data.map { prefs ->
@@ -150,17 +131,6 @@ class SettingsStore @Inject constructor(@ApplicationContext private val context:
         it[Keys.lastReleaseNotesVersion] = versionName
     }
 
-    suspend fun saveTastePreferences(themes: Set<String>, completed: Boolean = true) =
-        context.playerSettingsDataStore.edit { prefs ->
-            prefs[Keys.tasteOnboardingCompleted] = completed
-            prefs[Keys.tasteThemes] = themes
-                .map(String::trim)
-                .filter(String::isNotBlank)
-                .distinct()
-                .sorted()
-                .joinToString("|")
-        }
-
     fun hiddenMediaCategories(profileId: String): Flow<Set<String>> =
         context.playerSettingsDataStore.data.map { prefs ->
             decodeCategoryOverrides(prefs[Keys.hiddenMediaCategories])[profileId].orEmpty().keys
@@ -174,6 +144,22 @@ class SettingsStore @Inject constructor(@ApplicationContext private val context:
             if (selected.isEmpty()) all.remove(profileId) else all[profileId] = selected
             if (all.isEmpty()) prefs.remove(Keys.hiddenMediaCategories)
             else prefs[Keys.hiddenMediaCategories] = encodeCategoryOverrides(all)
+        }
+
+    suspend fun replaceHiddenMediaCategories(profileId: String, keys: Set<String>) =
+        context.playerSettingsDataStore.edit { prefs ->
+            val all = decodeCategoryOverrides(prefs[Keys.hiddenMediaCategories]).toMutableMap()
+            if (keys.isEmpty()) all.remove(profileId) else all[profileId] = keys.associateWith { "1" }
+            if (all.isEmpty()) prefs.remove(Keys.hiddenMediaCategories)
+            else prefs[Keys.hiddenMediaCategories] = encodeCategoryOverrides(all)
+        }
+
+    suspend fun replaceCategorySectionOverrides(profileId: String, sections: Map<String, String>) =
+        context.playerSettingsDataStore.edit { prefs ->
+            val all = decodeCategoryOverrides(prefs[Keys.categorySectionOverrides]).toMutableMap()
+            if (sections.isEmpty()) all.remove(profileId) else all[profileId] = sections
+            if (all.isEmpty()) prefs.remove(Keys.categorySectionOverrides)
+            else prefs[Keys.categorySectionOverrides] = encodeCategoryOverrides(all)
         }
 
     fun categorySectionOverrides(profileId: String): Flow<Map<String, String>> =

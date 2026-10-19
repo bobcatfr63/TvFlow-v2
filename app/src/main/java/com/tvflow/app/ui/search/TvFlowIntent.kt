@@ -5,7 +5,7 @@ import java.util.Locale
 
 /** Local, deterministic intent analysis. Never manufactures catalog items. */
 internal object TvFlowIntent {
-    data class Parsed(val terms: List<String>, val seriesOnly: Boolean, val filmOnly: Boolean, val recent: Boolean)
+    data class Parsed(val terms: List<String>, val seriesOnly: Boolean, val filmOnly: Boolean, val recent: Boolean, val requestedYear: Int? = null)
 
     private val stop = setOf(
         "je", "veux", "un", "une", "des", "de", "du", "la", "le", "les", "avec",
@@ -58,13 +58,14 @@ internal object TvFlowIntent {
     fun parse(input: String): Parsed {
         val normalized = normalized(input)
         val tokens = normalized.split(' ').filter { it.isNotBlank() }
-        val terms = tokens.filterNot { it.length < 2 || it in stop || it in setOf("recent", "recente", "recents", "recentes") }
+        val terms = tokens.filterNot { it.length < 2 || it in stop || it.matches(Regex("(19|20)\\d{2}")) || it in setOf("recent", "recente", "recents", "recentes") }
             .flatMap { word -> (listOfNotNull(word, synonyms[word]) + topicTerms[word].orEmpty()).distinct() }.distinct().take(16)
         return Parsed(
             terms = terms,
             seriesOnly = tokens.any { it in setOf("serie", "series", "saison", "saisons", "episode") },
             filmOnly = tokens.any { it in setOf("film", "films") },
-            recent = tokens.any { it.startsWith("recent") || it.startsWith("nouveau") || it.startsWith("nouvel") || it == "dernier" || it == "derniere" }
+            recent = tokens.any { it.startsWith("recent") || it.startsWith("nouveau") || it.startsWith("nouvel") || it == "dernier" || it == "derniere" },
+            requestedYear = tokens.firstOrNull { it.matches(Regex("(19|20)\\d{2}")) }?.toIntOrNull()
         )
     }
 
@@ -100,7 +101,7 @@ internal object TvFlowIntent {
     )
 
     fun searchTerms(input: String): List<String> {
-        val words = normalized(input).split(' ').filter { it.length >= 3 && it !in stop && !it.startsWith("recent") && !it.startsWith("nouveau") && !it.startsWith("nouvel") && it != "dernier" && it != "derniere" }
+        val words = normalized(input).split(' ').filter { it.length >= 3 && it !in stop && !it.startsWith("recent") && !it.startsWith("nouveau") && !it.startsWith("nouvel") && it != "dernier" && it != "derniere" && !it.matches(Regex("(19|20)\\d{2}")) }
         val related = words.flatMap { topicTerms[it].orEmpty() }
         return (words + related + parse(input).terms).distinct().take(16)
     }
@@ -128,6 +129,8 @@ internal object TvFlowIntent {
         query: Parsed, title: String, description: String?, year: Int?,
         categoryName: String? = null, tmdbGenreIds: String? = null
     ): Int {
+        // An explicit release year is a hard constraint, never a loose ranking hint.
+        if (query.requestedYear != null && year != query.requestedYear) return 0
         val name = normalized(title)
         val plot = normalized(description.orEmpty())
         val category = normalized(categoryName.orEmpty())

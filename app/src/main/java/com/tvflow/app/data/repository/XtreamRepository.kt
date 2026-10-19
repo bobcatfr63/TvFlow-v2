@@ -725,8 +725,8 @@ class XtreamRepository @Inject constructor(
             if (profileId == null) {
                 flowOf(emptyList())
             } else {
-                dao.observeMediaCategories(profileId, MediaType.VOD.name).flatMapLatest { categories ->
-                    val ids = categories.filter { classifyMediaSection(it.name) == MediaSection.FRANCE }.map { it.id }
+                observeMediaCategories(MediaType.VOD).flatMapLatest { categories ->
+                    val ids = categories.map { it.id }
                     if (ids.isEmpty()) flowOf(emptyList())
                     else dao.observeRecentVodReleasesForCategories(profileId, ids, limit)
                 }
@@ -738,23 +738,23 @@ class XtreamRepository @Inject constructor(
             if (profileId == null) {
                 flowOf(emptyList())
             } else {
-                dao.observeMediaCategories(profileId, MediaType.SERIES.name).flatMapLatest { categories ->
-                    val ids = categories.filter { classifyMediaSection(it.name) == MediaSection.FRANCE }.map { it.id }
+                observeMediaCategories(MediaType.SERIES).flatMapLatest { categories ->
+                    val ids = categories.map { it.id }
                     if (ids.isEmpty()) flowOf(emptyList())
                     else dao.observeRecentSeriesReleasesForCategories(profileId, ids, limit)
                 }
               }
         }.map { list -> list.map { it.toDomain() } }
 
-    /** Bounded, era-balanced candidates for Pulse and Mon moment (not the new-releases rail). */
-    fun observeFrenchVodForPulse(): Flow<List<VodItem>> = activeProfileId.flatMapLatest { profileId ->
+    /** Bounded, era-balanced recommendations drawn from visible categories. */
+    fun observeRecommendedVod(): Flow<List<VodItem>> = activeProfileId.flatMapLatest { profileId ->
         if (profileId == null) flowOf(emptyList()) else
-            dao.observeMediaCategories(profileId, MediaType.VOD.name).flatMapLatest { categories ->
-                val ids = categories.filter { classifyMediaSection(it.name) == MediaSection.FRANCE }.map { it.id }
+            observeMediaCategories(MediaType.VOD).flatMapLatest { categories ->
+                val ids = categories.map { it.id }
                 if (ids.isEmpty()) flowOf(emptyList()) else {
                     val eras = listOf(2023 to 2100, 2015 to 2022, 2000 to 2014, 1800 to 1999)
-                    val flows = eras.map { (from, to) -> dao.observePulseVodEra(profileId, ids, from, to, 60) } +
-                        dao.observePulseVodEra(profileId, ids, null, null, 30)
+                    val flows = eras.map { (from, to) -> dao.observeRecommendedVodEra(profileId, ids, from, to, 60) } +
+                        dao.observeRecommendedVodEra(profileId, ids, null, null, 30)
                     combine(flows) { buckets ->
                         buckets.map { it.toList() }.let { lists ->
                             (0 until (lists.maxOfOrNull { it.size } ?: 0)).flatMap { index ->
@@ -766,14 +766,14 @@ class XtreamRepository @Inject constructor(
             }
     }
 
-    fun observeFrenchSeriesForPulse(): Flow<List<SeriesItem>> = activeProfileId.flatMapLatest { profileId ->
+    fun observeRecommendedSeries(): Flow<List<SeriesItem>> = activeProfileId.flatMapLatest { profileId ->
         if (profileId == null) flowOf(emptyList()) else
-            dao.observeMediaCategories(profileId, MediaType.SERIES.name).flatMapLatest { categories ->
-                val ids = categories.filter { classifyMediaSection(it.name) == MediaSection.FRANCE }.map { it.id }
+            observeMediaCategories(MediaType.SERIES).flatMapLatest { categories ->
+                val ids = categories.map { it.id }
                 if (ids.isEmpty()) flowOf(emptyList()) else {
                     val eras = listOf(2023 to 2100, 2015 to 2022, 2000 to 2014, 1800 to 1999)
-                    val flows = eras.map { (from, to) -> dao.observePulseSeriesEra(profileId, ids, from, to, 60) } +
-                        dao.observePulseSeriesEra(profileId, ids, null, null, 30)
+                    val flows = eras.map { (from, to) -> dao.observeRecommendedSeriesEra(profileId, ids, from, to, 60) } +
+                        dao.observeRecommendedSeriesEra(profileId, ids, null, null, 30)
                     combine(flows) { buckets ->
                         val lists = buckets.map { it.toList() }
                         (0 until (lists.maxOfOrNull { it.size } ?: 0)).flatMap { index ->
@@ -785,13 +785,12 @@ class XtreamRepository @Inject constructor(
     }
     suspend fun randomVodPreview(excludeStreamId: Int? = null): Pair<VodItem, String>? {
         val profileId = activeProfileId.filterNotNull().first()
-        val frenchCategoryIds = dao.observeMediaCategories(profileId, MediaType.VOD.name)
+        val visibleCategoryIds = observeMediaCategories(MediaType.VOD)
             .first()
-            .filter { classifyMediaSection(it.name) == MediaSection.FRANCE }
             .map { it.id }
-        if (frenchCategoryIds.isEmpty()) return null
+        if (visibleCategoryIds.isEmpty()) return null
 
-        val candidates = dao.previewVodCandidates(profileId, frenchCategoryIds, limit = 80)
+        val candidates = dao.previewVodCandidates(profileId, visibleCategoryIds, limit = 80)
             .map { it.toDomain() }
             .filter { it.streamId != excludeStreamId }
         if (candidates.isEmpty()) return null
@@ -1005,7 +1004,7 @@ class XtreamRepository @Inject constructor(
     suspend fun getSeriesEpisodes(seriesId: Int): List<Episode> {
         val credentials = savedCredentials.first() ?: return emptyList()
         val response = api.getSeriesInfo(playerApi(credentials.serverUrl), credentials.username, credentials.password, seriesId = seriesId)
-        return response.episodes.entries.sortedBy { it.key.toIntOrNull() ?: Int.MAX_VALUE }.flatMap { (seasonKey, episodes) ->
+        return response.episodes.orEmpty().entries.sortedBy { it.key.toIntOrNull() ?: Int.MAX_VALUE }.flatMap { (seasonKey, episodes) ->
             val season = seasonKey.toIntOrNull() ?: 0
             episodes.mapIndexed { index, dto ->
                 val info = dto.info

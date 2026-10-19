@@ -110,10 +110,10 @@ class TvFlowAiViewModel @Inject constructor(
                 // The supplemental Room queries are limited to 8 categories and 120 items per type.
                 if (!tvQuestion && requestedPerson == null && parsed.terms.isNotEmpty()) {
                     val vodIds = movieCategories.filter {
-                        TvFlowIntent.score(parsed, "", null, null, it.name) > 0
+                        TvFlowIntent.score(parsed.copy(requestedYear = null), "", null, null, it.name) > 0
                     }.map { it.id }.take(8)
                     val seriesIds = seriesCategories.filter {
-                        TvFlowIntent.score(parsed, "", null, null, it.name) > 0
+                        TvFlowIntent.score(parsed.copy(requestedYear = null), "", null, null, it.name) > 0
                     }.map { it.id }.take(8)
                     if (vodIds.isNotEmpty() || seriesIds.isNotEmpty()) {
                         val categoryResults = repository.searchAiCategoryCandidates(vodIds, seriesIds)

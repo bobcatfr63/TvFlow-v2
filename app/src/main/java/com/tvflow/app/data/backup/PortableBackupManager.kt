@@ -20,10 +20,10 @@ class PortableBackupManager @Inject constructor(
     private val settingsStore: SettingsStore,
     private val dao: TVFlowDao
 ) {
-    suspend fun exportEncrypted(password: CharArray): String {
+    suspend fun exportPlain(): String {
         val profiles = credentialsStore.profiles.first()
         val data = JSONObject()
-        data.put("schema", 1)
+        data.put("schema", 2)
         data.put("activeProfileId", credentialsStore.activeProfileId.first())
         val rows = JSONArray()
         for (profile in profiles) {
@@ -37,16 +37,35 @@ class PortableBackupManager @Inject constructor(
             p.put("liveFavorites", JSONArray((dao.getFavoriteIds(profile.id).toSet() + settingsStore.pendingLiveFavorites(profile.id).first()).sorted()))
             p.put("vodFavorites", JSONArray(settingsStore.observeMediaFavorites(profile.id, "vod").first().sorted()))
             p.put("seriesFavorites", JSONArray(settingsStore.observeMediaFavorites(profile.id, "series").first().sorted()))
+            p.put("hiddenMediaCategories", JSONArray(settingsStore.hiddenMediaCategories(profile.id).first().sorted()))
+            p.put("mediaCategorySections", JSONObject(settingsStore.categorySectionOverrides(profile.id).first()))
+            p.put("liveCategories", JSONArray().also { arr ->
+                dao.getCategoryPreferences(profile.id).forEach { row ->
+                    arr.put(JSONObject().put("id", row.id).put("hidden", row.isHidden)
+                        .put("locked", row.isLocked).put("order", row.customOrder))
+                }
+            })
+            p.put("liveChannels", JSONArray().also { arr ->
+                dao.getChannelPreferences(profile.id).forEach { row ->
+                    if (row.isHidden || row.customOrder != null) {
+                        arr.put(JSONObject().put("id", row.streamId).put("hidden", row.isHidden)
+                            .put("order", row.customOrder))
+                    }
+                }
+            })
             rows.put(p)
         }
         data.put("profiles", rows)
-        return PortableBackupCrypto.encrypt(data.toString().toByteArray(Charsets.UTF_8), password)
+        return data.toString()
     }
 
-    suspend fun importEncrypted(encrypted: String, password: CharArray): Int {
-        val text = PortableBackupCrypto.decrypt(encrypted, password).toString(Charsets.UTF_8)
+    suspend fun importBackup(content: String, legacyPassword: CharArray? = null): Int {
+        val text = if (content.startsWith("TVFLOW-BACKUP-V1:")) {
+            require(legacyPassword != null) { "Ancienne sauvegarde chiffrée : mot de passe requis" }
+            PortableBackupCrypto.decrypt(content, legacyPassword).toString(Charsets.UTF_8)
+        } else content
         val data = JSONObject(text)
-        require(data.getInt("schema") == 1) { "Version de sauvegarde incompatible" }
+        require(data.getInt("schema") in 1..2) { "Version de sauvegarde incompatible" }
         val rows = data.getJSONArray("profiles")
         require(rows.length() in 1..50) { "Nombre de profils invalide" }
         // Validate the entire document before any persistent changes.
@@ -64,7 +83,11 @@ class PortableBackupManager @Inject constructor(
                 item.getString("id"),
                 item.optString("name", "Profil IPTV"),
                 XtreamCredentials(server, username, passwordValue, item.optString("outputFormat", "ts")),
-                live, vod, series
+                live, vod, series,
+                if (data.getInt("schema") >= 2) stringIds(item.optJSONArray("hiddenMediaCategories")) else null,
+                if (data.getInt("schema") >= 2) sections(item.optJSONObject("mediaCategorySections")) else null,
+                if (data.getInt("schema") >= 2) categories(item.optJSONArray("liveCategories")) else null,
+                if (data.getInt("schema") >= 2) channels(item.optJSONArray("liveChannels")) else null
             )
         }
         // CredentialsStore.save preserves the stable per-account ID when possible.
@@ -77,6 +100,18 @@ class PortableBackupManager @Inject constructor(
             } ?: error("Profil non enregistré")
             settingsStore.replaceMediaFavorites(effective.id, "vod", profile.vod)
             settingsStore.replaceMediaFavorites(effective.id, "series", profile.series)
+            // Schema 1 backups do not contain organization: preserve existing settings.
+            profile.hiddenMedia?.let { settingsStore.replaceHiddenMediaCategories(effective.id, it) }
+            profile.sections?.let { settingsStore.replaceCategorySectionOverrides(effective.id, it) }
+            profile.categories?.forEach { row ->
+                dao.setCategoryHidden(effective.id, row.id, row.hidden)
+                dao.setCategoryLocked(effective.id, row.id, row.locked)
+                row.order?.let { dao.setCategoryOrder(effective.id, row.id, it) }
+            }
+            profile.channels?.forEach { row ->
+                dao.setChannelHidden(effective.id, row.id, row.hidden)
+                row.order?.let { dao.setChannelOrder(effective.id, row.id, it) }
+            }
             val present = dao.getAllChannels(effective.id).map { it.streamId }.toSet()
             val ready = profile.live.intersect(present)
             settingsStore.setPendingLiveFavorites(effective.id, profile.live - ready)
@@ -94,6 +129,47 @@ class PortableBackupManager @Inject constructor(
         return profiles.size
     }
 
+    private data class CategoryPref(val id: String, val hidden: Boolean, val locked: Boolean, val order: Int?)
+    private data class ChannelPref(val id: Int, val hidden: Boolean, val order: Int?)
+
+    private fun stringIds(array: JSONArray?): Set<String> {
+        require(array == null || array.length() <= 20_000) { "Trop de catégories masquées" }
+        return (0 until (array?.length() ?: 0)).map { array!!.getString(it) }.onEach {
+            require(it.isNotBlank() && it.length < 512 && (it.startsWith("VOD:") || it.startsWith("SERIES:")))
+        }.toSet()
+    }
+
+    private fun sections(obj: JSONObject?): Map<String, String> {
+        if (obj == null) return emptyMap()
+        require(obj.length() <= 20_000) { "Trop de classements" }
+        return buildMap {
+            obj.keys().forEach { key ->
+                val value = obj.getString(key)
+                require(key.length < 512 && value in setOf("FRANCE", "KIDS", "OTHER"))
+                put(key, value)
+            }
+        }
+    }
+
+    private fun categories(array: JSONArray?): List<CategoryPref> {
+        require(array == null || array.length() <= 20_000) { "Trop de catégories" }
+        return (0 until (array?.length() ?: 0)).map {
+            val v = array!!.getJSONObject(it)
+            CategoryPref(v.getString("id").also { id -> require(id.isNotBlank() && id.length < 512) },
+                v.getBoolean("hidden"), v.getBoolean("locked"),
+                if (v.isNull("order")) null else v.getInt("order"))
+        }
+    }
+
+    private fun channels(array: JSONArray?): List<ChannelPref> {
+        require(array == null || array.length() <= 100_000) { "Trop de chaînes" }
+        return (0 until (array?.length() ?: 0)).map {
+            val v = array!!.getJSONObject(it)
+            ChannelPref(v.getInt("id").also { id -> require(id > 0) },
+                v.getBoolean("hidden"), if (v.isNull("order")) null else v.getInt("order"))
+        }
+    }
+
     private fun intIds(array: JSONArray): Set<Int> {
         require(array.length() <= 100_000) { "Trop de favoris" }
         return (0 until array.length()).map { index ->
@@ -107,6 +183,10 @@ class PortableBackupManager @Inject constructor(
         val credentials: XtreamCredentials,
         val live: Set<Int>,
         val vod: Set<Int>,
-        val series: Set<Int>
+        val series: Set<Int>,
+        val hiddenMedia: Set<String>?,
+        val sections: Map<String, String>?,
+        val categories: List<CategoryPref>?,
+        val channels: List<ChannelPref>?
     )
 }

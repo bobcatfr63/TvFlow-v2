@@ -76,7 +76,10 @@ class SeriesDetailsViewModel @Inject constructor(
                             .take(10)
                             .toList()
                     }
-                }.getOrDefault(emptyList())
+                }.getOrElse { failure ->
+                    if (failure is kotlinx.coroutines.CancellationException) throw failure
+                    emptyList()
+                }
                 episodes to suggestions
             }.onSuccess { (episodes, suggestions) ->
                 _state.value = _state.value.copy(
@@ -89,7 +92,7 @@ class SeriesDetailsViewModel @Inject constructor(
             }.onFailure { error ->
                 if (error is kotlinx.coroutines.CancellationException) throw error
                 // Never log Xtream URLs or exception messages: they can contain credentials.
-                Log.w("TVFlowSeries", "Episode loading failed: type=${error.javaClass.simpleName}, seriesId=$seriesId")
+                Log.w("TVFlowSeries", "Episode loading failed: category=${safeSeriesFailureCategory(error)}, seriesId=$seriesId")
                 _state.value = _state.value.copy(
                     loading = false,
                     error = "Impossible de charger les épisodes. Vérifiez la connexion au serveur IPTV, puis réessayez."

@@ -290,10 +290,13 @@ class SettingsViewModel @Inject constructor(
                 return@launch
             }
             busy.value = true
-            val categories = mediaCategories.first()
+            // Respect the visible categories configured in Films/Séries organization.
+            // Hidden categories must not consume TMDB requests during manual enrichment.
+            val visibleVod = repository.observeMediaCategories(MediaType.VOD).first()
+            val visibleSeries = repository.observeMediaCategories(MediaType.SERIES).first()
             // A bounded pass avoids blocking the UI on exceptionally large IPTV catalogs.
-            val tasks = (categories.first.map { MediaType.VOD to it.id } +
-                categories.second.map { MediaType.SERIES to it.id })
+            val tasks = (visibleVod.map { MediaType.VOD to it.id } +
+                visibleSeries.map { MediaType.SERIES to it.id })
                 .distinct().take(120)
             val startedProfile = repository.activeProfileId.first()
             var done = 0

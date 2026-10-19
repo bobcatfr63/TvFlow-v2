@@ -155,7 +155,7 @@ private fun ThemePalette.toColorScheme(): ColorScheme = darkColorScheme(
 )
 
 @Composable
-fun TVFlowTheme(accent: String = "RAINBOW", content: @Composable () -> Unit) {
+fun TVFlowTheme(accent: String = "RAINBOW", showAtmosphere: Boolean = true, content: @Composable () -> Unit) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val isLegacyTv = (context.resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_TYPE_MASK) == android.content.res.Configuration.UI_MODE_TYPE_TELEVISION && android.os.Build.VERSION.SDK_INT <= 28
     CompositionLocalProvider(LocalRainbowEnabled provides (!isLegacyTv && accent in setOf("RAINBOW", "NEBULA", "INFERNO", "CRYSTAL", "QUANTUM", "OCEAN", "AURORA", "ECLIPSE", "INTERSTELLAR", "HOLOGRAPHIC"))) {
@@ -163,8 +163,8 @@ fun TVFlowTheme(accent: String = "RAINBOW", content: @Composable () -> Unit) {
             MaterialTheme(colorScheme = palette(accent).toColorScheme()) {
                 Box(Modifier.fillMaxSize()) {
                     content()
-                    // Legacy Android TV hardware cannot always sustain continuous fullscreen gradients.
-                    SignatureAtmosphere(accent, animate = !isLegacyTv)
+                    // Ambient effects belong above opaque menus, but NEVER above video playback.
+                    if (showAtmosphere) SignatureAtmosphere(accent, animate = !isLegacyTv)
                 }
             }
         }

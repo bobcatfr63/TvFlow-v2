@@ -14,6 +14,8 @@ import androidx.activity.viewModels
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -59,8 +61,9 @@ class MainActivity : FragmentActivity() {
         var compositionLogged = false
         setContent {
             val accent by themeViewModel.accent.collectAsState()
-            TVFlowTheme(accent = accent) {
-                TVFlowNavHost(bootLiveTarget = bootLiveTarget)
+            var atmosphereSuppressed by androidx.compose.runtime.remember { mutableStateOf(true) }
+            TVFlowTheme(accent = accent, showAtmosphere = !atmosphereSuppressed) {
+                TVFlowNavHost(bootLiveTarget = bootLiveTarget, onPlaybackRouteChanged = { atmosphereSuppressed = it })
             }
             SideEffect {
                 if (!compositionLogged) {

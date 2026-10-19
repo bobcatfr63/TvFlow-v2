@@ -120,8 +120,8 @@ fun VodPlayerScreen(
             override fun onPlayerError(error: PlaybackException) {
                 Log.e(
                     VOD_PLAYER_TAG,
-                    "Media3 playback failed: code=${error.errorCode}, name=${error.errorCodeName}, cause=${error.cause?.javaClass?.simpleName ?: "unknown"}, media=${state.mediaKey.ifBlank { "unknown" }}",
-                    error
+                    // Avoid logging the Throwable: HTTP exceptions may contain credential-bearing stream URLs.
+                    "Media3 playback failed: code=${error.errorCode}, name=${error.errorCodeName}, cause=${error.cause?.javaClass?.simpleName ?: "unknown"}, media=${state.mediaKey.ifBlank { "unknown" }}"
                 )
                 var cause: Throwable? = error
                 var httpCode: Int? = null

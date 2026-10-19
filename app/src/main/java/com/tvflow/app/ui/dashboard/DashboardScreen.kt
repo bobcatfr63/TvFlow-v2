@@ -125,8 +125,6 @@ fun DashboardScreen(
     val isTv = context.isTelevisionUi()
     val listState = rememberLazyListState()
     var appsMode by remember { mutableStateOf(false) }
-    var showMoment by remember { mutableStateOf(false) }
-    var showTasteEditor by remember { mutableStateOf(false) }
     var selectedPreviewVod by remember { mutableStateOf<VodItem?>(null) }
     var selectedPreviewSeries by remember { mutableStateOf<SeriesItem?>(null) }
     var selectedPreviewUrl by remember { mutableStateOf<String?>(null) }
@@ -210,8 +208,6 @@ fun DashboardScreen(
                         onSearch = onSearch,
                         onApps = { appsMode = !appsMode },
                         appsSelected = appsMode,
-                        onPulse = { showTasteEditor = true },
-                        onMoment = { showMoment = true },
                         onSettings = onSettings
                     )
                 } else {
@@ -224,8 +220,6 @@ fun DashboardScreen(
                         onSearch = onSearch,
                         onApps = { appsMode = !appsMode },
                         appsSelected = appsMode,
-                        onPulse = { showTasteEditor = true },
-                        onMoment = { showMoment = true },
                         onSettings = onSettings
                     )
                 }
@@ -276,21 +270,21 @@ fun DashboardScreen(
                 }
             }
 
-            if (state.pulseVod.isNotEmpty()) {
+            if (state.recommendedVod.isNotEmpty()) {
                 item {
                     RecentVodRail(
-                        items = state.pulseVod,
+                        items = state.recommendedVod,
                         onItem = onVodItem,
                         title = "TVFlow AI - Films pour toi",
-                        subtitle = pulseSubtitle(state.tasteThemes, state.learnedThemes),
+                        subtitle = "Suggestions adaptées à tes habitudes et aux catégories affichées",
                         onFocused = { selectedPreviewVod = it; selectedPreviewSeries = null }
                     )
                 }
             }
-            if (state.pulseSeries.isNotEmpty()) {
+            if (state.recommendedSeries.isNotEmpty()) {
                 item {
                     RecentSeriesRail(
-                        items = state.pulseSeries,
+                        items = state.recommendedSeries,
                         onItem = onSeriesItem,
                         title = "TVFlow AI - Series pour toi",
                         onFocused = { selectedPreviewSeries = it; selectedPreviewVod = null }
@@ -322,40 +316,8 @@ fun DashboardScreen(
             }
         }
 
-        if (showTasteEditor) {
-            TasteProfilePopup(
-                initialThemes = state.tasteThemes,
-                learnedThemes = state.learnedThemes,
-                firstTime = false,
-                onSave = {
-                    viewModel.saveTasteProfile(it)
-                    showTasteEditor = false
-                },
-                onDismiss = { showTasteEditor = false }
-            )
-        } else if (showMoment) {
-            MomentPopup(
-                pulseVod = state.pulseVod,
-                pulseSeries = state.pulseSeries,
-                recentVod = state.recentVodReleases,
-                recentSeries = state.recentSeriesReleases,
-                onVod = {
-                    showMoment = false
-                    onVodItem(it)
-                },
-                onSeries = {
-                    showMoment = false
-                    onSeriesItem(it)
-                },
-                onDismiss = { showMoment = false }
-            )
-        }
-
         val installedReleaseNotesVersion = state.installedReleaseNotesVersion
         if (
-            !state.showTasteOnboarding &&
-            !showTasteEditor &&
-            !showMoment &&
             state.updateInfo == null &&
             installedReleaseNotesVersion != null &&
             state.installedReleaseNotes.isNotEmpty()
@@ -507,8 +469,6 @@ private fun TvHeroHeader(
     onSearch: () -> Unit,
     onApps: () -> Unit,
     appsSelected: Boolean,
-    onPulse: () -> Unit,
-    onMoment: () -> Unit,
     onSettings: () -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -693,8 +653,6 @@ private fun HeroHeader(
     onSearch: () -> Unit,
     onApps: () -> Unit,
     appsSelected: Boolean,
-    onPulse: () -> Unit,
-    onMoment: () -> Unit,
     onSettings: () -> Unit
 ) {
     Column {
@@ -920,475 +878,6 @@ private fun UpdatePopup(
             )
         }
     )
-}
-
-private val TVFLOW_TASTE_THEMES = listOf(
-    "Action", "Aventure", "Comédie", "Thriller",
-    "Science-fiction", "Fantastique", "Romance", "Policier",
-    "Horreur", "Documentaire", "Animation", "Famille"
-)
-
-@Composable
-private fun TasteProfilePopup(
-    initialThemes: Set<String>,
-    learnedThemes: List<String>,
-    firstTime: Boolean,
-    onSave: (Set<String>) -> Unit,
-    onDismiss: () -> Unit
-) {
-    val isTv = LocalContext.current.isTelevisionUi()
-    var selectedThemes by remember(initialThemes) { mutableStateOf(initialThemes) }
-    val columns = if (isTv) 4 else 2
-    val scroll = rememberScrollState()
-
-    AlertDialog(
-        onDismissRequest = { if (!firstTime) onDismiss() },
-        title = {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(if (firstTime) "Bienvenue dans TVFlow Pulse" else "Mon profil Pulse", fontWeight = FontWeight.Bold)
-                Text(
-                    if (firstTime) "Donne-lui une étincelle. Il apprendra ensuite tout seul."
-                    else "Ajuste tes goûts. Pulse garde aussi ce qu’il a appris de tes habitudes.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-        },
-        text = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = if (isTv) 500.dp else 440.dp)
-                    .verticalScroll(scroll),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Text(
-                    "Choisis les univers qui te ressemblent. Ces choix pèsent plus fort, puis TVFlow affine les recommandations à partir de ce que tu regardes vraiment.",
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                TVFLOW_TASTE_THEMES.chunked(columns).forEach { rowThemes ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        rowThemes.forEach { theme ->
-                            TasteChoiceChip(
-                                label = theme,
-                                selected = theme in selectedThemes,
-                                modifier = Modifier.weight(1f),
-                                onClick = {
-                                    selectedThemes = if (theme in selectedThemes) {
-                                        selectedThemes - theme
-                                    } else {
-                                        selectedThemes + theme
-                                    }
-                                }
-                            )
-                        }
-                        repeat(columns - rowThemes.size) { Spacer(Modifier.weight(1f)) }
-                    }
-                }
-                if (learnedThemes.isNotEmpty()) {
-                    Text(
-                        "Pulse a déjà repéré : " + learnedThemes.take(5).joinToString(" • "),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-                Text(
-                    "L’apprentissage reste local à TVFlow. Tu peux revenir ici à tout moment depuis l’accueil.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        },
-        confirmButton = {
-            UpdateActionButton(
-                text = when {
-                    firstTime && selectedThemes.isEmpty() -> "Commencer sans préférence"
-                    firstTime -> "Créer mon Pulse"
-                    else -> "Enregistrer"
-                },
-                enabled = true,
-                primary = true,
-                onClick = { onSave(selectedThemes) }
-            )
-        },
-        dismissButton = {
-            UpdateActionButton(
-                text = if (firstTime) "Pas maintenant" else "Fermer",
-                enabled = true,
-                primary = false,
-                onClick = onDismiss
-            )
-        }
-    )
-}
-
-@Composable
-private fun TasteChoiceChip(
-    label: String,
-    selected: Boolean,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit
-) {
-    val interaction = remember { MutableInteractionSource() }
-    val focused by interaction.collectIsFocusedAsState()
-    Box(
-        modifier = modifier
-            .height(46.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(
-                when {
-                    focused -> MaterialTheme.colorScheme.primaryContainer
-                    selected -> MaterialTheme.colorScheme.primary
-                    else -> MaterialTheme.colorScheme.surfaceVariant
-                }
-            )
-            .border(
-                if (focused) 3.dp else 1.dp,
-                if (focused) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.12f),
-                RoundedCornerShape(12.dp)
-            )
-            .clickable(interactionSource = interaction, indication = null, onClick = onClick)
-            .focusable(interactionSource = interaction),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            label,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            style = MaterialTheme.typography.labelMedium,
-            color = when {
-                focused -> MaterialTheme.colorScheme.onPrimaryContainer
-                selected -> MaterialTheme.colorScheme.onPrimary
-                else -> MaterialTheme.colorScheme.onSurfaceVariant
-            }
-        )
-    }
-}
-
-
-private data class MomentCandidate(
-    val vod: VodItem? = null,
-    val series: SeriesItem? = null,
-    val reason: String
-)
-
-private val MOMENT_DURATIONS = listOf("20 min", "45 min", "1 h 30", "Soirée", "Surprends-moi")
-private val MOMENT_MOODS = listOf("Tout", "Action", "Détente", "Frissons", "Romance", "Famille")
-
-@Composable
-private fun MomentPopup(
-    pulseVod: List<VodItem>,
-    pulseSeries: List<SeriesItem>,
-    recentVod: List<VodItem>,
-    recentSeries: List<SeriesItem>,
-    onVod: (VodItem) -> Unit,
-    onSeries: (SeriesItem) -> Unit,
-    onDismiss: () -> Unit
-) {
-    val isTv = LocalContext.current.isTelevisionUi()
-    var duration by remember { mutableStateOf("45 min") }
-    var mood by remember { mutableStateOf("Tout") }
-    var shuffleSeed by remember { mutableStateOf(0) }
-    val scroll = rememberScrollState()
-
-    val candidates = remember(
-        duration,
-        mood,
-        shuffleSeed,
-        pulseVod,
-        pulseSeries,
-        recentVod,
-        recentSeries
-    ) {
-        buildMomentCandidates(
-            duration = duration,
-            mood = mood,
-            pulseVod = pulseVod,
-            pulseSeries = pulseSeries,
-            recentVod = recentVod,
-            recentSeries = recentSeries
-        )
-    }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("✦ Mon moment", fontWeight = FontWeight.Bold)
-                Text(
-                    "Dis-moi combien de temps tu as et l’ambiance du moment. TVFlow compose la suite.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-        },
-        text = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = if (isTv) 420.dp else 295.dp)
-                    .verticalScroll(scroll),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
-                Text("J’ai…", fontWeight = FontWeight.SemiBold)
-                AdaptiveChoiceRows(
-                    values = MOMENT_DURATIONS,
-                    selected = duration,
-                    columns = if (isTv) 5 else 2,
-                    onSelected = { duration = it }
-                )
-
-                Text("Et j’ai envie de…", fontWeight = FontWeight.SemiBold)
-                AdaptiveChoiceRows(
-                    values = MOMENT_MOODS,
-                    selected = mood,
-                    columns = if (isTv) 3 else 2,
-                    onSelected = { mood = it }
-                )
-
-                if (candidates.isEmpty()) {
-                    Text(
-                        "Pulse manque encore de données pour composer ce moment. Regarde quelques contenus et il deviendra plus précis.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                } else {
-                    Text("Ton moment TVFlow", fontWeight = FontWeight.Bold)
-                    candidates.forEachIndexed { index, candidate ->
-                        MomentCandidateRow(
-                            candidate = candidate,
-                            index = index,
-                            onClick = {
-                                candidate.vod?.let(onVod)
-                                candidate.series?.let(onSeries)
-                            }
-                        )
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            UpdateActionButton(
-                text = "Autre proposition",
-                enabled = true,
-                primary = true,
-                onClick = { shuffleSeed += 1 }
-            )
-        },
-        dismissButton = {
-            UpdateActionButton(
-                text = "Fermer",
-                enabled = true,
-                primary = false,
-                onClick = onDismiss
-            )
-        }
-    )
-}
-
-@Composable
-private fun AdaptiveChoiceRows(
-    values: List<String>,
-    selected: String,
-    columns: Int,
-    onSelected: (String) -> Unit
-) {
-    values.chunked(columns).forEach { rowValues ->
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            rowValues.forEach { value ->
-                TasteChoiceChip(
-                    label = value,
-                    selected = value == selected,
-                    modifier = Modifier.weight(1f),
-                    onClick = { onSelected(value) }
-                )
-            }
-            repeat(columns - rowValues.size) { Spacer(Modifier.weight(1f)) }
-        }
-    }
-}
-
-@Composable
-private fun MomentCandidateRow(
-    candidate: MomentCandidate,
-    index: Int,
-    onClick: () -> Unit
-) {
-    val interaction = remember { MutableInteractionSource() }
-    val focused by interaction.collectIsFocusedAsState()
-    val title = candidate.vod?.name ?: candidate.series?.name.orEmpty()
-    val image = candidate.vod?.posterUrl ?: candidate.series?.coverUrl
-    val kind = if (candidate.vod != null) "Film" else "Série"
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(
-                if (focused) MaterialTheme.colorScheme.primaryContainer
-                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.72f)
-            )
-            .border(
-                if (focused) 3.dp else 1.dp,
-                if (focused) MaterialTheme.colorScheme.primary
-                else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f),
-                RoundedCornerShape(16.dp)
-            )
-            .clickable(interactionSource = interaction, indication = null, onClick = onClick)
-            .focusable(interactionSource = interaction)
-            .padding(10.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        AsyncImage(
-            model = image,
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .width(62.dp)
-                .height(82.dp)
-                .clip(RoundedCornerShape(10.dp))
-        )
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(3.dp)
-        ) {
-            Text(
-                if (index == 0) "Choix principal • " + kind else kind + " • Alternative " + (index + 1),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.primary
-            )
-            Text(
-                title,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
-            Text(
-                candidate.reason,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-    }
-}
-
-private fun buildMomentCandidates(
-    duration: String,
-    mood: String,
-    pulseVod: List<VodItem>,
-    pulseSeries: List<SeriesItem>,
-    recentVod: List<VodItem>,
-    recentSeries: List<SeriesItem>
-): List<MomentCandidate> {
-    val vodPool = (pulseVod + recentVod).distinctBy { it.streamId }
-    val seriesPool = (pulseSeries + recentSeries).distinctBy { it.seriesId }
-
-    fun vodMatches(item: VodItem) = momentMoodMatches(
-        mood,
-        listOfNotNull(item.name, item.synopsis).joinToString(" ")
-    )
-    fun seriesMatches(item: SeriesItem) = momentMoodMatches(
-        mood,
-        listOfNotNull(item.name, item.plot).joinToString(" ")
-    )
-
-    val filteredVod = vodPool.filter(::vodMatches).ifEmpty { vodPool }.shuffled()
-    val filteredSeries = seriesPool.filter(::seriesMatches).ifEmpty { seriesPool }.shuffled()
-
-    val result = mutableListOf<MomentCandidate>()
-    fun addSeries(count: Int, reason: String) {
-        filteredSeries.filterNot { item -> result.any { it.series?.seriesId == item.seriesId } }
-            .take(count)
-            .forEach { item ->
-                val matches = seriesMatches(item)
-                result += MomentCandidate(
-                    series = item,
-                    reason = if (mood != "Tout" && matches) "$reason • Correspond à l'ambiance $mood." else reason
-                )
-            }
-    }
-    fun addVod(count: Int, reason: String) {
-        filteredVod.filterNot { item -> result.any { it.vod?.streamId == item.streamId } }
-            .take(count)
-            .forEach { item ->
-                val matches = vodMatches(item)
-                result += MomentCandidate(
-                    vod = item,
-                    reason = if (mood != "Tout" && matches) "$reason • Correspond à l'ambiance $mood." else reason
-                )
-            }
-    }
-
-    when (duration) {
-        "20 min" -> {
-            addSeries(2, "Pensé pour un moment court : une série d’abord, sans te lancer dans un long film.")
-            addVod(1, "Alternative Pulse si tu préfères finalement un film.")
-        }
-        "45 min" -> {
-            addSeries(2, "Format idéal pour une session d’environ un épisode.")
-            addVod(1, "Option film si tu veux prolonger le moment.")
-        }
-        "1 h 30" -> {
-            addVod(2, "Pulse privilégie ici un film pour remplir ton créneau.")
-            addSeries(1, "Alternative série si tu veux garder plus de liberté.")
-        }
-        "Soirée" -> {
-            addVod(2, "Sélection centrale pour une vraie soirée TV.")
-            addSeries(1, "Une série en option pour commencer ou finir plus léger.")
-        }
-        else -> {
-            if ((0..1).random() == 0) {
-                addVod(2, "Choix surprise basé sur Pulse et les nouveautés.")
-                addSeries(1, "Une autre piste pour casser la routine.")
-            } else {
-                addSeries(2, "Choix surprise basé sur Pulse et tes habitudes.")
-                addVod(1, "Un film pour changer complètement de rythme.")
-            }
-        }
-    }
-    return result.take(3)
-}
-
-private fun momentMoodMatches(mood: String, raw: String): Boolean {
-    if (mood == "Tout") return true
-    val text = raw
-        .lowercase(Locale.ROOT)
-        .replace("é", "e")
-        .replace("è", "e")
-        .replace("ê", "e")
-        .replace("à", "a")
-        .replace("ô", "o")
-    val tokens = when (mood) {
-        "Action" -> listOf("action", "guerre", "combat", "aventure", "mission")
-        "Détente" -> listOf("comedie", "humour", "famille", "romance", "feel good")
-        "Frissons" -> listOf("thriller", "horreur", "crime", "mystere", "suspense")
-        "Romance" -> listOf("romance", "romantique", "amour")
-        "Famille" -> listOf("famille", "animation", "enfant", "kids")
-        else -> emptyList()
-    }
-    return tokens.any(text::contains)
-}
-
-private fun pulseSubtitle(explicit: Set<String>, learned: List<String>): String {
-    val explicitLabel = explicit.take(3).joinToString(" • ")
-    val learnedLabel = learned.filterNot { it in explicit }.take(2).joinToString(" • ")
-    return when {
-        explicitLabel.isNotBlank() && learnedLabel.isNotBlank() ->
-            "Tes préférences : $explicitLabel · Selon ton historique : $learnedLabel"
-        explicitLabel.isNotBlank() -> "Inspiré de tes goûts : $explicitLabel"
-        learnedLabel.isNotBlank() -> "Selon ton historique : $learnedLabel"
-        else -> "Une sélection vivante qui évolue avec tes habitudes."
-    }
 }
 
 @Composable
