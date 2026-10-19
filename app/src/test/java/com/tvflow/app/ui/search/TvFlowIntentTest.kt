@@ -6,6 +6,12 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class TvFlowIntentTest {
+    @Test fun genreTyposResolveButTitlesAndNamesRemainUnchanged() {
+        assertTrue(TvFlowIntent.parse("film de comedie et avanture").terms.containsAll(listOf("comedie", "aventure")))
+        assertTrue(TvFlowIntent.parse("film thriler").terms.contains("thriller"))
+        assertTrue(TvFlowIntent.parse("film avec Tom Cruise").terms.contains("cruise"))
+        assertTrue(TvFlowIntent.parse("film Mission Impossible").terms.contains("mission"))
+    }
     @Test fun tmdbGenreIdsImproveCombinedGenreMatches() {
         val query = TvFlowIntent.parse("une série action et aventure")
         assertTrue(TvFlowIntent.score(query, "Série sans mots-clés", null, 2024, null, "10759") > 0)

@@ -55,9 +55,34 @@ internal object TvFlowIntent {
             .replace(Regex("\\s+"), " ")
             .trim()
 
+    /** Correct typos only for known genre words; do not rewrite movie titles or people. */
+    private val genreWords = setOf("action", "aventure", "animation", "comedie", "police", "thriller", "horreur", "romance", "documentaire", "fantastique", "science")
+
+    private fun genreCorrection(word: String): String {
+        if (word.length < 5 || word in genreWords) return word
+        val candidates = genreWords.filter { kotlin.math.abs(it.length - word.length) <= 1 && editDistanceAtMostOne(word, it) }
+        return candidates.singleOrNull() ?: word
+    }
+
+    private fun editDistanceAtMostOne(a: String, b: String): Boolean {
+        var i = 0
+        var j = 0
+        var edits = 0
+        while (i < a.length && j < b.length) {
+            if (a[i] == b[j]) { i++; j++; continue }
+            if (++edits > 1) return false
+            when {
+                a.length > b.length -> i++
+                b.length > a.length -> j++
+                else -> { i++; j++ }
+            }
+        }
+        return edits + (a.length - i) + (b.length - j) <= 1
+    }
+
     fun parse(input: String): Parsed {
         val normalized = normalized(input)
-        val tokens = normalized.split(' ').filter { it.isNotBlank() }
+        val tokens = normalized.split(' ').filter { it.isNotBlank() }.map(::genreCorrection)
         val terms = tokens.filterNot { it.length < 2 || it in stop || it in setOf("recent", "recente", "recents", "recentes") }
             .flatMap { word -> (listOfNotNull(word, synonyms[word]) + topicTerms[word].orEmpty()).distinct() }.distinct().take(16)
         return Parsed(
