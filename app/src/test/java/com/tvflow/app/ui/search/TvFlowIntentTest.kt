@@ -6,6 +6,13 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class TvFlowIntentTest {
+    @Test fun expandedSearchUsesCorrectedGenresWithoutLosingOriginalWords() {
+        val terms = TvFlowIntent.searchTerms("film avanture thriler avec Tom Cruise")
+        assertTrue(terms.contains("aventure"))
+        assertTrue(terms.contains("thriller"))
+        assertTrue(terms.contains("cruise"))
+        assertTrue(terms.contains("avanture"))
+    }
     @Test fun genreTyposResolveButTitlesAndNamesRemainUnchanged() {
         assertTrue(TvFlowIntent.parse("film de comedie et avanture").terms.containsAll(listOf("comedie", "aventure")))
         assertTrue(TvFlowIntent.parse("film thriler").terms.contains("thriller"))

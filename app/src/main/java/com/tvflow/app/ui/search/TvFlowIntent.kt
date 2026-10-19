@@ -125,9 +125,16 @@ internal object TvFlowIntent {
     )
 
     fun searchTerms(input: String): List<String> {
-        val words = normalized(input).split(' ').filter { it.length >= 3 && it !in stop && !it.startsWith("recent") && !it.startsWith("nouveau") && !it.startsWith("nouvel") && it != "dernier" && it != "derniere" }
-        val related = words.flatMap { topicTerms[it].orEmpty() }
-        return (words + related + parse(input).terms).distinct().take(16)
+        // Use the same normalization and typo correction as the local ranker.
+        // Keep the original words as fallbacks for genuine titles and actor names.
+        val words = normalized(input).split(' ').filter {
+            it.length >= 3 && it !in stop && !it.startsWith("recent") &&
+                !it.startsWith("nouveau") && !it.startsWith("nouvel") &&
+                it != "dernier" && it != "derniere"
+        }
+        val corrected = words.map(::genreCorrection)
+        val related = corrected.flatMap { topicTerms[it].orEmpty() }
+        return (corrected + related + parse(input).terms + words).distinct().take(16)
     }
 
     private val genreIdsByTerm = mapOf(
