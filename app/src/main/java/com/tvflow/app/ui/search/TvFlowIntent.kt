@@ -36,6 +36,11 @@ internal object TvFlowIntent {
         "drole" to "comedie",
         "rigolo" to "comedie",
         "suspense" to "thriller",
+        "mystere" to "mystere",
+        "mysterieux" to "mystere",
+        "mysterieuse" to "mystere",
+        "romantique" to "romance",
+        "romantiques" to "romance",
         "comedies" to "comedie",
         "comique" to "comedie",
         "humour" to "comedie",
@@ -121,12 +126,16 @@ internal object TvFlowIntent {
         "comedie" to setOf(35),
         "police" to setOf(80, 9648),
         "thriller" to setOf(53, 80, 9648),
+        "mystere" to setOf(9648),
         "horreur" to setOf(27),
         "romance" to setOf(10749),
         "documentaire" to setOf(99),
         "fantastique" to setOf(14, 10765),
         "science" to setOf(878, 10765)
     )
+
+    /** TMDB genre candidates, only for explicitly requested genres. */
+    fun requestedGenreIds(query: Parsed): Set<Int> = query.terms.flatMap { genreIdsByTerm[it].orEmpty() }.toSet()
 
     /** Genre browsing can use provider category candidates without warming the full text index. */
     fun isGenreBrowsing(query: Parsed): Boolean =

@@ -1,5 +1,6 @@
 package com.tvflow.app.ui.startup
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tvflow.app.data.local.CredentialsStore
@@ -19,7 +20,8 @@ sealed interface StartupState {
 
 @HiltViewModel
 class StartupViewModel @Inject constructor(
-    credentialsStore: CredentialsStore
+    credentialsStore: CredentialsStore,
+    private val preloader: StartupPreloader
 ) : ViewModel() {
     private val _state = MutableStateFlow<StartupState>(StartupState.Loading)
     val state: StateFlow<StartupState> = _state.asStateFlow()
@@ -30,6 +32,12 @@ class StartupViewModel @Inject constructor(
                 StartupState.LoggedOut
             } else {
                 StartupState.LoggedIn
+            }
+            if (_state.value == StartupState.LoggedIn) {
+                Log.i("TVFlowStartup", "Credentials present, scheduling selected-category prefetch")
+                preloader.start()
+            } else {
+                Log.i("TVFlowStartup", "No IPTV profile configured; prefetch intentionally skipped")
             }
         }
     }

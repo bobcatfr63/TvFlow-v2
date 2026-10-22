@@ -42,27 +42,34 @@ fun StartupScreen(
     val state by viewModel.state.collectAsState()
     var introFinished by rememberSaveable { mutableStateOf(false) }
 
-    val exoPlayer = remember(context) {
+    var exoPlayer by remember(context) { mutableStateOf<ExoPlayer?>(null) }
+
+    // Compose the first black frame before the potentially expensive Media3 initialization.
+    // ExoPlayer must still be created and released on the main thread.
+    LaunchedEffect(context) {
+        delay(250L)
+        if (introFinished) return@LaunchedEffect
         val decoderStart = SystemClock.uptimeMillis()
         Log.i("TVFlowStartup", "Startup player creation begins")
-        ExoPlayer.Builder(context).build().apply {
+        val player = ExoPlayer.Builder(context).build().apply {
             val introUri = "android.resource://${context.packageName}/${R.raw.tvflow_intro}"
             setMediaItem(MediaItem.fromUri(introUri))
             repeatMode = Player.REPEAT_MODE_OFF
             volume = 1f
             playWhenReady = true
-        }.also {
-            Log.i("TVFlowStartup", "Startup player created in ${SystemClock.uptimeMillis() - decoderStart}ms")
         }
+        exoPlayer = player
+        Log.i("TVFlowStartup", "Startup player created in ${SystemClock.uptimeMillis() - decoderStart}ms")
     }
 
-    // Render the initial Compose frame before preparing the video decoder.
     LaunchedEffect(exoPlayer) {
-        delay(250L)
-        exoPlayer.prepare()
+        exoPlayer?.prepare()
     }
 
     DisposableEffect(exoPlayer) {
+        val player = exoPlayer
+        if (player == null) return@DisposableEffect onDispose { }
+
         val listener = object : Player.Listener {
             override fun onPlaybackStateChanged(playbackState: Int) {
                 if (playbackState == Player.STATE_ENDED) {
@@ -75,10 +82,10 @@ fun StartupScreen(
             }
         }
 
-        exoPlayer.addListener(listener)
+        player.addListener(listener)
         onDispose {
-            exoPlayer.removeListener(listener)
-            exoPlayer.release()
+            player.removeListener(listener)
+            player.release()
         }
     }
 

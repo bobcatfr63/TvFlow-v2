@@ -123,7 +123,7 @@ fun MediaLibraryScreen(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = screenHorizontalPadding)
             )
             LazyVerticalGrid(
-                columns = GridCells.Adaptive(minSize = if (compactMobile) 104.dp else 160.dp),
+                columns = GridCells.Fixed(if (compactMobile) 3 else 4),
                 modifier = Modifier.fillMaxSize().padding(horizontal = screenHorizontalPadding),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -220,13 +220,6 @@ fun MediaLibraryScreen(
                     .padding(horizontal = if (compactMobile) 8.dp else 16.dp),
                 verticalArrangement = Arrangement.spacedBy(if (compactMobile) 4.dp else 8.dp)
             ) {
-                if (isTv) {
-                    MediaPreviewPanel(
-                        preview = preview,
-                        isSeries = viewModel.type == MediaType.SERIES,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
                 LazyColumn(
                     modifier = Modifier.fillMaxWidth().weight(1f),
                     verticalArrangement = Arrangement.spacedBy(if (compactMobile) 4.dp else 8.dp)
@@ -277,7 +270,7 @@ fun MediaLibraryScreen(
             }
 
             LazyVerticalGrid(
-                columns = GridCells.Adaptive(minSize = if (compactMobile) 104.dp else 160.dp),
+                columns = GridCells.Fixed(if (compactMobile) 3 else 4),
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(
@@ -493,7 +486,7 @@ private fun MediaPoster(
                 filterQuality = androidx.compose.ui.graphics.FilterQuality.High,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(if (compact) 160.dp else 184.dp)
+                    .height(if (compact) 142.dp else 126.dp)
             )
             Text(
                 name.replace(Regex("""(?i)^\s*(?:FR|VF|VOSTFR)\s*[-:|]\s*"""), ""),
@@ -524,7 +517,7 @@ private fun MediaPoster(
                     style = MaterialTheme.typography.bodySmall
                 )
             }
-            if (compact && !synopsis.isNullOrBlank()) {
+            if (false && compact && !synopsis.isNullOrBlank()) {
                 Text(
                     synopsis,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,

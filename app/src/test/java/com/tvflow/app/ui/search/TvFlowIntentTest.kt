@@ -6,6 +6,14 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class TvFlowIntentTest {
+    @Test fun naturalLanguageRomanceAndMysteryUseRealTmdbGenres() {
+        val mystery = TvFlowIntent.parse("une série mystérieuse")
+        assertTrue(TvFlowIntent.score(mystery, "Sans titre", null, 2025, null, "9648") > 0)
+        assertEquals(0, TvFlowIntent.score(mystery, "Comédie", null, 2025, null, "35"))
+        val romance = TvFlowIntent.parse("un film romantique")
+        assertTrue(TvFlowIntent.score(romance, "Sans titre", null, 2022, null, "10749") > 0)
+    }
+
     @Test fun scienceFictionPhraseUsesTmdbGenreWithoutInventingMatches() {
         val query = TvFlowIntent.parse("je cherche un film de science-fiction récent")
         assertTrue(query.terms.contains("science"))
@@ -199,6 +207,17 @@ class TvFlowIntentTest {
         assertEquals(0, TvFlowSimilarity.overlap(keywords, "Cuisine", "Recettes et famille"))
         assertEquals(emptyList<String>(), TvFlowSimilarity.keywords(null))
     }
+    @Test fun tmdbMysteryAndRomanceGenreCandidatesAreConstrained() {
+        val mystery = TvFlowIntent.parse("film mysterieux")
+        assertTrue(TvFlowIntent.requestedGenreIds(mystery).contains(9648))
+        assertTrue(TvFlowIntent.score(mystery, "Titre neutre", null, 2025, "FR Films", "9648") > 0)
+        assertEquals(0, TvFlowIntent.score(mystery, "Titre neutre", null, 2025, "FR Films", "35"))
+        val romance = TvFlowIntent.parse("comedie romantique")
+        assertTrue(TvFlowIntent.requestedGenreIds(romance).containsAll(setOf(35, 10749)))
+        assertEquals(0, TvFlowIntent.score(romance, "Titre neutre", null, 2024, "FR Films", "35"))
+        assertTrue(TvFlowIntent.score(romance, "Titre neutre", null, 2024, "FR Films", "35,10749") > 0)
+    }
+
     @Test fun recognizesEverydayFrenchGenreRequests() {
         val parsed = TvFlowIntent.parse("Une comedie francaise")
         assertTrue(parsed.terms.contains("comedie"))

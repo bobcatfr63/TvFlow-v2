@@ -722,7 +722,7 @@ class XtreamRepository @Inject constructor(
             }.getOrNull()
             tmdbEnrichmentTracker.record(profileId, metadata != null && (metadata.synopsis?.isNotBlank() == true || metadata.imageUrl?.isNotBlank() == true || metadata.releaseYear != null))
             if (metadata != null) {
-                dao.updateVodMetadata(
+                dao.fillMissingVodMetadataFromTmdb(
                     profileId = profileId,
                     streamId = streamId,
                     synopsis = metadata.synopsis,
@@ -894,6 +894,9 @@ class XtreamRepository @Inject constructor(
         }
 
     suspend fun enrichMissingMediaMetadata(type: MediaType, categoryId: String, limit: Int = 24) {
+        if (limit <= 0) return
+        // Series enrichment only uses TMDB: do not mark attempts while no key is configured.
+        if (type == MediaType.SERIES && settingsStore.currentTmdbToken().isNullOrBlank()) return
         val profileId = currentProfileId()
         when (type) {
             MediaType.VOD -> {
@@ -931,7 +934,7 @@ class XtreamRepository @Inject constructor(
                 }.getOrNull()
                 tmdbEnrichmentTracker.record(profileId, metadata != null && (metadata.synopsis?.isNotBlank() == true || metadata.imageUrl?.isNotBlank() == true || metadata.releaseYear != null))
                 if (metadata == null) return@forEach
-                dao.updateSeriesMetadata(
+                dao.fillMissingSeriesMetadataFromTmdb(
                     profileId = profileId,
                     seriesId = item.seriesId,
                     plot = metadata.synopsis,
@@ -951,6 +954,26 @@ class XtreamRepository @Inject constructor(
      * Read a bounded set of AI candidates from provider categories, including titles
      * without any matching words. Queries stay in Room; no full catalog scan in the UI.
      */
+    /** Bounded TMDB genre lookups, restricted to the user's visible categories. */
+    suspend fun searchAiTmdbGenreCandidates(
+        vodCategoryIds: List<String>,
+        seriesCategoryIds: List<String>,
+        genreIds: Set<Int>,
+        limitPerType: Int = 80
+    ): GlobalSearchResults = withContext(Dispatchers.IO) {
+        val profileId = currentProfileId()
+        val genres = genreIds.take(4)
+        val perGenre = (limitPerType.coerceIn(0, 120) + genres.size.coerceAtLeast(1) - 1) / genres.size.coerceAtLeast(1)
+        GlobalSearchResults(
+            vod = if (vodCategoryIds.isEmpty()) emptyList() else genres.flatMap {
+                dao.getVodAiTmdbGenreCandidates(profileId, vodCategoryIds, it, perGenre)
+            }.distinctBy { it.streamId }.take(limitPerType).map { it.toDomain() },
+            series = if (seriesCategoryIds.isEmpty()) emptyList() else genres.flatMap {
+                dao.getSeriesAiTmdbGenreCandidates(profileId, seriesCategoryIds, it, perGenre)
+            }.distinctBy { it.seriesId }.take(limitPerType).map { it.toDomain() }
+        )
+    }
+
     suspend fun searchAiCategoryCandidates(
         vodCategoryIds: List<String>,
         seriesCategoryIds: List<String>,

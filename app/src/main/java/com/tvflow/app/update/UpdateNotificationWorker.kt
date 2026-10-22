@@ -133,7 +133,7 @@ class UpdateNotificationWorker(
 
             WorkManager.getInstance(context).enqueueUniquePeriodicWork(
                 PERIODIC_WORK,
-                ExistingPeriodicWorkPolicy.UPDATE,
+                ExistingPeriodicWorkPolicy.KEEP,
                 periodic
             )
 
@@ -143,7 +143,7 @@ class UpdateNotificationWorker(
 
             WorkManager.getInstance(context).enqueueUniqueWork(
                 IMMEDIATE_WORK,
-                ExistingWorkPolicy.REPLACE,
+                ExistingWorkPolicy.KEEP,
                 immediate
             )
         }

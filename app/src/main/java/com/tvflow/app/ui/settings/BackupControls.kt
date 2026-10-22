@@ -4,6 +4,10 @@ import android.app.Application
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.ui.focus.onFocusChanged
+import kotlinx.coroutines.delay
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -57,6 +61,22 @@ class BackupViewModel @Inject constructor(
         }
     }
 
+    fun restoreStagedBackup() {
+        viewModelScope.launch {
+            busy.value = true
+            try {
+                val count = withContext(Dispatchers.IO) {
+                    val file = java.io.File(application.filesDir, "TVFlow-restore.tvfb")
+                    require(file.isFile && file.length() in 1..(24L * 1024 * 1024)) { "Sauvegarde absente" }
+                    manager.importBackup(file.readText(Charsets.UTF_8), null)
+                }
+                message.value = "$count profil(s) restauré(s). Actualise le catalogue."
+            } catch (e: Exception) {
+                message.value = "Restauration impossible : ${e.message ?: "fichier invalide"}"
+            } finally { busy.value = false }
+        }
+    }
+
     fun restore(uri: android.net.Uri, password: String) {
         viewModelScope.launch {
             busy.value = true
@@ -87,6 +107,10 @@ class BackupViewModel @Inject constructor(
 
 @Composable
 fun BackupControls(viewModel: BackupViewModel = hiltViewModel()) {
+    val scope = rememberCoroutineScope()
+    val exportFocus = remember { BringIntoViewRequester() }
+    val importFocus = remember { BringIntoViewRequester() }
+    val stagedFocus = remember { BringIntoViewRequester() }
     var password by remember { mutableStateOf("") }
     var showLegacyPassword by remember { mutableStateOf(false) }
     val busy by viewModel.busy.collectAsState()
@@ -114,12 +138,15 @@ fun BackupControls(viewModel: BackupViewModel = hiltViewModel()) {
             )
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(enabled = !busy, onClick = {
+            SettingsButton(modifier = Modifier.bringIntoViewRequester(exportFocus).onFocusChanged { if (it.isFocused) scope.launch { exportFocus.bringIntoView() } }, enabled = !busy, onClick = {
                 viewModel.prepareExport() { saveFile.launch("TVFlow-backup.tvfb") }
             }) { Text("Sauvegarder") }
-            OutlinedButton(enabled = !busy, onClick = {
+            SettingsButton(modifier = Modifier.bringIntoViewRequester(importFocus).onFocusChanged { if (it.isFocused) scope.launch { importFocus.bringIntoView() } }, enabled = !busy, onClick = {
                 openFile.launch(arrayOf("*/*"))
             }) { Text("Restaurer") }
+        }
+        SettingsButton(modifier = Modifier.bringIntoViewRequester(stagedFocus).onFocusChanged { if (it.isFocused) scope.launch { stagedFocus.bringIntoView() } }, enabled = !busy, onClick = { viewModel.restoreStagedBackup() }) {
+            Text("Restaurer la sauvegarde de la Mi Box")
         }
         if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
         if (message.isNotBlank()) Text(message, style = MaterialTheme.typography.bodyMedium)

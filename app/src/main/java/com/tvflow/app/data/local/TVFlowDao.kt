@@ -43,6 +43,9 @@ interface TVFlowDao {
     @Query("SELECT * FROM live_channels WHERE profileId = :profileId AND categoryId = :categoryId AND isHidden = 0 ORDER BY CASE WHEN customOrder IS NULL THEN 1 ELSE 0 END, customOrder, name")
     fun observeChannels(profileId: String, categoryId: String): Flow<List<LiveChannelEntity>>
 
+    @Query("SELECT * FROM live_channels WHERE profileId = :profileId AND categoryId = :categoryId AND isHidden = 0 ORDER BY CASE WHEN customOrder IS NULL THEN 1 ELSE 0 END, customOrder, name LIMIT :limit")
+    suspend fun getStartupChannels(profileId: String, categoryId: String, limit: Int): List<LiveChannelEntity>
+
     @Query("SELECT * FROM live_channels WHERE profileId = :profileId AND categoryId IN (:categoryIds) AND isHidden = 0 ORDER BY CASE WHEN customOrder IS NULL THEN 1 ELSE 0 END, customOrder, name")
     fun observeChannelsForCategories(profileId: String, categoryIds: List<String>): Flow<List<LiveChannelEntity>>
 
@@ -277,6 +280,9 @@ interface TVFlowDao {
     @Query("UPDATE vod_items SET synopsis = COALESCE(:synopsis, synopsis), releaseYear = COALESCE(:year, releaseYear), releaseMonth = COALESCE(:month, releaseMonth), posterUrl = COALESCE(:posterUrl, posterUrl), rating = COALESCE(:rating, rating), tmdbGenreIds = COALESCE(:genreIds, tmdbGenreIds), detailsFetchedAt = COALESCE(:detailsFetchedAt, detailsFetchedAt) WHERE profileId = :profileId AND streamId = :streamId")
     suspend fun updateVodMetadata(profileId: String, streamId: Int, synopsis: String?, year: Int?, month: Int?, posterUrl: String?, rating: String?, detailsFetchedAt: Long? = null, genreIds: String? = null)
 
+    @Query("UPDATE vod_items SET synopsis = COALESCE(NULLIF(TRIM(synopsis), ''), :synopsis), releaseYear = COALESCE(releaseYear, :year), releaseMonth = COALESCE(releaseMonth, :month), posterUrl = COALESCE(NULLIF(TRIM(posterUrl), ''), :posterUrl), rating = COALESCE(NULLIF(TRIM(rating), ''), :rating), tmdbGenreIds = COALESCE(:genreIds, tmdbGenreIds), detailsFetchedAt = COALESCE(:detailsFetchedAt, detailsFetchedAt) WHERE profileId = :profileId AND streamId = :streamId")
+    suspend fun fillMissingVodMetadataFromTmdb(profileId: String, streamId: Int, synopsis: String?, year: Int?, month: Int?, posterUrl: String?, rating: String?, detailsFetchedAt: Long?, genreIds: String?)
+
     @Query("SELECT * FROM series_items WHERE profileId = :profileId AND categoryId = :categoryId ORDER BY name")
     fun observeSeries(profileId: String, categoryId: String): Flow<List<SeriesItemEntity>>
 
@@ -294,6 +300,15 @@ interface TVFlowDao {
 
     @Query("UPDATE series_items SET plot = COALESCE(:plot, plot), releaseYear = COALESCE(:year, releaseYear), releaseMonth = COALESCE(:month, releaseMonth), coverUrl = COALESCE(:coverUrl, coverUrl), rating = COALESCE(:rating, rating), tmdbGenreIds = COALESCE(:genreIds, tmdbGenreIds) WHERE profileId = :profileId AND seriesId = :seriesId")
     suspend fun updateSeriesMetadata(profileId: String, seriesId: Int, plot: String?, year: Int?, month: Int?, coverUrl: String?, rating: String?, genreIds: String? = null)
+
+    @Query("UPDATE series_items SET plot = COALESCE(NULLIF(TRIM(plot), ''), :plot), releaseYear = COALESCE(releaseYear, :year), releaseMonth = COALESCE(releaseMonth, :month), coverUrl = COALESCE(NULLIF(TRIM(coverUrl), ''), :coverUrl), rating = COALESCE(NULLIF(TRIM(rating), ''), :rating), tmdbGenreIds = COALESCE(:genreIds, tmdbGenreIds) WHERE profileId = :profileId AND seriesId = :seriesId")
+    suspend fun fillMissingSeriesMetadataFromTmdb(profileId: String, seriesId: Int, plot: String?, year: Int?, month: Int?, coverUrl: String?, rating: String?, genreIds: String?)
+
+    @Query("SELECT * FROM vod_items WHERE profileId = :profileId AND categoryId IN (:visibleCategories) AND (',' || tmdbGenreIds || ',') LIKE '%,' || :genreId || ',%' ORDER BY COALESCE(added, 0) DESC LIMIT :limit")
+    suspend fun getVodAiTmdbGenreCandidates(profileId: String, visibleCategories: List<String>, genreId: Int, limit: Int): List<VodItemEntity>
+
+    @Query("SELECT * FROM series_items WHERE profileId = :profileId AND categoryId IN (:visibleCategories) AND (',' || tmdbGenreIds || ',') LIKE '%,' || :genreId || ',%' ORDER BY name LIMIT :limit")
+    suspend fun getSeriesAiTmdbGenreCandidates(profileId: String, visibleCategories: List<String>, genreId: Int, limit: Int): List<SeriesItemEntity>
 
     @Query("SELECT * FROM vod_items WHERE profileId = :profileId AND categoryId = :categoryId LIMIT :limit")
     suspend fun getVodAiCategoryCandidates(profileId: String, categoryId: String, limit: Int): List<VodItemEntity>

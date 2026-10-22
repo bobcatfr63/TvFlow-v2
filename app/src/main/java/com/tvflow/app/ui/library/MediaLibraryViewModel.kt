@@ -25,6 +25,8 @@ import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.first
+import android.util.Log
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -108,6 +110,16 @@ class MediaLibraryViewModel @Inject constructor(
     }.cachedIn(viewModelScope)
 
     init {
+        viewModelScope.launch {
+            // After a backup restore, credentials exist but media tables may be empty.
+            // Synchronize only when the library is opened, never at every app startup.
+            if (repository.observeMediaCategories(type).first().isEmpty()) {
+                Log.i("TVFlowMedia", "Media categories missing on library open; refresh requested")
+                runCatching { repository.refreshMediaCatalog() }
+                    .onSuccess { Log.i("TVFlowMedia", "Media catalog synchronization completed") }
+                    .onFailure { Log.w("TVFlowMedia", "Media catalog synchronization failed: ${it.javaClass.simpleName}") }
+            }
+        }
         viewModelScope.launch {
             categories.collect { visible ->
                 if (selectedCategory.value != null && visible.none { it.id == selectedCategory.value }) {

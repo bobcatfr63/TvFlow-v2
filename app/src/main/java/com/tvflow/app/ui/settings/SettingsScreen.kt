@@ -505,7 +505,7 @@ fun SettingsScreen(
                         Text("← Réglages")
                     }
                 }
-                Text("Choisis les catégories à afficher ou masquer dans Films et Séries.")
+                Text("Appuie sur une catégorie pour l'afficher ou la masquer. Les modifications sont enregistrées automatiquement.")
                 SettingsButton(onClick = { showMediaBulk = !showMediaBulk }) {
                     Text(if (showMediaBulk) "Masquer les actions de groupe" else "Selection multiple / actions de groupe")
                 }
@@ -534,200 +534,73 @@ fun SettingsScreen(
                         val key = mediaKey(category)
                         SettingsButton(
                             modifier = Modifier.fillMaxWidth(),
-                            selected = key in selectedMediaIds,
-                            onClick = {
-                                selectedMediaIds = if (key in selectedMediaIds) selectedMediaIds - key
-                                else selectedMediaIds + key
-                            }
-                        ) { Text("${if (key in selectedMediaIds) "☑" else "☐"}  ${if (key in hiddenMediaKeys) "[Masqué] " else ""}${category.name}") }
+                            selected = key !in hiddenMediaKeys,
+                            onClick = { viewModel.setMediaCategoriesHidden(listOf(category), key !in hiddenMediaKeys) }
+                        ) { Text("${if (key in hiddenMediaKeys) "○ Masqué" else "● Visible"}  ${category.name}") }
                     }
                     item { SectionTitle("Séries") }
                     items(state.seriesCategories, key = { "series:" + it.id }) { category ->
                         val key = mediaKey(category)
                         SettingsButton(
                             modifier = Modifier.fillMaxWidth(),
-                            selected = key in selectedMediaIds,
-                            onClick = {
-                                selectedMediaIds = if (key in selectedMediaIds) selectedMediaIds - key
-                                else selectedMediaIds + key
-                            }
-                        ) { Text("${if (key in selectedMediaIds) "☑" else "☐"}  ${if (key in hiddenMediaKeys) "[Masqué] " else ""}${category.name}") }
+                            selected = key !in hiddenMediaKeys,
+                            onClick = { viewModel.setMediaCategoriesHidden(listOf(category), key !in hiddenMediaKeys) }
+                        ) { Text("${if (key in hiddenMediaKeys) "○ Masqué" else "● Visible"}  ${category.name}") }
                     }
                 }
             }
         }
 
         if (showChannelOrganization) {
-        Column(Modifier.weight(1f).fillMaxHeight()) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                SectionTitle("Organisation des chaînes")
-                SettingsButton(onClick = { showChannelOrganization = false }) { Text("← Réglages") }
-            }
-            Text("Sélectionne une catégorie à gauche, puis utilise les actions à droite.")
-            Text(
-                "Le classement FR / Enfants / Autres est mémorisé pour chaque serveur.",
-                style = MaterialTheme.typography.bodySmall
-            )
-            Spacer(Modifier.height(8.dp))
-
-            SettingsButton(onClick = { showChannelAdvanced = !showChannelAdvanced }) {
-                Text(if (showChannelAdvanced) "Masquer les actions avancees" else "Selection multiple et actions avancees")
-            }
-            if (showChannelAdvanced) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
+            Column(Modifier.weight(1f).fillMaxHeight()) {
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    SectionTitle("Catégories de chaînes")
+                    SettingsButton(onClick = { showChannelOrganization = false }) { Text("← Réglages") }
+                }
+                Text("Choisis les catégories à afficher ou masquer. Les chaînes à l'intérieur ne sont pas modifiées.")
+                Spacer(Modifier.height(10.dp))
                 val allSelected = state.categories.isNotEmpty() &&
                     state.selectedCategoryIds.size == state.categories.size
-                SettingsButton(
-                    onClick = {
-                        if (allSelected) viewModel.clearCategorySelection()
-                        else viewModel.selectAllCategories()
-                    },
-                    modifier = Modifier.weight(1f),
-                    selected = allSelected
-                ) {
-                    Text(if (allSelected) "✓ Désélectionner" else "☐ Tout sélectionner", maxLines = 1)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SettingsButton(
+                        onClick = {
+                            if (allSelected) viewModel.clearCategorySelection()
+                            else viewModel.selectAllCategories()
+                        },
+                        selected = allSelected
+                    ) { Text(if (allSelected) "Tout désélectionner" else "Tout sélectionner") }
+                    SettingsButton(
+                        onClick = { viewModel.setSelectedCategoriesHidden(true) },
+                        enabled = state.selectedCategoryIds.isNotEmpty()
+                    ) { Text("Masquer la sélection") }
+                    SettingsButton(
+                        onClick = { viewModel.setSelectedCategoriesHidden(false) },
+                        enabled = state.selectedCategoryIds.isNotEmpty()
+                    ) { Text("Afficher la sélection") }
                 }
-                SettingsButton(
-                    onClick = { viewModel.setSelectedCategoriesHidden(true) },
-                    modifier = Modifier.weight(1f),
-                    enabled = state.selectedCategoryIds.isNotEmpty()
-                ) { Text("Masquer sélection", maxLines = 1) }
-                SettingsButton(
-                    onClick = { viewModel.setSelectedCategoriesHidden(false) },
-                    modifier = Modifier.weight(1f),
-                    enabled = state.selectedCategoryIds.isNotEmpty()
-                ) { Text("Afficher sélection", maxLines = 1) }
-            }
-
-            }
-            Spacer(Modifier.height(10.dp))
-            Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                LazyColumn(
-                    Modifier.weight(0.44f).fillMaxHeight(),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
+                Spacer(Modifier.height(10.dp))
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     items(state.categories, key = { it.id }) { category ->
-                        CategoryManageRow(
-                            category = category,
-                            selected = state.selectedCategoryId == category.id,
-                            selectedForBulk = category.id in state.selectedCategoryIds,
-                            onSelect = { viewModel.selectCategory(category.id) },
-                            onToggleBulk = { viewModel.toggleCategorySelection(category.id) }
-                        )
-                    }
-                }
-
-                Column(Modifier.weight(0.56f).fillMaxHeight()) {
-                    val selectedCategory = state.categories.firstOrNull { it.id == state.selectedCategoryId }
-                    if (selectedCategory != null) {
-                        Text(
-                            selectedCategory.name,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Spacer(Modifier.height(6.dp))
-                        Row(
+                        SettingsButton(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            selected = category.id in state.selectedCategoryIds,
+                            onClick = { viewModel.toggleCategorySelection(category.id) }
                         ) {
-                            SettingsButton(
-                                onClick = { viewModel.classifyCategory(selectedCategory, MediaSection.FRANCE) },
-                                modifier = Modifier.weight(1f)
-                            ) { Text("FR", maxLines = 1) }
-                            SettingsButton(
-                                onClick = { viewModel.classifyCategory(selectedCategory, MediaSection.KIDS) },
-                                modifier = Modifier.weight(1f)
-                            ) { Text("Enfants", maxLines = 1) }
-                            SettingsButton(
-                                onClick = { viewModel.classifyCategory(selectedCategory, MediaSection.OTHER) },
-                                modifier = Modifier.weight(1f)
-                            ) { Text("Autres", maxLines = 1) }
-                            SettingsButton(
-                                onClick = { viewModel.resetCategoryClassification(selectedCategory) },
-                                modifier = Modifier.weight(1f)
-                            ) { Text("Auto", maxLines = 1) }
-                        }
-                        Spacer(Modifier.height(6.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            SettingsButton(
-                                onClick = { viewModel.toggleCategoryHidden(selectedCategory) },
-                                modifier = Modifier.weight(1f)
-                            ) { Text(if (selectedCategory.isHidden) "Afficher" else "Masquer", maxLines = 1) }
-                            SettingsButton(
-                                onClick = { viewModel.toggleCategoryLocked(selectedCategory) },
-                                modifier = Modifier.weight(1f)
-                            ) { Text(if (selectedCategory.isLocked) "Déverrouiller" else "Verrouiller", maxLines = 1) }
-                            SettingsButton(
-                                onClick = { viewModel.moveCategory(selectedCategory, -1) },
-                                modifier = Modifier.weight(0.55f)
-                            ) { Text("↑") }
-                            SettingsButton(
-                                onClick = { viewModel.moveCategory(selectedCategory, +1) },
-                                modifier = Modifier.weight(0.55f)
-                            ) { Text("↓") }
-                        }
-                        Spacer(Modifier.height(10.dp))
-                    } else {
-                        Text("Choisis une catégorie pour afficher ses actions.", style = MaterialTheme.typography.bodySmall)
-                        Spacer(Modifier.height(10.dp))
-                    }
-
-                    val allChannelsSelected = state.channels.isNotEmpty() &&
-                        state.selectedChannelIds.size == state.channels.size
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        SettingsButton(
-                            onClick = {
-                                if (allChannelsSelected) viewModel.clearChannelSelection()
-                                else viewModel.selectAllChannels()
-                            },
-                            modifier = Modifier.weight(1.25f),
-                            selected = allChannelsSelected,
-                            enabled = state.channels.isNotEmpty()
-                        ) {
-                            Text(if (allChannelsSelected) "✓ Désélectionner" else "☐ Toutes les chaînes", maxLines = 1)
-                        }
-                        SettingsButton(
-                            onClick = { viewModel.setSelectedChannelsHidden(true) },
-                            modifier = Modifier.weight(1f),
-                            enabled = state.selectedChannelIds.isNotEmpty()
-                        ) { Text("Masquer", maxLines = 1) }
-                        SettingsButton(
-                            onClick = { viewModel.setSelectedChannelsHidden(false) },
-                            modifier = Modifier.weight(1f),
-                            enabled = state.selectedChannelIds.isNotEmpty()
-                        ) { Text("Afficher", maxLines = 1) }
-                    }
-
-                    LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                        items(state.channels, key = { it.streamId }) { channel ->
-                            ChannelManageRow(
-                                channel = channel,
-                                selectedForBulk = channel.streamId in state.selectedChannelIds,
-                                onToggleBulk = { viewModel.toggleChannelSelection(channel.streamId) },
-                                onHide = { viewModel.toggleChannelHidden(channel) },
-                                onUp = { viewModel.moveChannel(channel, -1) },
-                                onDown = { viewModel.moveChannel(channel, +1) }
+                            Text(
+                                (if (category.id in state.selectedCategoryIds) "☑ " else "☐ ") +
+                                category.name +
+                                (if (category.isHidden) "  ·  Masquée" else "  ·  Visible"),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
                 }
             }
-        }
         }
     }
     }
@@ -817,7 +690,7 @@ private fun ChoiceRow(label: String, choices: List<String>, selected: String, on
 }
 
 @Composable
-private fun SettingsButton(
+internal fun SettingsButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,

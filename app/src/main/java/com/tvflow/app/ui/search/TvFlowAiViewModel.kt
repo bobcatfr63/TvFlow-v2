@@ -56,7 +56,9 @@ class TvFlowAiViewModel @Inject constructor(
             // Keep them off the CPU-bound Default dispatcher.
             withContext(Dispatchers.IO) {
                 if (similarityReference != null) {
+                    val visibleCategoryIds = repository.observeMediaCategories(MediaType.VOD).first().map { it.id }.toSet()
                     val referenceCandidates = repository.searchGlobal(similarityReference, limitPerType = 35).vod
+                        .filter { it.categoryId in visibleCategoryIds }
                     val reference = referenceCandidates.firstOrNull { item ->
                         TvFlowSimilarity.normalize(item.name).contains(similarityReference)
                     }
@@ -70,7 +72,9 @@ class TvFlowAiViewModel @Inject constructor(
                     val candidates = LinkedHashMap<Int, VodItem>()
                     for (term in terms) {
                         repository.searchGlobal(term, limitPerType = 70).vod.forEach { candidate ->
-                            if (candidate.streamId != reference.streamId) candidates[candidate.streamId] = candidate
+                            if (candidate.streamId != reference.streamId && candidate.categoryId in visibleCategoryIds) {
+                                candidates[candidate.streamId] = candidate
+                            }
                         }
                     }
                     val matches = candidates.values
@@ -97,6 +101,9 @@ class TvFlowAiViewModel @Inject constructor(
                 val movieCategories = repository.observeMediaCategories(MediaType.VOD).first()
                 val seriesCategories = repository.observeMediaCategories(MediaType.SERIES).first()
                 val movieCategoryNames = movieCategories.associate { it.id to it.name }
+                val visibleMovieIds = movieCategoryNames.keys
+                val visibleSeriesIds = seriesCategories.map { it.id }.toSet()
+                val preferFrench = !TvFlowAiLocaleRanking.requestsInternational(raw)
                 val seriesCategoryNames = seriesCategories.associate { it.id to it.name }
                 // Live-TV requests must not wait for sequential VOD catalog searches.
                 val verifiedCredits = if (requestedPerson != null && !tvQuestion) {
@@ -120,6 +127,17 @@ class TvFlowAiViewModel @Inject constructor(
                         categoryResults.vod.forEach { movies[it.streamId] = it }
                         categoryResults.series.forEach { series[it.seriesId] = it }
                     }
+                }
+                // TMDB-enriched genres must be discoverable even when provider categories
+                // or titles contain no genre keyword. Only query visible categories.
+                if (!tvQuestion && requestedPerson == null && TvFlowIntent.isGenreBrowsing(parsed)) {
+                    val enriched = repository.searchAiTmdbGenreCandidates(
+                        movieCategories.map { it.id },
+                        seriesCategories.map { it.id },
+                        TvFlowIntent.requestedGenreIds(parsed)
+                    )
+                    enriched.vod.forEach { movies[it.streamId] = it }
+                    enriched.series.forEach { series[it.seriesId] = it }
                 }
                 val providerMatches = movies.values.count {
                     TvFlowIntent.score(parsed, it.name, it.synopsis, it.releaseYear, movieCategoryNames[it.categoryId], it.tmdbGenreIds) > 0
@@ -166,12 +184,18 @@ class TvFlowAiViewModel @Inject constructor(
                     footballAnswer = footballAnswer,
                     tvQuestion = tvQuestion,
                     movies = if (parsed.seriesOnly && !parsed.filmOnly) emptyList() else (personCheck?.first ?: movies.values)
+                        .filter { it.categoryId in visibleMovieIds }
                         .filter { requestedPerson != null || TvFlowIntent.score(parsed, it.name, it.synopsis, it.releaseYear, movieCategoryNames[it.categoryId], it.tmdbGenreIds) > 0 }
-                        .sortedByDescending { TvFlowIntent.score(parsed, it.name, it.synopsis, it.releaseYear, movieCategoryNames[it.categoryId], it.tmdbGenreIds) }
+                        .sortedWith(compareByDescending<VodItem> { TvFlowIntent.score(parsed, it.name, it.synopsis, it.releaseYear, movieCategoryNames[it.categoryId], it.tmdbGenreIds) +
+                            TvFlowAiLocaleRanking.frenchBonus(movieCategoryNames[it.categoryId], preferFrench) }
+                            .thenByDescending { it.releaseYear ?: 0 })
                         .take(80),
                     series = if (parsed.filmOnly && !parsed.seriesOnly) emptyList() else (personCheck?.second ?: series.values)
+                        .filter { it.categoryId in visibleSeriesIds }
                         .filter { TvFlowIntent.score(parsed, it.name, it.plot, it.releaseYear, seriesCategoryNames[it.categoryId], it.tmdbGenreIds) > 0 }
-                        .sortedByDescending { TvFlowIntent.score(parsed, it.name, it.plot, it.releaseYear, seriesCategoryNames[it.categoryId], it.tmdbGenreIds) }
+                        .sortedWith(compareByDescending<SeriesItem> { TvFlowIntent.score(parsed, it.name, it.plot, it.releaseYear, seriesCategoryNames[it.categoryId], it.tmdbGenreIds) +
+                            TvFlowAiLocaleRanking.frenchBonus(seriesCategoryNames[it.categoryId], preferFrench) }
+                            .thenByDescending { it.releaseYear ?: 0 })
                         .take(80)
                 )
             }
