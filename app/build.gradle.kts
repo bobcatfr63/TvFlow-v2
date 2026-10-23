@@ -83,6 +83,9 @@ extensions.configure<ApplicationExtension>("android") {
         }
         buildConfigField("String", "GIT_SHA", "\"$gitSha\"")
         buildConfigField("boolean", "IS_PLAY_STORE", "false")
+        val aiEndpoint = providers.environmentVariable("TVFLOW_AI_ENDPOINT").orNull.orEmpty()
+        require(aiEndpoint.isEmpty() || (aiEndpoint.startsWith("https://") && !aiEndpoint.contains('"'))) { "TVFLOW_AI_ENDPOINT must be an HTTPS URL" }
+        buildConfigField("String", "TVFLOW_AI_ENDPOINT", "\"${aiEndpoint}\"")
         buildConfigField("String", "RELEASE_NOTES", "\"$releaseNotesBuildConfig\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"

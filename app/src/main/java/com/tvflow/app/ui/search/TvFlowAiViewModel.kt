@@ -40,13 +40,16 @@ data class TvFlowAiResults(
 class TvFlowAiViewModel @Inject constructor(
     private val repository: XtreamRepository,
     private val metadata: TmdbMetadataClient,
-    private val sports: FootballScheduleClient
+    private val sports: FootballScheduleClient,
+    private val groqIntent: GroqIntentClient
 ) : ViewModel() {
     val query = MutableStateFlow("")
 
     val results = query.debounce(300).mapLatest { raw ->
         if (raw.trim().length < 2) return@mapLatest TvFlowAiResults(searchedQuery = raw)
-        val parsed = TvFlowIntent.parse(raw)
+        val rewritten = groqIntent.rewrite(raw)
+        val effectiveQuery = rewritten ?: raw
+        val parsed = TvFlowIntent.parse(effectiveQuery)
         val similarityReference = TvFlowSimilarity.referenceTitle(raw)
         val tvQuestion = TvProgramMatcher.isTvQuestion(raw)
         val requestedPerson = TvFlowIntent.requestedPerson(raw)
@@ -110,7 +113,7 @@ class TvFlowAiViewModel @Inject constructor(
                     runCatching { metadata.movieCreditsForPerson(requestedPerson) }.getOrNull()
                 } else null
                 val searchQueries = if (requestedPerson != null) verifiedCredits.orEmpty().map { it.first }.take(24)
-                    else TvFlowIntent.searchTerms(raw).take(8)
+                    else TvFlowIntent.searchTerms(effectiveQuery).take(8)
                 // Resolve provider genre categories first: avoid building the large
                 // title index for pure genre browsing when these candidates suffice.
                 // Provider categories can identify a genre even when the title and plot do not.
