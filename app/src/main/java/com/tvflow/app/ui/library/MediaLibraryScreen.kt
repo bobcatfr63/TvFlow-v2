@@ -36,6 +36,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.paging.compose.collectAsLazyPagingItems
@@ -50,6 +51,11 @@ import android.content.pm.PackageManager
 import android.os.PowerManager
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import coil3.compose.AsyncImage
+import coil3.SingletonImageLoader
+import coil3.request.ImageRequest
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.delay
 import com.tvflow.app.domain.MediaSection
 import com.tvflow.app.domain.MediaType
 import com.tvflow.app.domain.SeriesItem
@@ -85,7 +91,6 @@ fun MediaLibraryScreen(
     val compactMobile = !isTv
     val powerManager = remember(context) { context.getSystemService(PowerManager::class.java) }
     val reduceMotion = powerManager?.isPowerSaveMode == true
-    var preview by remember(viewModel.type) { mutableStateOf<MediaPreview?>(null) }
 
     val screenHorizontalPadding = if (compactMobile) 12.dp else 24.dp
     val topPadding = if (compactMobile) 6.dp else 24.dp
@@ -99,6 +104,35 @@ fun MediaLibraryScreen(
     val searchGridState = rememberLazyGridState()
     val gridMoving = mediaGridState.isScrollInProgress
     val searchMoving = searchGridState.isScrollInProgress
+
+    // Prefetch only a few already-loaded posters ahead of the visible row.
+    // peek() does not trigger additional Paging loads or network catalogue requests.
+    LaunchedEffect(selectedId, viewModel.type, mediaGridState, reduceMotion) {
+        if (reduceMotion) return@LaunchedEffect
+        val loader = SingletonImageLoader.get(context)
+        val recentlyRequested = LinkedHashSet<String>()
+        snapshotFlow {
+            if (mediaGridState.isScrollInProgress) -1
+            else mediaGridState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
+        }
+            .distinctUntilChanged()
+            .collectLatest { lastVisible ->
+                if (lastVisible < 0) return@collectLatest
+                // Wait until the grid settles instead of competing with fast DPAD input.
+                delay(120)
+                val count = if (viewModel.type == MediaType.VOD) vod.itemCount else series.itemCount
+                // Two ahead is enough on low-memory TV devices; avoid competing with rendering.
+                for (index in (lastVisible + 1) until minOf(lastVisible + 3, count)) {
+                    val url = if (viewModel.type == MediaType.VOD) vod.peek(index)?.posterUrl
+                        else series.peek(index)?.coverUrl
+                    if (!url.isNullOrBlank() && recentlyRequested.add(url)) {
+                        // Keep a small per-category request history, not an unbounded URL set.
+                        if (recentlyRequested.size > 80) recentlyRequested.remove(recentlyRequested.first())
+                        loader.enqueue(ImageRequest.Builder(context).data(url).size(240, 360).build())
+                    }
+                }
+            }
+    }
 
     LaunchedEffect(categories, selectedId) {
         if (selectedId == null && categories.isNotEmpty()) viewModel.selectCategory(categories.first().id)
@@ -332,17 +366,7 @@ fun MediaLibraryScreen(
                                 releaseYear = item.releaseYear,
                                 releaseMonth = item.releaseMonth,
                                 synopsis = item.synopsis,
-                                compact = compactMobile,
-                                onFocused = {
-                                    preview = MediaPreview(
-                                        title = item.name,
-                                        image = item.posterUrl,
-                                        rating = item.rating,
-                                        releaseYear = item.releaseYear,
-                                        releaseMonth = item.releaseMonth,
-                                        synopsis = item.synopsis
-                                    )
-                                }
+                                compact = compactMobile
                             ) { onVodSelected(item) }
                         }
                     }
@@ -357,17 +381,7 @@ fun MediaLibraryScreen(
                                 releaseYear = item.releaseYear,
                                 releaseMonth = item.releaseMonth,
                                 synopsis = item.plot,
-                                compact = compactMobile,
-                                onFocused = {
-                                    preview = MediaPreview(
-                                        title = item.name,
-                                        image = item.coverUrl,
-                                        rating = item.rating,
-                                        releaseYear = item.releaseYear,
-                                        releaseMonth = item.releaseMonth,
-                                        synopsis = item.plot
-                                    )
-                                }
+                                compact = compactMobile
                             ) { onSeriesSelected(item) }
                         }
                     }
@@ -469,6 +483,8 @@ private fun MediaPreviewPanel(
     }
 }
 
+private val mediaTitlePrefix = Regex("""(?i)^\s*(?:FR|VF|VOSTFR)\s*[-:|]\s*""")
+
 @Composable
 private fun MediaPoster(
     name: String,
@@ -479,14 +495,10 @@ private fun MediaPoster(
     synopsis: String?,
     compact: Boolean = false,
     reduceMotion: Boolean = false,
-    onFocused: () -> Unit = {},
     onClick: () -> Unit
 ) {
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
-    LaunchedEffect(focused) {
-        if (focused) onFocused()
-    }
     val focusScale by animateFloatAsState(
         targetValue = if (focused) 1.035f else 1f,
         animationSpec = tween(durationMillis = if (reduceMotion) 0 else 100),
@@ -520,7 +532,7 @@ private fun MediaPoster(
                     .height(if (compact) 142.dp else 126.dp)
             )
             Text(
-                name.replace(Regex("""(?i)^\s*(?:FR|VF|VOSTFR)\s*[-:|]\s*"""), ""),
+                name.replace(mediaTitlePrefix, ""),
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 7.dp),
                 style = if (compact) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyLarge,
