@@ -1,6 +1,8 @@
 package com.tvflow.app.ui.library
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -19,6 +21,8 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
@@ -30,10 +34,12 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.paging.compose.collectAsLazyPagingItems
+import androidx.paging.compose.itemKey
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -41,6 +47,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import android.content.pm.PackageManager
+import android.os.PowerManager
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import coil3.compose.AsyncImage
 import com.tvflow.app.domain.MediaSection
@@ -65,8 +72,8 @@ fun MediaLibraryScreen(
     val query by viewModel.searchQuery.collectAsState()
     val searchedVod by viewModel.searchedVod.collectAsState()
     val searchedSeries by viewModel.searchedSeries.collectAsState()
-    var searchMode by remember(viewModel.type) { mutableStateOf(false) }
-    var expandedDateFilters by remember(viewModel.type) { mutableStateOf(false) }
+    var searchMode by rememberSaveable(viewModel.type) { mutableStateOf(false) }
+    var expandedDateFilters by rememberSaveable(viewModel.type) { mutableStateOf(false) }
     BackHandler(enabled = searchMode) {
         searchMode = false
         viewModel.searchQuery.value = ""
@@ -76,6 +83,8 @@ fun MediaLibraryScreen(
         context.packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK)
     }
     val compactMobile = !isTv
+    val powerManager = remember(context) { context.getSystemService(PowerManager::class.java) }
+    val reduceMotion = powerManager?.isPowerSaveMode == true
     var preview by remember(viewModel.type) { mutableStateOf<MediaPreview?>(null) }
 
     val screenHorizontalPadding = if (compactMobile) 12.dp else 24.dp
@@ -84,6 +93,12 @@ fun MediaLibraryScreen(
     val filterSpacing = if (compactMobile) 4.dp else 8.dp
     val contentTopPadding = if (compactMobile) 4.dp else 10.dp
     val categoryWidth = if (compactMobile) 154.dp else 280.dp
+    // Save scroll positions while switching between the library and detail screens.
+    val categoryListState = rememberLazyListState()
+    val mediaGridState = rememberLazyGridState()
+    val searchGridState = rememberLazyGridState()
+    val gridMoving = mediaGridState.isScrollInProgress
+    val searchMoving = searchGridState.isScrollInProgress
 
     LaunchedEffect(categories, selectedId) {
         if (selectedId == null && categories.isNotEmpty()) viewModel.selectCategory(categories.first().id)
@@ -124,21 +139,22 @@ fun MediaLibraryScreen(
             )
             LazyVerticalGrid(
                 columns = GridCells.Fixed(if (compactMobile) 3 else 4),
+                state = searchGridState,
                 modifier = Modifier.fillMaxSize().padding(horizontal = screenHorizontalPadding),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 if (viewModel.type == MediaType.VOD) {
-                    items(searchedVod.size) { index ->
+                    items(searchedVod.size, key = { searchedVod[it].streamId }) { index ->
                         val item = searchedVod[index]
                         MediaPoster(item.name, item.posterUrl, item.rating, item.releaseYear, item.releaseMonth,
-                            item.synopsis, compactMobile) { onVodSelected(item) }
+                            item.synopsis, compactMobile, reduceMotion || searchMoving) { onVodSelected(item) }
                     }
                 } else {
-                    items(searchedSeries.size) { index ->
+                    items(searchedSeries.size, key = { searchedSeries[it].seriesId }) { index ->
                         val item = searchedSeries[index]
                         MediaPoster(item.name, item.coverUrl, item.rating, item.releaseYear, item.releaseMonth,
-                            item.plot, compactMobile) { onSeriesSelected(item) }
+                            item.plot, compactMobile, reduceMotion || searchMoving) { onSeriesSelected(item) }
                     }
                 }
             }
@@ -221,6 +237,7 @@ fun MediaLibraryScreen(
                 verticalArrangement = Arrangement.spacedBy(if (compactMobile) 4.dp else 8.dp)
             ) {
                 LazyColumn(
+                    state = categoryListState,
                     modifier = Modifier.fillMaxWidth().weight(1f),
                     verticalArrangement = Arrangement.spacedBy(if (compactMobile) 4.dp else 8.dp)
                 ) {
@@ -228,14 +245,19 @@ fun MediaLibraryScreen(
                         val selected = category.id == selectedId && selectedYear == null
                         val interaction = remember { MutableInteractionSource() }
                         val focused by interaction.collectIsFocusedAsState()
+                        val focusScale by animateFloatAsState(
+                            targetValue = if (focused) 1.025f else 1f,
+                            animationSpec = tween(durationMillis = if (reduceMotion) 0 else 90),
+                            label = "smart-motion-category"
+                        )
                         Card(
                             onClick = { viewModel.selectCategory(category.id) },
                             interactionSource = interaction,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .graphicsLayer {
-                                    scaleX = 1f
-                                    scaleY = 1f
+                                    scaleX = focusScale
+                                    scaleY = focusScale
                                 },
                             colors = CardDefaults.cardColors(
                                 containerColor = when {
@@ -271,6 +293,7 @@ fun MediaLibraryScreen(
 
             LazyVerticalGrid(
                 columns = GridCells.Fixed(if (compactMobile) 3 else 4),
+                state = mediaGridState,
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(
@@ -299,10 +322,11 @@ fun MediaLibraryScreen(
                     }
                 }
                 if (viewModel.type == MediaType.VOD) {
-                    items(count = vod.itemCount) { index ->
+                    items(count = vod.itemCount, key = vod.itemKey { it.streamId }) { index ->
                         vod[index]?.let { item ->
                             MediaPoster(
                                 name = item.name,
+                                reduceMotion = reduceMotion || gridMoving,
                                 image = item.posterUrl,
                                 rating = item.rating,
                                 releaseYear = item.releaseYear,
@@ -323,10 +347,11 @@ fun MediaLibraryScreen(
                         }
                     }
                 } else {
-                    items(count = series.itemCount) { index ->
+                    items(count = series.itemCount, key = series.itemKey { it.seriesId }) { index ->
                         series[index]?.let { item ->
                             MediaPoster(
                                 name = item.name,
+                                reduceMotion = reduceMotion || gridMoving,
                                 image = item.coverUrl,
                                 rating = item.rating,
                                 releaseYear = item.releaseYear,
@@ -453,6 +478,7 @@ private fun MediaPoster(
     releaseMonth: Int?,
     synopsis: String?,
     compact: Boolean = false,
+    reduceMotion: Boolean = false,
     onFocused: () -> Unit = {},
     onClick: () -> Unit
 ) {
@@ -461,14 +487,19 @@ private fun MediaPoster(
     LaunchedEffect(focused) {
         if (focused) onFocused()
     }
+    val focusScale by animateFloatAsState(
+        targetValue = if (focused) 1.035f else 1f,
+        animationSpec = tween(durationMillis = if (reduceMotion) 0 else 100),
+        label = "smart-motion-poster"
+    )
     Card(
         onClick = onClick,
         interactionSource = interaction,
         modifier = Modifier
             .fillMaxWidth()
             .graphicsLayer {
-                scaleX = 1f
-                scaleY = 1f
+                scaleX = focusScale
+                scaleY = focusScale
             },
         colors = CardDefaults.cardColors(
             containerColor = if (focused) MaterialTheme.colorScheme.primaryContainer else Color(0xFF0B2033)
@@ -483,7 +514,7 @@ private fun MediaPoster(
                 model = image,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
-                filterQuality = androidx.compose.ui.graphics.FilterQuality.High,
+                filterQuality = androidx.compose.ui.graphics.FilterQuality.Low,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(if (compact) 142.dp else 126.dp)
