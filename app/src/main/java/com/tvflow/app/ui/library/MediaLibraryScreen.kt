@@ -105,6 +105,11 @@ fun MediaLibraryScreen(
     val gridMoving = mediaGridState.isScrollInProgress
     val searchMoving = searchGridState.isScrollInProgress
 
+    // A category has its own first page. Never keep the previous category's scroll offset.
+    LaunchedEffect(selectedId) {
+        if (selectedId != null) mediaGridState.scrollToItem(0)
+    }
+
     // Prefetch only a few already-loaded posters ahead of the visible row.
     // peek() does not trigger additional Paging loads or network catalogue requests.
     LaunchedEffect(selectedId, viewModel.type, mediaGridState, reduceMotion) {
