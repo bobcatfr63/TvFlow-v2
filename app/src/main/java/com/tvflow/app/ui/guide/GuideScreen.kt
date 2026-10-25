@@ -92,7 +92,7 @@ private val TextSoft = Color(0xFFD7E5EE)
 
 @Composable
 fun GuideScreen(
-    onPlay: (LiveChannel) -> Unit,
+    onPlay: (LiveChannel, String) -> Unit,
     onDashboard: () -> Unit,
     onSearch: () -> Unit,
     onVod: () -> Unit,
@@ -235,10 +235,10 @@ fun GuideScreen(
                                 timelineWidth = timelineWidth,
                                 selected = channel.streamId == state.selectedChannel?.streamId,
                                 previewing = channel.streamId == state.previewChannel?.streamId,
-                                onSelectChannel = { viewModel.selectChannel(channel.streamId) },
+                                onSelectChannel = { viewModel.focusChannel(channel.streamId) },
                                 onSelectProgram = { start -> viewModel.selectProgram(channel.streamId, start) },
                                 onPreview = { viewModel.previewChannel(channel.streamId) },
-                                onPlay = { onPlay(channel) }
+                                onPlay = { onPlay(channel, state.selectedCategoryId ?: channel.categoryId) }
                             )
                         }
                     }

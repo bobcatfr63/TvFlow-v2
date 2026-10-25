@@ -29,7 +29,7 @@ fun TvFlowSendButton(
     onSent: () -> Unit = {}
 ) {
     val context = LocalContext.current
-    val isTv = context.resources.configuration.uiMode and Configuration.UI_MODE_TYPE_MASK ==
+    val isTv = androidx.compose.ui.platform.LocalConfiguration.current.uiMode and Configuration.UI_MODE_TYPE_MASK ==
         Configuration.UI_MODE_TYPE_TELEVISION ||
         context.packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK)
     if (isTv) return

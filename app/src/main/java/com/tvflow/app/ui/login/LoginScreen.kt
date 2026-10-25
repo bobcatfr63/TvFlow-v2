@@ -24,7 +24,7 @@ import androidx.compose.runtime.remember
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -66,6 +66,25 @@ fun LoginScreen(
         color = MaterialTheme.colorScheme.background,
         contentColor = MaterialTheme.colorScheme.onBackground
     ) {
+        if (state.loading) {
+            Column(
+                modifier = Modifier.fillMaxSize().padding(32.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text("TVFlow • Smart Loading", style = MaterialTheme.typography.headlineMedium)
+                Spacer(Modifier.height(24.dp))
+                Text("📺 Chaînes TV : ${state.loadedChannels?.let { "$it enregistrées" } ?: "en attente"}")
+                Spacer(Modifier.height(10.dp))
+                Text("🎬 Films : ${state.receivedFilms?.let { "$it reçus" } ?: "réception en attente"} • ${state.loadedFilms?.let { "$it enregistrés" } ?: "enregistrement en attente"}")
+                Spacer(Modifier.height(10.dp))
+                Text("📺 Séries : ${state.receivedSeries?.let { "$it reçues" } ?: "réception en attente"} • ${state.loadedSeries?.let { "$it enregistrées" } ?: "enregistrement en attente"}")
+                Spacer(Modifier.height(24.dp))
+                Text(state.loadingStage.ifBlank { "Connexion au serveur IPTV…" })
+                Spacer(Modifier.height(12.dp))
+                Text("Les compteurs « reçus » apparaissent après le téléchargement de chaque liste ; les compteurs « enregistrés » après son stockage.", style = MaterialTheme.typography.bodySmall)
+            }
+        } else {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -149,8 +168,7 @@ fun LoginScreen(
                 enabled = !state.loading,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                if (state.loading) CircularProgressIndicator(modifier = Modifier.height(22.dp))
-                else Text("Se connecter")
+                Text(if (state.loading) "Synchronisation du catalogue en cours…" else "Se connecter")
             }
 
             if (BuildConfig.IS_PLAY_STORE && onOpenDemo != null) {
@@ -169,11 +187,27 @@ fun LoginScreen(
                 )
             }
 
+            if (state.loading) {
+                Spacer(Modifier.height(20.dp))
+                Text("Smart Loading • Préparation du catalogue", style = MaterialTheme.typography.titleLarge)
+                Spacer(Modifier.height(12.dp))
+                val stage = state.loadingStage
+                val loadingFilms = stage.contains("films", ignoreCase = true)
+                val loadingLive = stage.contains("chaînes", ignoreCase = true)
+                val ready = stage.contains("Catalogue prêt") || stage.contains("Catalogue partiel")
+                Text("📺 Chaînes TV : " + if (ready) "synchronisées" else if (loadingLive) "chargement en cours" else "en attente")
+                Text("🎬 Films : " + if (ready) "synchronisés" else if (loadingFilms) "chargement en cours" else "en attente")
+                Text("📺 Séries : " + if (ready) "synchronisées" else if (loadingFilms) "chargement en cours" else "en attente")
+                Text(stage.ifBlank { "Connexion au serveur…" }, modifier = Modifier.padding(top = 12.dp))
+                Text("Les nombres affichés proviennent du catalogue enregistré. Aucun pourcentage estimé.", style = MaterialTheme.typography.bodySmall)
+            }
+
             state.error?.let {
                 Spacer(Modifier.height(16.dp))
                 Text(it, color = MaterialTheme.colorScheme.error)
             }
             }
+        }
         }
     }
 }

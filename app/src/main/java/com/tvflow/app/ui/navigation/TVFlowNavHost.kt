@@ -154,11 +154,11 @@ fun TVFlowNavHost(
             )
         }
         composable("home") {
-            HomeScreen(onPlay = { channel -> openLive(channel.streamId, channel.name, channel.categoryId) })
+            HomeScreen(onPlay = { channel, sourceId -> openLive(channel.streamId, channel.name, sourceId) })
         }
         composable("guide") {
             GuideScreen(
-                onPlay = { channel -> openLive(channel.streamId, channel.name, channel.categoryId) },
+                onPlay = { channel, guideCategory -> openLive(channel.streamId, channel.name, guideCategory) },
                 onDashboard = { navController.navigate("dashboard") { launchSingleTop = true } },
                 onSearch = { navController.navigate("search") { launchSingleTop = true } },
                 onVod = { navController.navigate("library/${MediaType.VOD.name}") { launchSingleTop = true } },

@@ -261,6 +261,10 @@ fun SettingsScreen(
             }
 
             item {
+                AiGatewayControls()
+            }
+
+            item {
                 SectionTitle("Diagnostic réseau")
                 Text("Teste séparément l’API Xtream, le Direct et la VOD sans exposer les identifiants.")
                 Spacer(Modifier.height(8.dp))

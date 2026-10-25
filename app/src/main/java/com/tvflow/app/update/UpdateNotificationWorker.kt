@@ -90,10 +90,15 @@ class UpdateNotificationWorker(
             .setContentIntent(pendingIntent)
             .build()
 
-        return runCatching {
+        if (Build.VERSION.SDK_INT >= 33 &&
+            androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS) !=
+                android.content.pm.PackageManager.PERMISSION_GRANTED) return false
+        return try {
             NotificationManagerCompat.from(context).notify(NOTIFICATION_ID, notification)
             true
-        }.getOrDefault(false)
+        } catch (_: SecurityException) {
+            false
+        }
     }
 
     private fun firstReleaseNote(json: JSONObject): String? {

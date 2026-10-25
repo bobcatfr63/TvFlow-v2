@@ -1,3 +1,4 @@
+import java.net.URI
 import com.android.build.api.dsl.ApplicationExtension
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
@@ -84,7 +85,13 @@ extensions.configure<ApplicationExtension>("android") {
         buildConfigField("String", "GIT_SHA", "\"$gitSha\"")
         buildConfigField("boolean", "IS_PLAY_STORE", "false")
         val aiEndpoint = providers.environmentVariable("TVFLOW_AI_ENDPOINT").orNull.orEmpty()
-        require(aiEndpoint.isEmpty() || (aiEndpoint.startsWith("https://") && !aiEndpoint.contains('"'))) { "TVFLOW_AI_ENDPOINT must be an HTTPS URL" }
+        val aiUri = runCatching { URI(aiEndpoint) }.getOrNull()
+        require(aiEndpoint.isEmpty() || (aiUri != null && aiUri.scheme == "https" &&
+            !aiUri.host.isNullOrBlank() && aiUri.rawUserInfo == null &&
+            aiUri.rawQuery == null && aiUri.rawFragment == null && aiUri.path == "/v1/intent" &&
+            aiEndpoint.none { it.code < 32 || it == '\\' || it == '"' })) {
+            "TVFLOW_AI_ENDPOINT must be a credential-free HTTPS URL ending in /v1/intent"
+        }
         buildConfigField("String", "TVFLOW_AI_ENDPOINT", "\"${aiEndpoint}\"")
         buildConfigField("String", "RELEASE_NOTES", "\"$releaseNotesBuildConfig\"")
 
@@ -129,6 +136,7 @@ extensions.configure<ApplicationExtension>("android") {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        isCoreLibraryDesugaringEnabled = true
     }
 
     buildFeatures {
@@ -203,4 +211,7 @@ dependencies {
     implementation("com.google.zxing:core:3.5.3")
 
     testImplementation("junit:junit:4.13.2")
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
+    androidTestImplementation("androidx.test:runner:1.6.2")
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
 }

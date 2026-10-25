@@ -14,6 +14,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import javax.inject.Inject
@@ -24,6 +26,8 @@ import javax.inject.Singleton
  * A missing Live catalog triggers one bounded, background initial sync per process.
  * Never synchronizes the full VOD/series catalog on startup or blocks navigation.
  */
+enum class CatalogStatus { Checking, Syncing, Ready, Failed }
+
 @Singleton
 class StartupPreloader @Inject constructor(
     private val repository: XtreamRepository,
@@ -33,11 +37,14 @@ class StartupPreloader @Inject constructor(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     @Volatile private var running = false
     @Volatile private var initialSyncAttempted = false
+    private val _catalogStatus = MutableStateFlow<CatalogStatus>(CatalogStatus.Checking)
+    val catalogStatus = _catalogStatus.asStateFlow()
 
     fun start() {
         synchronized(this) {
             if (running) return
             running = true
+            _catalogStatus.value = CatalogStatus.Checking
         }
         scope.launch {
             val startedAt = SystemClock.elapsedRealtime()
@@ -49,16 +56,21 @@ class StartupPreloader @Inject constructor(
                 if (profileId != null && dao.observeManageCategories(profileId).first().isEmpty()
                     && !initialSyncAttempted) {
                     initialSyncAttempted = true
+                    _catalogStatus.value = CatalogStatus.Syncing
                     Log.i("TVFlowStartup", "Empty restored Live catalog; initial synchronization started")
                     try {
                         withTimeout(90_000L) { repository.refreshCatalog() }
+                        _catalogStatus.value = CatalogStatus.Ready
                         Log.i("TVFlowStartup", "Initial Live catalog synchronization completed")
                     } catch (cancelled: CancellationException) {
+                        _catalogStatus.value = CatalogStatus.Failed
                         Log.w("TVFlowStartup", "Initial Live catalog synchronization timed out or cancelled")
                     } catch (error: Exception) {
+                        _catalogStatus.value = CatalogStatus.Failed
                         Log.e("TVFlowStartup", "Initial Live catalog synchronization failed", error)
                     }
                 }
+                if (_catalogStatus.value == CatalogStatus.Checking) _catalogStatus.value = CatalogStatus.Ready
                 withTimeout(12_000L) { warm() }
             } catch (cancelled: CancellationException) {
                 // A time limit is expected; never hold up startup.
@@ -66,6 +78,7 @@ class StartupPreloader @Inject constructor(
             } catch (error: Exception) {
                 Log.w("TVFlowStartup", "Prefetch skipped", error)
             } finally {
+                if (_catalogStatus.value == CatalogStatus.Checking) _catalogStatus.value = CatalogStatus.Ready
                 Log.i("TVFlowStartup", "Prefetch elapsed=${SystemClock.elapsedRealtime() - startedAt}ms")
                 running = false
             }

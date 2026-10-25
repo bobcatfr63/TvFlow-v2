@@ -16,6 +16,15 @@ data class BackupChannelPreference(val id: Int, val hidden: Boolean, val order: 
 
 @Dao
 interface TVFlowDao {
+    @Query("SELECT COUNT(*) FROM live_channels WHERE profileId = :profileId")
+    suspend fun countLiveChannels(profileId: String): Int
+
+    @Query("SELECT COUNT(*) FROM vod_items WHERE profileId = :profileId")
+    suspend fun countVodItems(profileId: String): Int
+
+    @Query("SELECT COUNT(*) FROM series_items WHERE profileId = :profileId")
+    suspend fun countSeriesItems(profileId: String): Int
+
     @Query("SELECT streamId AS id, name FROM live_channels WHERE profileId = :profileId AND isHidden = 0")
     suspend fun getLiveSearchKeys(profileId: String): List<MediaSearchKey>
 
@@ -357,6 +366,47 @@ interface TVFlowDao {
 
     @Query("DELETE FROM series_items WHERE profileId = :profileId")
     suspend fun clearSeries(profileId: String)
+
+    @Transaction
+    suspend fun replaceVodCatalog(profileId: String, categories: List<MediaCategoryEntity>, items: List<VodItemEntity>) {
+        val previous = getAllVod(profileId).associateBy { it.streamId }
+        clearMediaCategories(profileId, "VOD")
+        clearVod(profileId)
+        upsertMediaCategories(categories)
+        items.asSequence().map { incoming ->
+            val old = previous[incoming.streamId]
+            incoming.copy(
+                synopsis = incoming.synopsis ?: old?.synopsis,
+                releaseYear = incoming.releaseYear ?: old?.releaseYear,
+                releaseMonth = incoming.releaseMonth ?: old?.releaseMonth,
+                posterUrl = incoming.posterUrl ?: old?.posterUrl,
+                rating = incoming.rating ?: old?.rating,
+                detailsFetchedAt = old?.detailsFetchedAt,
+                tmdbGenreIds = incoming.tmdbGenreIds ?: old?.tmdbGenreIds,
+                tmdbGenreAttemptAt = old?.tmdbGenreAttemptAt
+            )
+        }.chunked(500).forEach { upsertVod(it) }
+    }
+
+    @Transaction
+    suspend fun replaceSeriesCatalog(profileId: String, categories: List<MediaCategoryEntity>, items: List<SeriesItemEntity>) {
+        val previous = getAllSeries(profileId).associateBy { it.seriesId }
+        clearMediaCategories(profileId, "SERIES")
+        clearSeries(profileId)
+        upsertMediaCategories(categories)
+        items.asSequence().map { incoming ->
+            val old = previous[incoming.seriesId]
+            incoming.copy(
+                plot = incoming.plot ?: old?.plot,
+                releaseYear = incoming.releaseYear ?: old?.releaseYear,
+                releaseMonth = incoming.releaseMonth ?: old?.releaseMonth,
+                coverUrl = incoming.coverUrl ?: old?.coverUrl,
+                rating = incoming.rating ?: old?.rating,
+                tmdbGenreIds = incoming.tmdbGenreIds ?: old?.tmdbGenreIds,
+                tmdbGenreAttemptAt = old?.tmdbGenreAttemptAt
+            )
+        }.chunked(500).forEach { upsertSeries(it) }
+    }
 
     @Transaction
     suspend fun replaceMediaCatalog(

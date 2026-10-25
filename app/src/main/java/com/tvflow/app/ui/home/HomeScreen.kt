@@ -38,7 +38,7 @@ import com.tvflow.app.ui.common.ParentalPinDialog
 
 @Composable
 fun HomeScreen(
-    onPlay: (LiveChannel) -> Unit,
+    onPlay: (LiveChannel, String) -> Unit,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val categories by viewModel.categories.collectAsState()
@@ -141,7 +141,13 @@ fun HomeScreen(
                         ) { channel ->
                             ChannelRow(
                                 channel = channel,
-                                onClick = { onPlay(channel) },
+                                onClick = { onPlay(channel, when (val source = selectedSource) {
+                                    ChannelSource.Tnt -> com.tvflow.app.ui.guide.GUIDE_TNT
+                                    ChannelSource.Favorites -> com.tvflow.app.ui.guide.GUIDE_FAVORITES
+                                    ChannelSource.Recent -> "__recent__"
+                                    is ChannelSource.Category -> selectedSubFilterId ?: source.id
+                                    null -> channel.categoryId
+                                }) },
                                 onToggleFavorite = { viewModel.toggleFavorite(channel.streamId) }
                             )
                         }

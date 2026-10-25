@@ -13,6 +13,8 @@ import com.tvflow.app.domain.LiveCategory
 import com.tvflow.app.domain.LiveChannel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -67,6 +69,7 @@ class GuideViewModel @Inject constructor(
     private val selectedSubFilterId = MutableStateFlow<String?>(null)
     private val selectedStreamId = MutableStateFlow<Int?>(null)
     private val previewStreamId = MutableStateFlow<Int?>(null)
+    private var previewDelayJob: Job? = null
     private val selectedProgramStart = MutableStateFlow<Long?>(null)
     private val visibleEpgStreamIds = MutableStateFlow<List<Int>>(emptyList())
     private val loading = MutableStateFlow(false)
@@ -194,6 +197,7 @@ class GuideViewModel @Inject constructor(
         }
         viewModelScope.launch {
             repository.activeProfileId.drop(1).collect {
+                previewDelayJob?.cancel()
                 selectedCategoryId.value = null
                 selectedSubFilterId.value = null
                 selectedStreamId.value = null
@@ -212,6 +216,7 @@ class GuideViewModel @Inject constructor(
 
     fun selectSubFilter(id: String?) {
         if (selectedSubFilterId.value == id) return
+        previewDelayJob?.cancel()
         selectedSubFilterId.value = id
         selectedStreamId.value = null
         selectedProgramStart.value = null
@@ -251,6 +256,8 @@ class GuideViewModel @Inject constructor(
     fun dismissParentalPin() { pinRequiredCategory.value = null; pinError.value = null }
 
     private fun applyCategory(id: String) {
+        previewDelayJob?.cancel()
+        previewStreamId.value = null
         selectedCategoryId.value = id
         selectedSubFilterId.value = null
         selectedStreamId.value = null
@@ -274,6 +281,21 @@ class GuideViewModel @Inject constructor(
         else -> repository.observeChannels(filterId ?: categoryId)
     }
 
+    fun focusChannel(streamId: Int) {
+        if (channels.value.none { it.streamId == streamId && !it.isSectionMarker }) return
+        if (selectedStreamId.value == streamId && previewDelayJob?.isActive == true) return
+        previewDelayJob?.cancel()
+        if (previewStreamId.value != streamId) previewStreamId.value = null
+        selectChannel(streamId)
+        if (previewStreamId.value == streamId) return
+        previewDelayJob = viewModelScope.launch {
+            delay(2_000L)
+            if (selectedStreamId.value == streamId &&
+                channels.value.any { it.streamId == streamId && !it.isSectionMarker }
+            ) previewStreamId.value = streamId
+        }
+    }
+
     fun selectChannel(streamId: Int) {
         if (channels.value.firstOrNull { it.streamId == streamId }?.isSectionMarker == true) return
         if (selectedStreamId.value != streamId) selectedProgramStart.value = null
@@ -287,6 +309,7 @@ class GuideViewModel @Inject constructor(
     }
 
     fun previewChannel(streamId: Int) {
+        previewDelayJob?.cancel()
         if (channels.value.firstOrNull { it.streamId == streamId }?.isSectionMarker == true) return
         if (previewStreamId.value == streamId) return
         previewStreamId.value = streamId

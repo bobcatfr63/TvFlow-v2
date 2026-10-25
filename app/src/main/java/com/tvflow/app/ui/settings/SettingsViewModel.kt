@@ -265,20 +265,28 @@ class SettingsViewModel @Inject constructor(
             busy.value = true
             message.value = null
             _refreshProgress.value = RefreshProgress(0, "Préparation")
-            val result = runCatching {
+            try {
                 repository.refreshAllWithProgress { percent, step ->
                     _refreshProgress.value = RefreshProgress(percent.coerceIn(0, 100), step)
                 }
-            }
-            if (result.isSuccess) {
-                _refreshProgress.value = RefreshProgress(100, "Actualisation terminée")
+                val finalStep = _refreshProgress.value?.step ?: "Actualisation terminée"
+                _refreshProgress.value = RefreshProgress(100, finalStep)
                 delay(500)
-                message.value = "Catalogues actualisés"
-            } else {
-                message.value = result.exceptionOrNull()?.message ?: "Échec de l’actualisation"
+                message.value = if (finalStep.contains("partielle", ignoreCase = true)) {
+                    finalStep
+                } else {
+                    "Catalogues actualisés"
+                }
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                // Lifecycle cancellation must stop the network work, not become a UI error.
+                throw cancelled
+            } catch (error: Exception) {
+                message.value = error.message ?: "Échec de l’actualisation"
+            } finally {
+                // Also clear the progress overlay if the user leaves Settings mid-download.
+                _refreshProgress.value = null
+                busy.value = false
             }
-            _refreshProgress.value = null
-            busy.value = false
         }
     }
 
@@ -483,10 +491,7 @@ class SettingsViewModel @Inject constructor(
 
     private fun launchBusy(successMessage: String?, block: suspend () -> Unit) {
         viewModelScope.launch {
-            busy.value = true
-            val result = runCatching { block() }
-            message.value = result.exceptionOrNull()?.message ?: successMessage
-            busy.value = false
+            runSettingsBusyOperation(busy, message, successMessage, block)
         }
     }
 }

@@ -156,8 +156,8 @@ private fun ThemePalette.toColorScheme(): ColorScheme = darkColorScheme(
 
 @Composable
 fun TVFlowTheme(accent: String = "RAINBOW", showAtmosphere: Boolean = true, content: @Composable () -> Unit) {
-    val context = androidx.compose.ui.platform.LocalContext.current
-    val isLegacyTv = (context.resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_TYPE_MASK) == android.content.res.Configuration.UI_MODE_TYPE_TELEVISION && android.os.Build.VERSION.SDK_INT <= 28
+    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+    val isLegacyTv = (configuration.uiMode and android.content.res.Configuration.UI_MODE_TYPE_MASK) == android.content.res.Configuration.UI_MODE_TYPE_TELEVISION && android.os.Build.VERSION.SDK_INT <= 28
     CompositionLocalProvider(LocalRainbowEnabled provides (!isLegacyTv && accent in setOf("RAINBOW", "NEBULA", "INFERNO", "CRYSTAL", "QUANTUM", "OCEAN", "AURORA", "ECLIPSE", "INTERSTELLAR", "HOLOGRAPHIC"))) {
         CompositionLocalProvider(LocalSignatureTheme provides accent) {
             MaterialTheme(colorScheme = palette(accent).toColorScheme()) {

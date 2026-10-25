@@ -82,6 +82,9 @@ fun TvFlowAiScreen(
 ) {
     val query by viewModel.query.collectAsState()
     val result by viewModel.results.collectAsState()
+    val groqToday by viewModel.todayGroqRequests.collectAsState()
+    val gatewayUsage by viewModel.gatewayUsage.collectAsState()
+    LaunchedEffect(Unit) { viewModel.refreshUsage(); viewModel.refreshGatewayUsage() }
     val searching = query.trim().length >= 2 && result.searchedQuery != query
     val context = LocalContext.current
     var voiceStatus by remember { mutableStateOf<String?>(null) }
@@ -114,8 +117,12 @@ fun TvFlowAiScreen(
             },
         verticalArrangement = Arrangement.spacedBy(if (query.isBlank()) 10.dp else 6.dp)
     ) {
-        Text("✦ TVFlow AI", style = if (query.isBlank()) MaterialTheme.typography.headlineMedium else MaterialTheme.typography.titleLarge,
-            color = Color(0xFFF4FAFF), fontWeight = FontWeight.Bold)
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text("✦ TVFlow AI", style = if (query.isBlank()) MaterialTheme.typography.headlineMedium else MaterialTheme.typography.titleLarge,
+                color = Color(0xFFF4FAFF), fontWeight = FontWeight.Bold)
+            Text(gatewayUsage ?: "Groq : $groqToday aujourd’hui", style = MaterialTheme.typography.labelSmall,
+                color = Color(0xFF9FB8CA))
+        }
         if (query.isBlank()) {
             Text("Trouve ton prochain programme", style = MaterialTheme.typography.titleMedium,
                 color = Color(0xFF65DFFF))
@@ -132,6 +139,16 @@ fun TvFlowAiScreen(
                 .focusProperties { down = microphoneFocus }
                 .rainbowBorder(inputFocused, 6.dp)
         )
+        if (query.trim().length >= 2) {
+            Text(
+                if (searching) "⏳ Recherche en cours · Groq selon la demande"
+                else result.groqStatus,
+                style = MaterialTheme.typography.labelSmall,
+                color = Color(0xFFCEE2EF)
+            )
+            Text("Réponses Groq aujourd’hui : $groqToday", style = MaterialTheme.typography.labelSmall,
+                color = Color(0xFF9FB8CA))
+        }
         Button(modifier = Modifier.focusRequester(microphoneFocus).rainbowBorder(true, 24.dp).focusProperties {
             if (query.isBlank()) down = firstSuggestionFocus
         }, onClick = {

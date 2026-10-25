@@ -1,9 +1,20 @@
+@file:androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+
 package com.tvflow.app.ui.startup
 
 import android.graphics.Color as AndroidColor
 import android.os.SystemClock
 import android.util.Log
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Text
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -40,6 +51,8 @@ fun StartupScreen(
 ) {
     val context = LocalContext.current
     val state by viewModel.state.collectAsState()
+    val catalogStatus by viewModel.catalogStatus.collectAsState()
+    var skippedLoading by rememberSaveable { mutableStateOf(false) }
     var introFinished by rememberSaveable { mutableStateOf(false) }
 
     var exoPlayer by remember(context) { mutableStateOf<ExoPlayer?>(null) }
@@ -94,11 +107,11 @@ fun StartupScreen(
         introFinished = true
     }
 
-    LaunchedEffect(state, introFinished) {
+    LaunchedEffect(state, introFinished, catalogStatus, skippedLoading) {
         if (!introFinished) return@LaunchedEffect
 
         when (state) {
-            StartupState.LoggedIn -> onLoggedIn()
+            StartupState.LoggedIn -> if (shouldOpenCatalog(introFinished, true, catalogStatus, skippedLoading)) onLoggedIn()
             StartupState.LoggedOut -> onLoggedOut()
             StartupState.Loading -> Unit
         }
@@ -109,7 +122,25 @@ fun StartupScreen(
             .fillMaxSize()
             .background(Color.Black)
     ) {
-        AndroidView(
+        if (introFinished && state == StartupState.LoggedIn && !skippedLoading && catalogStatus != CatalogStatus.Ready && catalogStatus != CatalogStatus.Failed) {
+            Column(
+                modifier = Modifier.fillMaxSize().padding(32.dp),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text("TVFlow • Préparation du catalogue", color = Color.White)
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth().padding(top = 20.dp))
+                Text(
+                    if (catalogStatus == CatalogStatus.Syncing) "Récupération des chaînes TV depuis votre serveur…" else "Vérification du catalogue local…",
+                    color = Color.White,
+                    modifier = Modifier.padding(top = 16.dp)
+                )
+                Text("Les films et les séries restent accessibles dès leur disponibilité.", color = Color.LightGray, modifier = Modifier.padding(top = 12.dp))
+                TextButton(onClick = { skippedLoading = true }, modifier = Modifier.padding(top = 20.dp)) {
+                    Text("Accéder à TVFlow")
+                }
+            }
+        } else if (!introFinished) AndroidView(
             modifier = Modifier.fillMaxSize(),
             factory = { viewContext ->
                 PlayerView(viewContext).apply {
