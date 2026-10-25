@@ -283,17 +283,9 @@ class GuideViewModel @Inject constructor(
 
     fun focusChannel(streamId: Int) {
         if (channels.value.none { it.streamId == streamId && !it.isSectionMarker }) return
-        if (selectedStreamId.value == streamId && previewDelayJob?.isActive == true) return
         previewDelayJob?.cancel()
-        if (previewStreamId.value != streamId) previewStreamId.value = null
         selectChannel(streamId)
-        if (previewStreamId.value == streamId) return
-        previewDelayJob = viewModelScope.launch {
-            delay(2_000L)
-            if (selectedStreamId.value == streamId &&
-                channels.value.any { it.streamId == streamId && !it.isSectionMarker }
-            ) previewStreamId.value = streamId
-        }
+        previewStreamId.value = streamId
     }
 
     fun selectChannel(streamId: Int) {

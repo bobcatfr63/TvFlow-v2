@@ -63,7 +63,16 @@ internal object TvFlowIntent {
         "angoissant" to "horreur",
         "marrant" to "comedie",
         "hilarant" to "comedie",
-        "epouvante" to "horreur"
+        "epouvante" to "horreur",
+        "dinosaures" to "dinosaure",
+        "dinosaur" to "dinosaure",
+        "spatial" to "espace",
+        "spatiale" to "espace",
+        "vaisseau" to "espace",
+        "vaisseaux" to "espace",
+        "survivre" to "survie",
+        "survivant" to "survie",
+        "survivants" to "survie"
     )
 
     private fun normalized(value: String) =

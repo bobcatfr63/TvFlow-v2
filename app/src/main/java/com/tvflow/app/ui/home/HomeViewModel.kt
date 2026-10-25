@@ -41,8 +41,12 @@ enum class HomeSort {
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val repository: XtreamRepository,
-    private val settingsStore: SettingsStore
+    private val settingsStore: SettingsStore,
+    private val playbackQueue: com.tvflow.app.ui.player.LivePlaybackQueue
 ) : ViewModel() {
+    fun capturePlaybackQueue(sourceId: String) {
+        playbackQueue.capture(sourceId, channels.value)
+    }
     val categories: StateFlow<List<LiveCategory>> = repository.observeCategories()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 

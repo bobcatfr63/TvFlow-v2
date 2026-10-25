@@ -153,13 +153,17 @@ fun HomeScreen(
                         ) { channel ->
                             ChannelRow(
                                 channel = channel,
-                                onClick = { onPlay(channel, when (val source = selectedSource) {
-                                    ChannelSource.Tnt -> com.tvflow.app.ui.guide.GUIDE_TNT
-                                    ChannelSource.Favorites -> com.tvflow.app.ui.guide.GUIDE_FAVORITES
-                                    ChannelSource.Recent -> "__recent__"
-                                    is ChannelSource.Category -> selectedSubFilterId ?: source.id
-                                    null -> channel.categoryId
-                                }) },
+                                onClick = {
+                                    val sourceId = when (val source = selectedSource) {
+                                        ChannelSource.Tnt -> com.tvflow.app.ui.guide.GUIDE_TNT
+                                        ChannelSource.Favorites -> com.tvflow.app.ui.guide.GUIDE_FAVORITES
+                                        ChannelSource.Recent -> "__recent__"
+                                        is ChannelSource.Category -> selectedSubFilterId ?: source.id
+                                        null -> channel.categoryId
+                                    }
+                                    viewModel.capturePlaybackQueue(sourceId)
+                                    onPlay(channel, sourceId)
+                                },
                                 onToggleFavorite = { viewModel.toggleFavorite(channel.streamId) },
                                 onFocused = { viewModel.previewChannel(channel.streamId) }
                             )

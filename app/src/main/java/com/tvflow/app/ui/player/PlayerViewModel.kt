@@ -58,6 +58,7 @@ private data class PlayerStatus(
 class PlayerViewModel @Inject constructor(
     private val repository: XtreamRepository,
     private val settingsStore: SettingsStore,
+    playbackQueue: LivePlaybackQueue,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
     private val initialStreamId: Int = checkNotNull(savedStateHandle["streamId"])
@@ -68,7 +69,9 @@ class PlayerViewModel @Inject constructor(
     private val playerError = MutableStateFlow<String?>(null)
     private val restartUrl = MutableStateFlow<String?>(null)
 
-    private val channelList: StateFlow<List<LiveChannel>> = channelSource()
+    private val launchQueue = playbackQueue.consume(categoryId, initialStreamId)
+    private val channelList: StateFlow<List<LiveChannel>> = (launchQueue?.let { flowOf(it) }
+        ?: channelSource().map { channels -> channels.filterNot { it.isSectionMarker || it.isHidden } })
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     private fun channelSource() = when (categoryId) {
@@ -186,11 +189,8 @@ class PlayerViewModel @Inject constructor(
     }
 
     private fun move(delta: Int) {
-        val state = uiState.value
-        if (state.channelCount <= 1 || state.channelIndex < 0) return
-        val nextIndex = (state.channelIndex + delta + state.channelCount) % state.channelCount
-        val next = channelList.value.getOrNull(nextIndex) ?: return
-        selectChannel(next.streamId)
+        val next = adjacentChannelId(channelList.value, selectedStreamId.value, delta) ?: return
+        selectChannel(next)
     }
 
     private fun onChannelSelected(streamId: Int) {
