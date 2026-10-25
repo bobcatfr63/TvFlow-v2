@@ -580,17 +580,17 @@ private fun MediaPoster(
                 filterQuality = androidx.compose.ui.graphics.FilterQuality.Low,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(if (compact) 142.dp else 72.dp)
+                    .height(if (compact) 142.dp else 76.dp)
             )
             Text(
                 name.replace(mediaTitlePrefix, ""),
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(horizontal = 6.dp, vertical = if (compact) 7.dp else 2.dp),
                 style = MaterialTheme.typography.bodySmall,
-                maxLines = 2,
+                maxLines = if (compact) 2 else 1,
                 overflow = TextOverflow.Ellipsis
             )
-            if (releaseYear != null) {
+            if (compact && releaseYear != null) {
                 val dateLabel = if (releaseMonth != null) {
                     monthName(releaseMonth) + " " + releaseYear
                 } else {
