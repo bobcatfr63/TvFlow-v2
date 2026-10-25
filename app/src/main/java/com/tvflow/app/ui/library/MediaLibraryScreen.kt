@@ -428,6 +428,7 @@ fun MediaLibraryScreen(
                                 settings.javaScriptEnabled = true
                                 settings.domStorageEnabled = true
                                 settings.mediaPlaybackRequiresUserGesture = false
+                                settings.useWideViewPort = true
                                 webViewClient = WebViewClient()
                                                                 val html = """<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;background:black"><iframe width="100%" height="100%" src="https://www.youtube.com/embed/$key?autoplay=1&amp;mute=0&amp;controls=1&amp;playsinline=1&amp;origin=https%3A%2F%2Ftvflow.app" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe></body></html>"""
                                 loadDataWithBaseURL("https://tvflow.app/", html, "text/html", "UTF-8", null)
