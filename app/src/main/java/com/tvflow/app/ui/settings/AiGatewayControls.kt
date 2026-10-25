@@ -23,10 +23,25 @@ fun AiGatewayControls() {
     var token by remember { mutableStateOf("") }
     var status by remember { mutableStateOf("") }
     var checking by remember { mutableStateOf(false) }
+    var inviteCode by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
     Column(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("TVFlow AI 2.0 — Groq facultatif")
         Text("Sans passerelle disponible, la recherche locale reste active. Configure uniquement ton accès privé.")
+        Text("Accès TVFlow AI Cloud (bêta privée)")
+        OutlinedTextField(value = inviteCode, onValueChange = { inviteCode = it }, singleLine = true,
+            label = { Text("Code d'invitation") }, modifier = Modifier.fillMaxWidth())
+        SettingsButton(enabled = !checking && inviteCode.isNotBlank(), onClick = {
+            checking = true
+            status = "Activation TVFlow AI Cloud en cours…"
+            scope.launch {
+                val activated = com.tvflow.app.ui.search.TvFlowCloudEnrollment(context).activate(inviteCode)
+                status = if (activated) "TVFlow AI Cloud activé. L'ancienne configuration a été remplacée uniquement après confirmation du serveur."
+                    else "Invitation invalide, déjà utilisée, ou serveur indisponible. Configuration précédente conservée."
+                if (activated) { inviteCode = ""; endpoint = config.endpoint }
+                checking = false
+            }
+        }) { Text("Activer TVFlow AI Cloud") }
         OutlinedTextField(value = endpoint, onValueChange = { endpoint = it }, singleLine = true,
             label = { Text("Adresse HTTPS de la passerelle") }, modifier = Modifier.fillMaxWidth())
         OutlinedTextField(value = token, onValueChange = { token = it }, singleLine = true,

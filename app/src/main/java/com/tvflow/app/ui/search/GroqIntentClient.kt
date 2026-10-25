@@ -34,6 +34,8 @@ class GroqIntentClient @Inject constructor(
         .callTimeout(4500, TimeUnit.MILLISECONDS)
         .followRedirects(false).followSslRedirects(false)
         .retryOnConnectionFailure(false).build()
+    private val cloudClient = client.newBuilder().readTimeout(14, TimeUnit.SECONDS)
+        .callTimeout(15, TimeUnit.SECONDS).build()
     @Volatile private var retryAfter = 0L
     private val hintCache = object : LinkedHashMap<String, Pair<Long, String>>(64, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Pair<Long, String>>?): Boolean = size > 64
@@ -90,7 +92,7 @@ class GroqIntentClient @Inject constructor(
             Request.Builder().url(endpoint).header("Authorization", "Bearer $token").post(body).build()
         }.getOrNull() ?: return null
         return suspendCancellableCoroutine { continuation ->
-            val call = client.newCall(request)
+            val call = (if (endpoint == TvFlowCloudEnrollment.INTENT_ENDPOINT) cloudClient else client).newCall(request)
             continuation.invokeOnCancellation { call.cancel() }
             fun finish(value: String?) {
                 if (!continuation.isActive) return

@@ -47,7 +47,7 @@ class AiGatewayConfig(context: Context) {
         fun validEndpoint(value: String, debug: Boolean): Boolean = runCatching {
             val uri = URI(value)
             uri.rawUserInfo == null && uri.rawQuery == null && uri.rawFragment == null &&
-                !uri.host.isNullOrBlank() && uri.port in -1..65535 && uri.path == "/v1/intent" &&
+                !uri.host.isNullOrBlank() && uri.port in -1..65535 && (uri.path == "/v1/intent" || uri.path == "/functions/v1/tvflow-ai/intent") &&
                 (uri.scheme == "https" || (debug && uri.scheme == "http" && uri.host == "127.0.0.1"))
         }.getOrDefault(false)
     }
