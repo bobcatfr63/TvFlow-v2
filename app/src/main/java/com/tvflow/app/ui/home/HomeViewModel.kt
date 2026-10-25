@@ -93,6 +93,17 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    private val focusedChannelId = MutableStateFlow<Int?>(null)
+    val previewChannel: StateFlow<LiveChannel?> = combine(channels, focusedChannelId) { items, id ->
+        items.firstOrNull { it.streamId == id && !it.isSectionMarker }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    val previewUrl: StateFlow<String?> = combine(previewChannel, repository.savedCredentials) { channel, credentials ->
+        if (channel == null || credentials == null) null else repository.streamUrl(credentials, channel)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    fun focusChannel(id: Int?) { focusedChannelId.value = id }
+
     fun capturePlayback(sourceId: String) { playbackQueue.capture(sourceId, channels.value) }
 
     fun selectCategory(id: String) {

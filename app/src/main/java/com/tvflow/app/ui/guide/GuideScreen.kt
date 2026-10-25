@@ -500,7 +500,7 @@ private fun ProgramHero(
 
 
 @Composable
-private fun LivePreview(
+fun LivePreview(
     streamUrl: String?,
     channel: LiveChannel?,
     modifier: Modifier = Modifier

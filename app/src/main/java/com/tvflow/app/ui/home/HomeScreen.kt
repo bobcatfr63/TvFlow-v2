@@ -26,6 +26,11 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.focus.onFocusChanged
+import com.tvflow.app.ui.guide.LivePreview
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
@@ -41,6 +46,8 @@ fun HomeScreen(
     onPlay: (LiveChannel, String) -> Unit,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
+    val previewChannel by viewModel.previewChannel.collectAsState()
+    val previewUrl by viewModel.previewUrl.collectAsState()
     val categories by viewModel.categories.collectAsState()
     val channels by viewModel.channels.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
@@ -64,6 +71,8 @@ fun HomeScreen(
             viewModel.selectCategory(categories.first().id)
         }
     }
+
+    DisposableEffect(Unit) { onDispose { viewModel.focusChannel(null) } }
 
     Row(
         modifier = Modifier
@@ -151,10 +160,21 @@ fun HomeScreen(
                                     viewModel.capturePlayback(sourceId)
                                     onPlay(channel, sourceId)
                                 },
-                                onToggleFavorite = { viewModel.toggleFavorite(channel.streamId) }
+                                onToggleFavorite = { viewModel.toggleFavorite(channel.streamId) },
+                                onFocus = { viewModel.focusChannel(channel.streamId) },
+                                onBlur = { viewModel.focusChannel(null) }
                             )
                         }
                     }
+                }
+            }
+            if (previewChannel != null) {
+                androidx.compose.material3.Card(
+                    modifier = Modifier.align(Alignment.BottomEnd).padding(end = 24.dp, bottom = 18.dp)
+                        .size(width = 320.dp, height = 180.dp),
+                    border = BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
+                ) {
+                    LivePreview(previewUrl, previewChannel, Modifier.fillMaxSize())
                 }
             }
         }
@@ -286,7 +306,7 @@ private fun SortToolbar(
 }
 
 @Composable
-private fun ChannelRow(channel: LiveChannel, onClick: () -> Unit, onToggleFavorite: () -> Unit) {
+private fun ChannelRow(channel: LiveChannel, onClick: () -> Unit, onToggleFavorite: () -> Unit, onFocus: () -> Unit, onBlur: () -> Unit) {
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
     Card(
@@ -294,6 +314,7 @@ private fun ChannelRow(channel: LiveChannel, onClick: () -> Unit, onToggleFavori
         interactionSource = interaction,
         modifier = Modifier
             .fillMaxWidth()
+            .onFocusChanged { if (it.isFocused) onFocus() else onBlur() }
             .graphicsLayer {
                 scaleX = 1f
                 scaleY = 1f
