@@ -63,8 +63,12 @@ data class GuideUiState(
 @HiltViewModel
 class GuideViewModel @Inject constructor(
     private val repository: XtreamRepository,
-    private val settingsStore: SettingsStore
+    private val settingsStore: SettingsStore,
+    private val playbackQueue: com.tvflow.app.ui.player.LivePlaybackQueue
 ) : ViewModel() {
+    fun capturePlaybackQueue(sourceId: String, displayed: List<LiveChannel>) {
+        playbackQueue.capture(sourceId, displayed)
+    }
     private val selectedCategoryId = MutableStateFlow<String?>(null)
     private val selectedSubFilterId = MutableStateFlow<String?>(null)
     private val selectedStreamId = MutableStateFlow<Int?>(null)

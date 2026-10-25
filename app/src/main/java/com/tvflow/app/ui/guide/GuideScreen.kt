@@ -238,7 +238,11 @@ fun GuideScreen(
                                 onSelectChannel = { viewModel.focusChannel(channel.streamId) },
                                 onSelectProgram = { start -> viewModel.selectProgram(channel.streamId, start) },
                                 onPreview = { viewModel.previewChannel(channel.streamId) },
-                                onPlay = { onPlay(channel, state.selectedCategoryId ?: channel.categoryId) }
+                                onPlay = {
+                                    val sourceId = state.selectedCategoryId ?: channel.categoryId
+                                    viewModel.capturePlaybackQueue(sourceId, state.channels)
+                                    onPlay(channel, sourceId)
+                                }
                             )
                         }
                     }
