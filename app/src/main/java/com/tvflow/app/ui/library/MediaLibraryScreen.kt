@@ -102,7 +102,7 @@ fun MediaLibraryScreen(
         trailerKey = null
         val title = focusedTrailer ?: return@LaunchedEffect
         if (searchMode || !isTv) return@LaunchedEffect
-        delay(1400)
+        delay(400)
         trailerKey = viewModel.trailerKey(title.first, title.second)
     }
     val powerManager = remember(context) { context.getSystemService(PowerManager::class.java) }
@@ -429,7 +429,7 @@ fun MediaLibraryScreen(
                                 settings.domStorageEnabled = true
                                 settings.mediaPlaybackRequiresUserGesture = false
                                 webViewClient = WebViewClient()
-                                loadUrl("https://www.youtube-nocookie.com/embed/$key?autoplay=1&mute=1&controls=0&playsinline=1")
+                                loadUrl("https://www.youtube.com/embed/$key?autoplay=1&mute=0&controls=1&playsinline=1", mapOf("Referer" to "android-app://com.tvflow.app/"))
                             }
                         },
                         update = { },
