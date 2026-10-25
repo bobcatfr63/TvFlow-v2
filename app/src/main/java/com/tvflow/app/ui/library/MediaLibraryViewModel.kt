@@ -40,8 +40,11 @@ private data class MediaFilter(
 @HiltViewModel
 class MediaLibraryViewModel @Inject constructor(
     private val repository: XtreamRepository,
+    private val trailerLookup: com.tvflow.app.data.metadata.TmdbTrailerLookup,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
+    suspend fun trailerKey(title: String, year: Int?): String? = trailerLookup.youtubeKey(type, title, year)
+
     val type: MediaType = runCatching {
         MediaType.valueOf(savedStateHandle.get<String>("type") ?: MediaType.VOD.name)
     }.getOrDefault(MediaType.VOD)

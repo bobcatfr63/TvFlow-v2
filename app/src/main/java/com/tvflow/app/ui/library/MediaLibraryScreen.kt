@@ -1,6 +1,13 @@
 package com.tvflow.app.ui.library
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
@@ -89,6 +96,15 @@ fun MediaLibraryScreen(
         context.packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK)
     }
     val compactMobile = !isTv
+    var focusedTrailer by remember(viewModel.type) { mutableStateOf<Pair<String, Int?>?>(null) }
+    var trailerKey by remember(viewModel.type) { mutableStateOf<String?>(null) }
+    LaunchedEffect(focusedTrailer, searchMode) {
+        trailerKey = null
+        val title = focusedTrailer ?: return@LaunchedEffect
+        if (searchMode || !isTv) return@LaunchedEffect
+        delay(1400)
+        trailerKey = viewModel.trailerKey(title.first, title.second)
+    }
     val powerManager = remember(context) { context.getSystemService(PowerManager::class.java) }
     val reduceMotion = powerManager?.isPowerSaveMode == true
 
@@ -373,8 +389,9 @@ fun MediaLibraryScreen(
                                 releaseYear = item.releaseYear,
                                 releaseMonth = item.releaseMonth,
                                 synopsis = item.synopsis,
-                                compact = compactMobile
-                            ) { onVodSelected(item) }
+                                compact = compactMobile,
+                                onFocused = { focusedTrailer = item.name to item.releaseYear }
+                            ) { focusedTrailer = null; onVodSelected(item) }
                         }
                     }
                 } else {
@@ -388,13 +405,38 @@ fun MediaLibraryScreen(
                                 releaseYear = item.releaseYear,
                                 releaseMonth = item.releaseMonth,
                                 synopsis = item.plot,
-                                compact = compactMobile
-                            ) { onSeriesSelected(item) }
+                                compact = compactMobile,
+                                onFocused = { focusedTrailer = item.name to item.releaseYear }
+                            ) { focusedTrailer = null; onSeriesSelected(item) }
                         }
                     }
                 }
             }
         }
+        }
+        if (trailerKey != null && !searchMode) {
+            Popup(alignment = Alignment.CenterEnd, properties = androidx.compose.ui.window.PopupProperties(focusable = false), onDismissRequest = { trailerKey = null }) {
+                Card(
+                    modifier = Modifier.padding(end = 30.dp).size(width = 460.dp, height = 260.dp),
+                    border = BorderStroke(2.dp, MaterialTheme.colorScheme.primary),
+                    colors = CardDefaults.cardColors(containerColor = Color.Black)
+                ) {
+                    val key = trailerKey!!
+                    AndroidView(
+                        factory = { ctx ->
+                            WebView(ctx).apply {
+                                settings.javaScriptEnabled = true
+                                settings.domStorageEnabled = true
+                                settings.mediaPlaybackRequiresUserGesture = false
+                                webViewClient = WebViewClient()
+                                loadUrl("https://www.youtube-nocookie.com/embed/$key?autoplay=1&mute=1&controls=0&playsinline=1")
+                            }
+                        },
+                        update = { },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+            }
         }
     }
 }
@@ -502,10 +544,12 @@ private fun MediaPoster(
     synopsis: String?,
     compact: Boolean = false,
     reduceMotion: Boolean = false,
+    onFocused: () -> Unit = {},
     onClick: () -> Unit
 ) {
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
+    LaunchedEffect(focused) { if (focused) onFocused() }
     val focusScale by animateFloatAsState(
         targetValue = if (focused) 1.035f else 1f,
         animationSpec = tween(durationMillis = if (reduceMotion) 0 else 100),
