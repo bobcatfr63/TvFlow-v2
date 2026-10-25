@@ -46,6 +46,7 @@ fun HomeScreen(
     onPlay: (LiveChannel, String) -> Unit,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
+    var openingFullscreen by remember { mutableStateOf(false) }
     val previewChannel by viewModel.previewChannel.collectAsState()
     val previewUrl by viewModel.previewUrl.collectAsState()
     val categories by viewModel.categories.collectAsState()
@@ -73,6 +74,7 @@ fun HomeScreen(
     }
 
     DisposableEffect(Unit) { onDispose { viewModel.focusChannel(null) } }
+    LaunchedEffect(selectedSource) { openingFullscreen = false }
 
     Row(
         modifier = Modifier
@@ -158,6 +160,8 @@ fun HomeScreen(
                                     null -> channel.categoryId
                                 }
                                     viewModel.capturePlayback(sourceId)
+                                    openingFullscreen = true
+                                    viewModel.focusChannel(null)
                                     onPlay(channel, sourceId)
                                 },
                                 onToggleFavorite = { viewModel.toggleFavorite(channel.streamId) },
@@ -168,7 +172,7 @@ fun HomeScreen(
                     }
                 }
             }
-            if (previewChannel != null) {
+            if (previewChannel != null && !openingFullscreen) {
                 androidx.compose.material3.Card(
                     modifier = Modifier.align(Alignment.BottomEnd).padding(end = 24.dp, bottom = 18.dp)
                         .size(width = 320.dp, height = 180.dp),

@@ -119,6 +119,8 @@ fun PlayerScreen(viewModel: PlayerViewModel = hiltViewModel()) {
     var sidePanel by remember { mutableStateOf(SidePanel.NONE) }
     var overlayEpoch by remember { mutableStateOf(0L) }
     var retryEpoch by remember { mutableIntStateOf(0) }
+    var firstFrameReceived by remember { mutableStateOf(false) }
+    var videoWatchdogAttempted by remember { mutableStateOf(false) }
     var videoScale by remember { mutableStateOf(VideoScale.FIT) }
     var audioTracks by remember { mutableStateOf(emptyList<PlayerTrack>()) }
     var subtitleTracks by remember { mutableStateOf(emptyList<PlayerTrack>()) }
@@ -221,6 +223,7 @@ fun PlayerScreen(viewModel: PlayerViewModel = hiltViewModel()) {
     DisposableEffect(player) {
         val listener = object : Player.Listener {
             override fun onRenderedFirstFrame() {
+                firstFrameReceived = true
                 android.util.Log.i("TVFlowPlayback", "live first-frame")
             }
             override fun onPlayerError(error: PlaybackException) {
@@ -282,6 +285,8 @@ fun PlayerScreen(viewModel: PlayerViewModel = hiltViewModel()) {
 
     LaunchedEffect(state.streamUrl) {
         automaticRetryCount = 0
+        firstFrameReceived = false
+        videoWatchdogAttempted = false
         media3ErrorEpoch = 0
         lastMedia3HttpCode = null
         lastMedia3ErrorName = null
@@ -306,6 +311,7 @@ fun PlayerScreen(viewModel: PlayerViewModel = hiltViewModel()) {
     }
 
     LaunchedEffect(effectiveStreamUrl, retryEpoch, player, useVlcFallback, castActive) {
+        firstFrameReceived = false
         player.stop()
         player.clearMediaItems()
         if (useVlcFallback || castActive) return@LaunchedEffect
@@ -316,6 +322,21 @@ fun PlayerScreen(viewModel: PlayerViewModel = hiltViewModel()) {
             overlayVisible = true
             sidePanel = SidePanel.NONE
             overlayEpoch = System.currentTimeMillis()
+        }
+    }
+
+    // Media3 can reach READY with audio while the video surface is still black on older TV decoders.
+    // Retry once only when a video track is selected and no first frame was rendered.
+    LaunchedEffect(effectiveStreamUrl, retryEpoch, player, useVlcFallback, castActive) {
+        if (effectiveStreamUrl == null || useVlcFallback || castActive || videoWatchdogAttempted) return@LaunchedEffect
+        delay(7_000L)
+        val videoSelected = player.currentTracks.groups.any { group ->
+            group.type == C.TRACK_TYPE_VIDEO && (0 until group.length).any { group.isTrackSelected(it) }
+        }
+        if (!firstFrameReceived && videoSelected && player.playbackState == Player.STATE_READY) {
+            videoWatchdogAttempted = true
+            android.util.Log.w("TVFlowPlayback", "Video first-frame timeout: restarting Media3 once")
+            retryEpoch++
         }
     }
 
