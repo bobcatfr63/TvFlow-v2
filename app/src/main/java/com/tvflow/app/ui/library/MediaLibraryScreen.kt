@@ -276,15 +276,6 @@ fun MediaLibraryScreen(
             }
             }
         }
-        Row(Modifier.fillMaxSize().padding(top = contentTopPadding)) {
-            Column(
-                modifier = Modifier
-                    .width(categoryWidth)
-                    .fillMaxHeight()
-                    .padding(horizontal = if (compactMobile) 8.dp else 16.dp),
-                verticalArrangement = Arrangement.spacedBy(if (compactMobile) 4.dp else 8.dp)
-            ) {
-
                 LazyColumn(
                     state = categoryListState,
                     modifier = Modifier.fillMaxWidth().weight(1f),
