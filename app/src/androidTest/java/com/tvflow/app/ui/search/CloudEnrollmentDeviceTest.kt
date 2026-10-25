@@ -10,6 +10,21 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class CloudEnrollmentDeviceTest {
+    @Test fun invalidInvitePreservesConfiguredGateway() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val config = AiGatewayConfig(context)
+        val beforeEndpoint = config.endpoint
+        val beforeToken = config.token()
+        assertFalse(TvFlowCloudEnrollment(context).activate("invalid"))
+        assertEquals(beforeEndpoint, config.endpoint)
+        assertEquals(beforeToken, config.token())
+    }
+
+    @Test fun cloudEndpointMustMatchOfficialProject() {
+        assertTrue(AiGatewayConfig.validEndpoint(TvFlowCloudEnrollment.INTENT_ENDPOINT, false))
+        assertFalse(AiGatewayConfig.validEndpoint("https://example.org/functions/v1/tvflow-ai/intent", false))
+        assertFalse(AiGatewayConfig.validEndpoint("http://sxynniwybomzkguzomyn.supabase.co/functions/v1/tvflow-ai/intent", true))
+    }
     @Test fun revokedTokenFallsBackToLocalSearch() = runBlocking {
         assumeTrue("Requires previously activated then revoked test token", InstrumentationRegistry.getArguments().getString("tvflowRevoked") == "true")
         val context = InstrumentationRegistry.getInstrumentation().targetContext
