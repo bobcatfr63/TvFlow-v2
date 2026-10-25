@@ -264,8 +264,12 @@ class DashboardViewModel @Inject constructor(
     ) { vod, series -> vod to series }
 
     val state: StateFlow<DashboardUiState> = combine(
-        contentState,
-        supplementalState,
+        contentState.onStart {
+            emit(DashboardContent(emptyList(), emptyList(), emptyList(), emptyList(), null, emptyList()))
+        },
+        supplementalState.onStart {
+            emit(DashboardSupplemental(null, UpdateDownloadState.Idle, null, emptyList(), emptyList()))
+        },
         installedReleaseNotes,
         recommendations,
         settingsStore.playerPreferences
