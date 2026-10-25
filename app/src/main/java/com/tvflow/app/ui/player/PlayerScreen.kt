@@ -343,6 +343,13 @@ fun PlayerScreen(viewModel: PlayerViewModel = hiltViewModel()) {
         }
     }
 
+    LaunchedEffect(state.streamUrl) {
+        if (state.streamUrl != null) {
+            overlayVisible = true
+            overlayEpoch = System.currentTimeMillis()
+        }
+    }
+
     LaunchedEffect(overlayEpoch, sidePanel) {
         if (overlayEpoch == 0L || sidePanel != SidePanel.NONE) return@LaunchedEffect
         delay(4_500)
@@ -574,7 +581,7 @@ fun PlayerScreen(viewModel: PlayerViewModel = hiltViewModel()) {
             onSent = { player.pause() }
         )
 
-        if (useVlcFallback && !castActive) {
+        if (useVlcFallback && !preferVlcOnThisDevice && !castActive) {
             Text(
                 "Secours VLC",
                 modifier = Modifier
