@@ -492,7 +492,7 @@ private fun TvHeroHeader(
             TvTopAction("⚙ Réglages", onSettings)
         }
 
-        Box(
+        if (false)         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(76.dp)
