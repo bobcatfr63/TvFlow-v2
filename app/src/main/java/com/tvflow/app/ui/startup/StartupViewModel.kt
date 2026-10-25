@@ -25,6 +25,7 @@ class StartupViewModel @Inject constructor(
 ) : ViewModel() {
     private val _state = MutableStateFlow<StartupState>(StartupState.Loading)
     val state: StateFlow<StartupState> = _state.asStateFlow()
+    val catalogStatus = preloader.catalogStatus
 
     init {
         viewModelScope.launch {

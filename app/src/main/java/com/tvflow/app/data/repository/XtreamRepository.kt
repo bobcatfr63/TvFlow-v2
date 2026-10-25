@@ -245,23 +245,73 @@ class XtreamRepository @Inject constructor(
         storePlaylist(id, contents)
     }
 
-    suspend fun login(credentials: XtreamCredentials, displayName: String? = null) {
+    suspend fun login(
+        credentials: XtreamCredentials,
+        displayName: String? = null,
+        onProgress: (String) -> Unit = {},
+        onCatalogCounts: (Int?, Int?, Int?) -> Unit = { _, _, _ -> },
+        onCatalogReceived: (MediaType, Int) -> Unit = { _, _ -> }
+    ) {
         val source = parseXtreamM3uUrl(credentials.serverUrl) ?: credentials
         val normalized = source.copy(
             serverUrl = normalizeServer(source.serverUrl),
             outputFormat = source.outputFormat.lowercase().takeIf { it in setOf("ts", "m3u8") } ?: "ts"
         )
+        onProgress("Connexion au serveur IPTV…")
         authenticate(normalized)
         credentialsStore.save(normalized, displayName)
         val profileId = currentProfileId()
-        refreshCatalog(normalized, profileId)
-        runCatching { refreshMediaCatalog(normalized, profileId) }
+        onProgress("Chargement des chaînes TV…")
+        val liveResult = runCatching { refreshCatalog(normalized, profileId) }
+        liveResult.onFailure { error ->
+            if (error is kotlinx.coroutines.CancellationException) throw error
+            Log.w("TVFlowCatalog", "Initial live catalog refresh failed; trying media", error)
+        }
+        val savedChannels = dao.countLiveChannels(profileId)
+        onCatalogCounts(savedChannels, null, null)
+        onProgress("Chargement des films et séries…")
+        val mediaResult = runCatching {
+            refreshMediaCatalog(normalized, profileId, onSectionReceived = onCatalogReceived, onSectionSaved = { type, count ->
+                when (type) {
+                    MediaType.VOD -> onCatalogCounts(savedChannels, count, null)
+                    MediaType.SERIES -> onCatalogCounts(savedChannels, null, count)
+                }
+            })
+        }
+        mediaResult.onFailure { error ->
+            if (error is kotlinx.coroutines.CancellationException) throw error
+            Log.w("TVFlowCatalog", "Initial media catalog refresh failed", error)
+        }
+        val channels = dao.countLiveChannels(profileId)
+        val films = dao.countVodItems(profileId)
+        val series = dao.countSeriesItems(profileId)
+        onCatalogCounts(channels, films, series)
+        when (combinedCatalogRefreshOutcome(liveResult.isSuccess, mediaResult.getOrNull() ?: CatalogRefreshOutcome.FAILED)) {
+            CatalogRefreshOutcome.COMPLETE ->
+                onProgress("Catalogue prêt : $channels chaînes, $films films et $series séries")
+            CatalogRefreshOutcome.PARTIAL ->
+                onProgress("Catalogue partiel : $channels chaînes, $films films et $series séries")
+            CatalogRefreshOutcome.FAILED -> {
+                val failure = IllegalStateException(
+                    "Connexion validée, mais aucun catalogue Xtream n'a pu être chargé",
+                    liveResult.exceptionOrNull()
+                )
+                mediaResult.exceptionOrNull()?.let { failure.addSuppressed(it) }
+                throw failure
+            }
+        }
     }
 
     suspend fun switchProfile(profileId: String) {
         credentialsStore.switchProfile(profileId)
-        refreshCatalog()
-        runCatching { refreshMediaCatalog() }
+        runCatching { refreshCatalog() }.onFailure { error ->
+            if (error is kotlinx.coroutines.CancellationException) throw error
+            Log.w("TVFlowCatalog", "Live refresh failed after profile switch; attempting media", error)
+        }
+        runCatching { refreshMediaCatalog() }.onFailure { error ->
+            if (error is kotlinx.coroutines.CancellationException) throw error
+            Log.w("TVFlowCatalog", "Background media refresh failed", error)
+        }
     }
 
     suspend fun deleteProfile(profileId: String) {
@@ -274,8 +324,14 @@ class XtreamRepository @Inject constructor(
             synchronized(playlistLock) { playlistUrls.remove(profileId) }
         }
         if (wasActive && savedCredentials.first() != null) {
-            refreshCatalog()
-            runCatching { refreshMediaCatalog() }
+            runCatching { refreshCatalog() }.onFailure { error ->
+                if (error is kotlinx.coroutines.CancellationException) throw error
+                Log.w("TVFlowCatalog", "Live refresh failed after profile deletion; attempting media", error)
+            }
+            runCatching { refreshMediaCatalog() }.onFailure { error ->
+                if (error is kotlinx.coroutines.CancellationException) throw error
+                Log.w("TVFlowCatalog", "Background media refresh failed", error)
+            }
         }
     }
 
@@ -306,89 +362,58 @@ class XtreamRepository @Inject constructor(
         authenticate(credentials)
         onProgress(12, "Connexion validée")
 
-        val liveCategories = api.getLiveCategories(apiUrl, credentials.username, credentials.password)
-        onProgress(24, "Catégories TV reçues")
-        val liveStreams = api.getLiveStreams(apiUrl, credentials.username, credentials.password)
-        onProgress(40, "Chaînes en direct reçues")
-        dao.replaceCatalog(
-            profileId = profileId,
-            categories = liveCategories.mapIndexed { index, dto ->
-                LiveCategoryEntity(profileId, dto.categoryId, dto.categoryName, index)
-            },
-            channels = liveStreams.map { dto ->
-                LiveChannelEntity(
-                    profileId = profileId,
-                    streamId = dto.streamId,
-                    name = dto.name,
-                    categoryId = dto.categoryId.orEmpty(),
-                    logoUrl = dto.streamIcon?.takeIf { it.isNotBlank() },
-                    epgChannelId = dto.epgChannelId?.takeIf { it.isNotBlank() },
-                    streamType = dto.streamType ?: "live",
-                    tvArchive = dto.tvArchive == 1,
-                    tvArchiveDuration = dto.tvArchiveDuration ?: 0
-                )
+        val liveResult = runCatching {
+            val liveCategories = api.getLiveCategories(apiUrl, credentials.username, credentials.password)
+            onProgress(24, "Catégories TV reçues")
+            val liveStreams = api.getLiveStreams(apiUrl, credentials.username, credentials.password)
+            check(shouldReplaceCatalog(dao.countLiveChannels(profileId), liveStreams.size)) {
+                "Réponse Xtream vide pour les chaînes TV : catalogue local conservé"
             }
-        )
-        applyPendingLiveFavorites(profileId)
-        onProgress(48, "Direct enregistré")
-
-        val vodCategoriesDeferred = async {
-            api.getVodCategories(apiUrl, credentials.username, credentials.password)
-        }
-        val seriesCategoriesDeferred = async {
-            api.getSeriesCategories(apiUrl, credentials.username, credentials.password)
-        }
-        val vodDeferred = async {
-            api.getVodStreams(apiUrl, credentials.username, credentials.password)
-        }
-        val seriesDeferred = async {
-            api.getSeries(apiUrl, credentials.username, credentials.password)
-        }
-
-        val vodCategories = vodCategoriesDeferred.await()
-        onProgress(58, "Catégories films reçues")
-        val seriesCategories = seriesCategoriesDeferred.await()
-        onProgress(66, "Catégories séries reçues")
-        val vod = vodDeferred.await()
-        onProgress(80, "Films reçus")
-        val series = seriesDeferred.await()
-        onProgress(92, "Séries reçues")
-
-        dao.replaceMediaCatalog(
-            profileId = profileId,
-            vodCategories = vodCategories.mapIndexed { index, dto ->
-                MediaCategoryEntity(profileId, dto.categoryId, dto.categoryName, MediaType.VOD.name, index)
-            },
-            seriesCategories = seriesCategories.mapIndexed { index, dto ->
-                MediaCategoryEntity(profileId, dto.categoryId, dto.categoryName, MediaType.SERIES.name, index)
-            },
-            vod = vod.map { dto ->
-                run {
-                    val (releaseYear, releaseMonth) = parseReleaseYearMonth(dto.releaseDate, dto.year, dto.name)
-                    VodItemEntity(
+            onProgress(40, "Chaînes en direct reçues")
+            dao.replaceCatalog(
+                profileId = profileId,
+                categories = liveCategories.mapIndexed { index, dto ->
+                    LiveCategoryEntity(profileId, dto.categoryId, dto.categoryName, index)
+                },
+                channels = liveStreams.map { dto ->
+                    LiveChannelEntity(
                         profileId = profileId,
                         streamId = dto.streamId,
                         name = dto.name,
                         categoryId = dto.categoryId.orEmpty(),
-                        posterUrl = dto.streamIcon?.takeIf { it.isNotBlank() },
-                        rating = dto.rating,
-                        added = dto.added?.toLongOrNull(),
-                        synopsis = null,
-                        releaseYear = releaseYear,
-                        releaseMonth = releaseMonth,
-                        containerExtension = dto.containerExtension
+                        logoUrl = dto.streamIcon?.takeIf { it.isNotBlank() },
+                        epgChannelId = dto.epgChannelId?.takeIf { it.isNotBlank() },
+                        streamType = dto.streamType ?: "live",
+                        tvArchive = dto.tvArchive == 1,
+                        tvArchiveDuration = dto.tvArchiveDuration ?: 0
                     )
                 }
-            },
-            series = series.map { dto ->
-                run {
-                    val (releaseYear, releaseMonth) = parseReleaseYearMonth(dto.releaseDate, dto.year, dto.name)
-                    SeriesItemEntity(profileId, dto.seriesId, dto.name, dto.categoryId.orEmpty(), dto.cover?.takeIf { it.isNotBlank() }, dto.rating, dto.plot, releaseYear, releaseMonth)
-                }
+            )
+            // Keep the manual-refresh path consistent with refreshCatalog():
+            // restored organization must survive a refresh and live search must not stay stale.
+            applyRestoredLiveOrganization(profileId)
+            applyPendingLiveFavorites(profileId)
+            invalidateSearchCache(profileId)
+        }
+        liveResult.onFailure {
+            if (it is kotlinx.coroutines.CancellationException) throw it
+            Log.w("TVFlowCatalog", "Live refresh failed; attempting media independently", it)
+        }
+        onProgress(55, if (liveResult.isSuccess) "Direct enregistré" else "Direct indisponible, films et séries en cours…")
+        val mediaResult = runCatching { refreshMediaCatalog(credentials, profileId) }
+        mediaResult.onFailure {
+            if (it is kotlinx.coroutines.CancellationException) throw it
+            Log.w("TVFlowCatalog", "Media refresh failed", it)
+        }
+        when (combinedCatalogRefreshOutcome(liveResult.isSuccess, mediaResult.getOrNull() ?: CatalogRefreshOutcome.FAILED)) {
+            CatalogRefreshOutcome.COMPLETE -> onProgress(100, "Actualisation terminée")
+            CatalogRefreshOutcome.PARTIAL -> onProgress(100, "Actualisation partielle : catalogue disponible conservé")
+            CatalogRefreshOutcome.FAILED -> {
+                val failure = IllegalStateException("Actualisation impossible : direct et médias indisponibles", liveResult.exceptionOrNull())
+                mediaResult.exceptionOrNull()?.let { failure.addSuppressed(it) }
+                throw failure
             }
-        )
-        invalidateSearchCache(profileId)
-        onProgress(100, "Actualisation terminée")
+        }
     }
 
     private suspend fun authenticate(credentials: XtreamCredentials) {
@@ -413,6 +438,9 @@ class XtreamRepository @Inject constructor(
         val apiUrl = playerApi(credentials.serverUrl)
         val categories = api.getLiveCategories(apiUrl, credentials.username, credentials.password)
         val channels = api.getLiveStreams(apiUrl, credentials.username, credentials.password)
+        check(shouldReplaceCatalog(dao.countLiveChannels(profileId), channels.size)) {
+            "Réponse Xtream vide pour les chaînes TV : catalogue local conservé"
+        }
         dao.replaceCatalog(
             profileId = profileId,
             categories = categories.mapIndexed { index, dto ->
@@ -459,53 +487,76 @@ class XtreamRepository @Inject constructor(
         settingsStore.clearRestoredLiveOrganization(profileId)
     }
 
-    private suspend fun refreshMediaCatalog(credentials: XtreamCredentials, profileId: String) = coroutineScope {
-        if (isPlaylist(credentials)) return@coroutineScope
+    private suspend fun refreshMediaCatalog(
+        credentials: XtreamCredentials,
+        profileId: String,
+        onSectionSaved: (MediaType, Int) -> Unit = { _, _ -> },
+        onSectionReceived: (MediaType, Int) -> Unit = { _, _ -> }
+    ) = coroutineScope {
+        if (isPlaylist(credentials)) return@coroutineScope CatalogRefreshOutcome.COMPLETE
         val apiUrl = playerApi(credentials.serverUrl)
-        val vodCategoriesDeferred = async { api.getVodCategories(apiUrl, credentials.username, credentials.password) }
-        val seriesCategoriesDeferred = async { api.getSeriesCategories(apiUrl, credentials.username, credentials.password) }
-        val vodDeferred = async { api.getVodStreams(apiUrl, credentials.username, credentials.password) }
-        val seriesDeferred = async { api.getSeries(apiUrl, credentials.username, credentials.password) }
-
-        val vodCategories = vodCategoriesDeferred.await()
-        val seriesCategories = seriesCategoriesDeferred.await()
-        val vod = vodDeferred.await()
-        val series = seriesDeferred.await()
-
-        dao.replaceMediaCatalog(
-            profileId = profileId,
-            vodCategories = vodCategories.mapIndexed { index, dto ->
-                MediaCategoryEntity(profileId, dto.categoryId, dto.categoryName, MediaType.VOD.name, index)
-            },
-            seriesCategories = seriesCategories.mapIndexed { index, dto ->
-                MediaCategoryEntity(profileId, dto.categoryId, dto.categoryName, MediaType.SERIES.name, index)
-            },
-            vod = vod.map { dto ->
-                run {
-                    val (releaseYear, releaseMonth) = parseReleaseYearMonth(dto.releaseDate, dto.year, dto.name)
-                    VodItemEntity(
-                        profileId = profileId,
-                        streamId = dto.streamId,
-                        name = dto.name,
-                        categoryId = dto.categoryId.orEmpty(),
-                        posterUrl = dto.streamIcon?.takeIf { it.isNotBlank() },
-                        rating = dto.rating,
-                        added = dto.added?.toLongOrNull(),
-                        synopsis = null,
-                        releaseYear = releaseYear,
-                        releaseMonth = releaseMonth,
-                        containerExtension = dto.containerExtension
-                    )
+        val vodTask = async {
+            runCatching {
+                val categories = api.getVodCategories(apiUrl, credentials.username, credentials.password)
+                val vod = api.getVodStreams(apiUrl, credentials.username, credentials.password)
+                onSectionReceived(MediaType.VOD, vod.size)
+                check(shouldReplaceCatalog(dao.countVodItems(profileId), vod.size)) {
+                    "Réponse Xtream vide pour les films : catalogue local conservé"
                 }
-            },
-            series = series.map { dto ->
-                run {
-                    val (releaseYear, releaseMonth) = parseReleaseYearMonth(dto.releaseDate, dto.year, dto.name)
-                    SeriesItemEntity(profileId, dto.seriesId, dto.name, dto.categoryId.orEmpty(), dto.cover?.takeIf { it.isNotBlank() }, dto.rating, dto.plot, releaseYear, releaseMonth)
-                }
+                dao.replaceVodCatalog(
+                    profileId,
+                    categories.mapIndexed { index, dto ->
+                        MediaCategoryEntity(profileId, dto.categoryId, dto.categoryName, MediaType.VOD.name, index)
+                    },
+                    vod.map { dto ->
+                        val (year, month) = parseReleaseYearMonth(dto.releaseDate, dto.year, dto.name)
+                        VodItemEntity(
+                            profileId = profileId, streamId = dto.streamId, name = dto.name,
+                            categoryId = dto.categoryId.orEmpty(), posterUrl = dto.streamIcon?.takeIf { it.isNotBlank() },
+                            rating = dto.rating, added = dto.added?.toLongOrNull(), synopsis = null,
+                            releaseYear = year, releaseMonth = month, containerExtension = dto.containerExtension
+                        )
+                    }
+                )
+                onSectionSaved(MediaType.VOD, dao.countVodItems(profileId))
             }
-        )
-        invalidateSearchCache(profileId)
+        }
+        val seriesTask = async {
+            runCatching {
+                val categories = api.getSeriesCategories(apiUrl, credentials.username, credentials.password)
+                val series = api.getSeries(apiUrl, credentials.username, credentials.password)
+                onSectionReceived(MediaType.SERIES, series.size)
+                check(shouldReplaceCatalog(dao.countSeriesItems(profileId), series.size)) {
+                    "Réponse Xtream vide pour les séries : catalogue local conservé"
+                }
+                dao.replaceSeriesCatalog(
+                    profileId,
+                    categories.mapIndexed { index, dto ->
+                        MediaCategoryEntity(profileId, dto.categoryId, dto.categoryName, MediaType.SERIES.name, index)
+                    },
+                    series.map { dto ->
+                        val (year, month) = parseReleaseYearMonth(dto.releaseDate, dto.year, dto.name)
+                        SeriesItemEntity(profileId, dto.seriesId, dto.name, dto.categoryId.orEmpty(),
+                            dto.cover?.takeIf { it.isNotBlank() }, dto.rating, dto.plot, year, month)
+                    }
+                )
+                onSectionSaved(MediaType.SERIES, dao.countSeriesItems(profileId))
+            }
+        }
+        val vodResult = vodTask.await()
+        val seriesResult = seriesTask.await()
+        vodResult.onFailure { if (it is kotlinx.coroutines.CancellationException) throw it }
+        seriesResult.onFailure { if (it is kotlinx.coroutines.CancellationException) throw it }
+        vodResult.onFailure { Log.w("TVFlowCatalog", "VOD refresh failed", it) }
+        seriesResult.onFailure { Log.w("TVFlowCatalog", "Series refresh failed", it) }
+        if (vodResult.isSuccess || seriesResult.isSuccess) invalidateSearchCache(profileId)
+        val outcome = catalogRefreshOutcome(vodResult.isSuccess, seriesResult.isSuccess)
+        if (outcome == CatalogRefreshOutcome.FAILED) {
+            val failure = IllegalStateException("Films et séries indisponibles", vodResult.exceptionOrNull())
+            seriesResult.exceptionOrNull()?.let { failure.addSuppressed(it) }
+            throw failure
+        }
+        outcome
     }
 
     suspend fun searchEpgWindow(startTime: Long, endTime: Long): List<EpgProgram> = withContext(Dispatchers.IO) {
