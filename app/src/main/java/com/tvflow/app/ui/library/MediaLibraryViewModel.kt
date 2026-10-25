@@ -43,7 +43,7 @@ class MediaLibraryViewModel @Inject constructor(
     private val trailerLookup: com.tvflow.app.data.metadata.TmdbTrailerLookup,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
-    suspend fun trailerKey(title: String, year: Int?): String? = trailerLookup.youtubeKey(type, title, year)
+    suspend fun directTrailer(id: Int): String? = repository.directTrailerUrl(type, id)
 
     val type: MediaType = runCatching {
         MediaType.valueOf(savedStateHandle.get<String>("type") ?: MediaType.VOD.name)

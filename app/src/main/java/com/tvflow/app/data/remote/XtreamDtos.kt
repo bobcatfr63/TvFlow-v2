@@ -90,6 +90,7 @@ data class VodInfoResponse(
 )
 
 data class VodInfoDto(
+    @SerializedName("trailer") val trailer: String? = null,
     @SerializedName(value = "movie_image", alternate = ["cover_big", "stream_icon"]) val movieImage: String? = null,
     @SerializedName(value = "plot", alternate = ["description", "overview"]) val plot: String? = null,
     val rating: String? = null,
@@ -139,6 +140,7 @@ data class SeriesInfoResponse(
 )
 
 data class SeriesInfoDto(
+    @SerializedName("trailer") val trailer: String? = null,
     val name: String? = null,
     val cover: String? = null,
     val plot: String? = null,

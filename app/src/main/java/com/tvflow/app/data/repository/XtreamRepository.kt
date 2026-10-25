@@ -716,6 +716,25 @@ class XtreamRepository @Inject constructor(
         if (id == null) flowOf(null) else dao.observeVodItem(id, streamId)
     }.map { it?.toDomain() }
 
+    /** Only licensed direct provider streams; never hand YouTube watch/embed URLs to Media3. */
+    suspend fun directTrailerUrl(type: MediaType, id: Int): String? {
+        val credentials = savedCredentials.first() ?: return null
+        if (isPlaylist(credentials)) return null
+        val raw = runCatching {
+            if (type == MediaType.VOD) {
+                api.getVodInfo(playerApi(credentials.serverUrl), credentials.username, credentials.password, vodId = id).info?.trailer
+            } else {
+                api.getSeriesInfo(playerApi(credentials.serverUrl), credentials.username, credentials.password, seriesId = id).info?.trailer
+            }
+        }.getOrNull()?.trim() ?: return null
+        val uri = runCatching { android.net.Uri.parse(raw) }.getOrNull() ?: return null
+        if (uri.scheme !in listOf("https", "http")) return null
+        val host = uri.host?.lowercase() ?: return null
+        if (listOf("youtube.com", "youtu.be", "youtube-nocookie.com", "vimeo.com", "dailymotion.com").any { host == it || host.endsWith(".$it") }) return null
+        if (!listOf(".mp4", ".m3u8", ".mpd", ".webm", ".mov").any { uri.path.orEmpty().lowercase().endsWith(it) }) return null
+        return raw
+    }
+
     suspend fun enrichVodDetails(streamId: Int) {
         val profileId = currentProfileId()
         val item = dao.getVodItem(profileId, streamId) ?: return

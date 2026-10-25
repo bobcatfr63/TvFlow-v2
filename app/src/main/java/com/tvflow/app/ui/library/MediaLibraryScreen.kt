@@ -98,14 +98,14 @@ fun MediaLibraryScreen(
         context.packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK)
     }
     val compactMobile = !isTv
-    var focusedTrailer by remember(viewModel.type) { mutableStateOf<Pair<String, Int?>?>(null) }
-    var trailerKey by remember(viewModel.type) { mutableStateOf<String?>(null) }
+    var focusedTrailer by remember(viewModel.type) { mutableStateOf<Int?>(null) }
+    var trailerUrl by remember(viewModel.type) { mutableStateOf<String?>(null) }
     LaunchedEffect(focusedTrailer, searchMode) {
-        trailerKey = null
+        trailerUrl = null
         val title = focusedTrailer ?: return@LaunchedEffect
         if (searchMode || !isTv) return@LaunchedEffect
         delay(400)
-        trailerKey = viewModel.trailerKey(title.first, title.second)
+        trailerUrl = viewModel.directTrailer(title)
     }
     val powerManager = remember(context) { context.getSystemService(PowerManager::class.java) }
     val reduceMotion = powerManager?.isPowerSaveMode == true
@@ -393,7 +393,7 @@ fun MediaLibraryScreen(
                                 releaseMonth = item.releaseMonth,
                                 synopsis = item.synopsis,
                                 compact = compactMobile,
-                                onFocused = { focusedTrailer = item.name to item.releaseYear }
+                                onFocused = { focusedTrailer = item.streamId }
                             ) { focusedTrailer = null; onVodSelected(item) }
                         }
                     }
@@ -409,7 +409,7 @@ fun MediaLibraryScreen(
                                 releaseMonth = item.releaseMonth,
                                 synopsis = item.plot,
                                 compact = compactMobile,
-                                onFocused = { focusedTrailer = item.name to item.releaseYear }
+                                onFocused = { focusedTrailer = item.seriesId }
                             ) { focusedTrailer = null; onSeriesSelected(item) }
                         }
                     }
@@ -418,31 +418,34 @@ fun MediaLibraryScreen(
         }
         }
         }
-        if (trailerKey != null && !searchMode) {
+        if (trailerUrl != null && !searchMode) {
             Box(modifier = Modifier.align(Alignment.CenterEnd)) {
                 Card(
                     modifier = Modifier.padding(end = 16.dp).size(width = 368.dp, height = 207.dp),
                     border = BorderStroke(2.dp, MaterialTheme.colorScheme.primary),
                     colors = CardDefaults.cardColors(containerColor = Color.Black)
                 ) {
-                    val key = trailerKey!!
+                    val url = trailerUrl!!
+                    val player = remember(url) {
+                        androidx.media3.exoplayer.ExoPlayer.Builder(context).build().apply {
+                            setMediaItem(androidx.media3.common.MediaItem.fromUri(url))
+                            volume = 1f
+                            prepare()
+                            playWhenReady = true
+                        }
+                    }
+                    androidx.compose.runtime.DisposableEffect(player) {
+                        onDispose { player.stop(); player.release() }
+                    }
                     AndroidView(
                         factory = { ctx ->
-                            WebView(ctx).apply {
-                                settings.javaScriptEnabled = true
-                                settings.domStorageEnabled = true
-                                settings.mediaPlaybackRequiresUserGesture = false
-                                webViewClient = WebViewClient()
-                                webChromeClient = WebChromeClient()
-                                setLayerType(View.LAYER_TYPE_HARDWARE, null)
-                                setBackgroundColor(android.graphics.Color.BLACK)
-                                settings.loadWithOverviewMode = true
-                                settings.useWideViewPort = true
-                                                                val html = """<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"><style>html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#000}iframe{position:fixed;inset:0;width:100vw;height:100vh;border:0;display:block}</style></head><body><iframe src="https://www.youtube.com/embed/$key?autoplay=1&amp;mute=0&amp;controls=1&amp;playsinline=1&amp;origin=https%3A%2F%2Ftvflow.app" allow="autoplay; encrypted-media; fullscreen" allowfullscreen></iframe></body></html>"""
-                                loadDataWithBaseURL("https://tvflow.app/", html, "text/html", "UTF-8", null)
+                            androidx.media3.ui.PlayerView(ctx).apply {
+                                useController = false
+                                resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
+                                this.player = player
                             }
                         },
-                        update = { },
+                        update = { it.player = player },
                         modifier = Modifier.fillMaxSize()
                     )
                 }
