@@ -26,6 +26,12 @@ data class LoginUiState(
     val outputFormat: String = "ts",
     val pairingUrl: String? = null,
     val loading: Boolean = false,
+    val loadingStage: String = "",
+    val receivedFilms: Int? = null,
+    val receivedSeries: Int? = null,
+    val loadedChannels: Int? = null,
+    val loadedFilms: Int? = null,
+    val loadedSeries: Int? = null,
     val success: Boolean = false,
     val error: String? = null
 )
@@ -119,14 +125,30 @@ class LoginViewModel @Inject constructor(
             return
         }
         viewModelScope.launch {
-            _state.value = current.copy(loading = true, error = null)
+            _state.value = current.copy(loading = true, loadingStage = "Connexion à la source IPTV…", receivedFilms = null, receivedSeries = null, loadedChannels = null, loadedFilms = null, loadedSeries = null, error = null)
             runCatching {
                 if (current.sourceType == "M3U_URL") {
                     repository.loginM3uUrl(current.server.trim(), current.profileName.takeIf { it.isNotBlank() })
                 } else {
                     repository.login(
                         XtreamCredentials(current.server, current.username, current.password, current.outputFormat),
-                        current.profileName.takeIf { it.isNotBlank() }
+                        current.profileName.takeIf { it.isNotBlank() },
+                        onProgress = { stage -> _state.value = _state.value.copy(loadingStage = stage) },
+                        onCatalogReceived = { type, count ->
+                            val previous = _state.value
+                            _state.value = when (type) {
+                                com.tvflow.app.domain.MediaType.VOD -> previous.copy(receivedFilms = count)
+                                com.tvflow.app.domain.MediaType.SERIES -> previous.copy(receivedSeries = count)
+                            }
+                        },
+                        onCatalogCounts = { channels, films, series ->
+                            val previous = _state.value
+                            _state.value = previous.copy(
+                                loadedChannels = channels ?: previous.loadedChannels,
+                                loadedFilms = films ?: previous.loadedFilms,
+                                loadedSeries = series ?: previous.loadedSeries
+                            )
+                        }
                     )
                 }
             }.onSuccess {

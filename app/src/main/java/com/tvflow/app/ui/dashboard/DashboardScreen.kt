@@ -1,3 +1,5 @@
+@file:androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+
 package com.tvflow.app.ui.dashboard
 
 import android.content.Context
@@ -141,10 +143,7 @@ fun DashboardScreen(
         if (selectedPreviewVod != null || selectedPreviewSeries != null) {
             delay(2_000L)
             selectedPreviewUrl = viewModel.vignettePreviewUrl(selectedPreviewVod, selectedPreviewSeries)
-            if (selectedPreviewUrl != null) {
-                delay(12_000L)
-                selectedPreviewUrl = null
-            }
+            Log.i("TVFlowHome", "Focused preview resolved: available=${!selectedPreviewUrl.isNullOrBlank()}")
         }
     }
     val tvApps by produceState<List<TvInstalledApp>>(initialValue = emptyList(), context) {
@@ -163,7 +162,7 @@ fun DashboardScreen(
             listState.firstVisibleItemScrollOffset < 24
 
         if (selectedPreviewUrl != null) {
-            TvVideoBackdrop(url = selectedPreviewUrl.orEmpty(), title = selectedPreviewVod?.name ?: selectedPreviewSeries?.name, mobile = !isTv)
+            TvVideoBackdrop(url = selectedPreviewUrl.orEmpty(), title = selectedPreviewVod?.name ?: selectedPreviewSeries?.name, mobile = !isTv, focusedPreview = true)
         } else if ((isTv || mobilePreviewAllowed) && !state.backgroundVideoUrl.isNullOrBlank()) {
             TvVideoBackdrop(
                 url = state.backgroundVideoUrl.orEmpty(),
@@ -178,13 +177,13 @@ fun DashboardScreen(
                 .background(
                     Brush.verticalGradient(
                         listOf(
-                            cinematicColor.copy(alpha = if (isTv) 0.38f else 0.24f),
-                            MaterialTheme.colorScheme.background.copy(alpha = if (isTv) 0.70f else if (mobilePreviewAllowed) 0.72f else 1f),
-                            Color.Black
+                            cinematicColor.copy(alpha = if (selectedPreviewUrl != null) 0.06f else if (isTv) 0.38f else 0.24f),
+                            MaterialTheme.colorScheme.background.copy(alpha = if (selectedPreviewUrl != null) 0.12f else if (isTv) 0.70f else if (mobilePreviewAllowed) 0.72f else 1f),
+                            Color.Black.copy(alpha = if (selectedPreviewUrl != null) 0.44f else 1f)
                         )
                     )
                 )
-                .background(Color.Black.copy(alpha = if (isTv) 0.28f else 0f))
+                .background(Color.Black.copy(alpha = if (selectedPreviewUrl != null) 0f else if (isTv) 0.28f else 0f))
         )
 
         LazyColumn(
@@ -332,7 +331,7 @@ fun DashboardScreen(
 }
 
 @Composable
-private fun TvVideoBackdrop(url: String, title: String?, mobile: Boolean = false) {
+private fun TvVideoBackdrop(url: String, title: String?, mobile: Boolean = false, focusedPreview: Boolean = false) {
     val context = LocalContext.current
     val player = remember(url) {
         ExoPlayer.Builder(context)
@@ -352,7 +351,7 @@ private fun TvVideoBackdrop(url: String, title: String?, mobile: Boolean = false
             })
             setMediaItem(MediaItem.fromUri(url))
             prepare()
-            seekTo(if (mobile) 30_000L else 60_000L)
+            seekTo(if (focusedPreview) 0L else if (mobile) 30_000L else 60_000L)
             playWhenReady = true
         }
     }
@@ -487,52 +486,7 @@ private fun TvHeroHeader(
             TvTopAction("⚙ Réglages", onSettings)
         }
 
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(76.dp)
-                .clip(RoundedCornerShape(20.dp))
-                .background(
-                    Brush.horizontalGradient(
-                        listOf(
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
-                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.52f),
-                            Color.Transparent
-                        )
-                    )
-                )
-                .border(
-                    1.dp,
-                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
-                    RoundedCornerShape(20.dp)
-                )
-                .padding(horizontal = 22.dp, vertical = 10.dp)
-        ) {
-            Row(
-                modifier = Modifier.align(Alignment.CenterStart),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(18.dp)
-            ) {
-                Text(
-                    "TVFlow",
-                    style = MaterialTheme.typography.headlineLarge,
-                    fontWeight = FontWeight.Black,
-                    color = Color.White
-                )
-                Text(
-                    "● Connecté",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.primary
-                )
 
-            }
-            Text(
-                "v${BuildConfig.VERSION_NAME}",
-                modifier = Modifier.align(Alignment.TopEnd),
-                style = MaterialTheme.typography.labelLarge,
-                color = Color.White.copy(alpha = 0.82f)
-            )
-        }
     }
 }
 
