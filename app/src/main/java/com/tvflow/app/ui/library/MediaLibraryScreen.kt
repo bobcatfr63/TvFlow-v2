@@ -178,7 +178,7 @@ fun MediaLibraryScreen(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = screenHorizontalPadding)
             )
             LazyVerticalGrid(
-                columns = GridCells.Fixed(if (compactMobile) 3 else 4),
+                columns = GridCells.Fixed(if (compactMobile) 3 else 5),
                 state = searchGridState,
                 modifier = Modifier.fillMaxSize().padding(horizontal = screenHorizontalPadding),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -332,7 +332,7 @@ fun MediaLibraryScreen(
             }
 
             LazyVerticalGrid(
-                columns = GridCells.Fixed(if (compactMobile) 3 else 4),
+                columns = GridCells.Fixed(if (compactMobile) 3 else 5),
                 state = mediaGridState,
                 modifier = Modifier
                     .fillMaxSize()
@@ -535,13 +535,13 @@ private fun MediaPoster(
                 filterQuality = androidx.compose.ui.graphics.FilterQuality.Low,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(if (compact) 142.dp else 126.dp)
+                    .height(if (compact) 142.dp else 72.dp)
             )
             Text(
                 name.replace(mediaTitlePrefix, ""),
                 color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.padding(horizontal = 8.dp, vertical = 7.dp),
-                style = if (compact) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.padding(horizontal = 6.dp, vertical = if (compact) 7.dp else 2.dp),
+                style = MaterialTheme.typography.bodySmall,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
@@ -554,15 +554,15 @@ private fun MediaPoster(
                 Text(
                     dateLabel,
                     color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(start = 10.dp, end = 10.dp, bottom = 5.dp),
+                    modifier = Modifier.padding(start = 6.dp, end = 6.dp, bottom = if (compact) 5.dp else 1.dp),
                     style = MaterialTheme.typography.labelMedium
                 )
             }
-            if (!rating.isNullOrBlank() && rating != "0" && rating != "0.0") {
+            if (compact && !rating.isNullOrBlank() && rating != "0" && rating != "0.0") {
                 Text(
                     "★ $rating",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 10.dp, end = 10.dp, bottom = 5.dp),
+                    modifier = Modifier.padding(start = 6.dp, end = 6.dp, bottom = if (compact) 5.dp else 1.dp),
                     style = MaterialTheme.typography.bodySmall
                 )
             }
