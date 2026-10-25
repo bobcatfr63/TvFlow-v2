@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
@@ -42,12 +43,28 @@ enum class HomeSort {
 class HomeViewModel @Inject constructor(
     private val repository: XtreamRepository,
     private val playbackQueue: com.tvflow.app.ui.player.LivePlaybackQueue,
-    private val settingsStore: SettingsStore
+    private val settingsStore: SettingsStore,
+    private val smartCache: com.tvflow.app.data.local.SmartCache
 ) : ViewModel() {
     val categories: StateFlow<List<LiveCategory>> = repository.observeCategories()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     private val source = MutableStateFlow<ChannelSource?>(null)
+    private val channelSnapshots = mutableMapOf<String, List<LiveChannel>>()
+    private var currentProfile: String? = null
+
+    private fun rememberSource(selected: ChannelSource) {
+        val value = when (selected) {
+            ChannelSource.Tnt -> "__tnt__"
+            ChannelSource.Favorites -> "__favorites__"
+            ChannelSource.Recent -> "__recent__"
+            is ChannelSource.Category -> selected.id
+        }
+        viewModelScope.launch {
+            repository.activeProfileId.first()?.let { smartCache.saveLastCategory(it, "DIRECT", value) }
+        }
+    }
+
     val selectedSource: StateFlow<ChannelSource?> = source
     private val _pinRequiredCategory = MutableStateFlow<LiveCategory?>(null)
     val pinRequiredCategory: StateFlow<LiveCategory?> = _pinRequiredCategory
@@ -59,20 +76,21 @@ class HomeViewModel @Inject constructor(
     private val subFilterId = MutableStateFlow<String?>(null)
     val selectedSubFilterId: StateFlow<String?> = subFilterId
 
-    private val channelLoadState = combine(source, subFilterId) { selected, filterId ->
-        selected to filterId
-    }.flatMapLatest { (selected, filterId) ->
+    private val channelLoadState = combine(source, subFilterId, repository.activeProfileId) { selected, filterId, profile ->
+        Triple(selected, filterId, profile)
+    }.flatMapLatest { (selected, filterId, profile) ->
+        val key = "$profile|$selected|$filterId"
         val stream = when (selected) {
-            ChannelSource.Tnt -> repository.observeAllChannels().map { channels ->
-                selectTntChannels(channels)
-            }
+            ChannelSource.Tnt -> repository.observeAllChannels().map { selectTntChannels(it) }
             ChannelSource.Favorites -> repository.observeFavorites()
             ChannelSource.Recent -> repository.observeRecentChannels()
             is ChannelSource.Category -> repository.observeChannels(filterId ?: selected.id)
             null -> flowOf(emptyList())
         }
-        stream.map { it as List<LiveChannel>? }
-            .onStart { emit(null) }
+        stream.map { list ->
+            if (profile != null && selected != null) channelSnapshots[key] = list
+            list as List<LiveChannel>?
+        }.onStart { emit(channelSnapshots[key]) }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     val isLoading: StateFlow<Boolean> = channelLoadState.map { it == null }
@@ -85,11 +103,26 @@ class HomeViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            repository.activeProfileId.drop(1).collect {
-                source.value = null
-                _pinRequiredCategory.value = null
-                _pinError.value = null
-            }
+            combine(repository.activeProfileId, categories) { profile, available -> profile to available }
+                .collect { (profile, available) ->
+                    if (profile != currentProfile) {
+                        currentProfile = profile
+                        channelSnapshots.clear()
+                        source.value = null
+                        subFilterId.value = null
+                        _pinRequiredCategory.value = null
+                        _pinError.value = null
+                    }
+                    if (profile != null && source.value == null && available.isNotEmpty()) {
+                        val saved = smartCache.lastCategory(profile, "DIRECT")
+                        source.value = when (saved) {
+                            "__tnt__" -> ChannelSource.Tnt
+                            "__favorites__" -> ChannelSource.Favorites
+                            "__recent__" -> ChannelSource.Recent
+                            else -> available.firstOrNull { it.id == saved && !it.isLocked }?.let { ChannelSource.Category(it.id) }
+                        } ?: ChannelSource.Category(available.firstOrNull { !it.isLocked }?.id ?: return@collect)
+                    }
+                }
         }
     }
 
@@ -114,6 +147,7 @@ class HomeViewModel @Inject constructor(
         } else {
             subFilterId.value = null
             source.value = ChannelSource.Category(id)
+            rememberSource(ChannelSource.Category(id))
         }
     }
 
@@ -125,6 +159,7 @@ class HomeViewModel @Inject constructor(
                 _pinError.value = null
                 subFilterId.value = null
                 source.value = ChannelSource.Category(category.id)
+                rememberSource(ChannelSource.Category(category.id))
             } else _pinError.value = "PIN incorrect"
         }
     }
@@ -134,16 +169,19 @@ class HomeViewModel @Inject constructor(
     fun selectTnt() {
         subFilterId.value = null
         source.value = ChannelSource.Tnt
+        rememberSource(ChannelSource.Tnt)
     }
 
     fun selectFavorites() {
         subFilterId.value = null
         source.value = ChannelSource.Favorites
+        rememberSource(ChannelSource.Favorites)
     }
 
     fun selectRecent() {
         subFilterId.value = null
         source.value = ChannelSource.Recent
+        rememberSource(ChannelSource.Recent)
     }
 
     fun selectSubFilter(id: String?) {
