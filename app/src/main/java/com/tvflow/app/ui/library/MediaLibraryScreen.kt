@@ -420,7 +420,7 @@ fun MediaLibraryScreen(
         if (trailerKey != null && !searchMode) {
             Popup(alignment = Alignment.CenterEnd, properties = androidx.compose.ui.window.PopupProperties(focusable = false), onDismissRequest = { trailerKey = null }) {
                 Card(
-                    modifier = Modifier.padding(end = 22.dp).size(width = 420.dp, height = 238.dp),
+                    modifier = Modifier.padding(end = 22.dp).size(width = 332.dp, height = 168.dp),
                     border = BorderStroke(2.dp, MaterialTheme.colorScheme.primary),
                     colors = CardDefaults.cardColors(containerColor = Color.Black)
                 ) {
@@ -438,7 +438,7 @@ fun MediaLibraryScreen(
                             }
                         },
                         update = { },
-                        modifier = Modifier.offset(x = 0.dp, y = 0.dp).requiredSize(width = 460.dp, height = 260.dp)
+                        modifier = Modifier.offset(x = (-44).dp, y = 0.dp).requiredSize(width = 460.dp, height = 260.dp)
                     )
                     }
                 }
