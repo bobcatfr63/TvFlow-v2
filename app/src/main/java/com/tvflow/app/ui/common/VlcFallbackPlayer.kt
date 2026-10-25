@@ -36,6 +36,7 @@ fun VlcFallbackPlayer(
     url: String,
     modifier: Modifier = Modifier,
     startPositionMs: Long = 0L,
+    bufferPreset: String? = null,
     onPlaybackEnded: () -> Unit = {},
     onProgress: (Long, Long) -> Unit = { _, _ -> },
     onFinalProgress: (Long, Long) -> Unit = { _, _ -> },
@@ -49,11 +50,34 @@ fun VlcFallbackPlayer(
     val errorCallback by rememberUpdatedState(onError)
     val progressCallback by rememberUpdatedState(onProgress)
     val finalCallback by rememberUpdatedState(onFinalProgress)
-    val libVlc = remember {
+    // Null preserves the existing VOD/series buffering; explicit presets are used for live.
+    val cacheMs = remember(context, bufferPreset) {
+        when (bufferPreset) {
+            "FAST" -> 800
+            "BALANCED" -> 1_500
+            "SAFE" -> 3_000
+            "AUTO" -> {
+                val manager = context.getSystemService(android.content.Context.CONNECTIVITY_SERVICE)
+                    as? android.net.ConnectivityManager
+                val caps = runCatching { manager?.getNetworkCapabilities(manager.activeNetwork) }.getOrNull()
+                val local = caps?.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI) == true ||
+                    caps?.hasTransport(android.net.NetworkCapabilities.TRANSPORT_ETHERNET) == true
+                val metered = runCatching { manager?.isActiveNetworkMetered ?: true }.getOrDefault(true)
+                when {
+                    !local || metered -> 3_000
+                    (context.getSystemService(android.content.Context.ACTIVITY_SERVICE)
+                        as? android.app.ActivityManager)?.isLowRamDevice == true -> 1_800
+                    else -> 1_200
+                }
+            }
+            else -> 1_500
+        }
+    }
+    val libVlc = remember(cacheMs) {
         LibVLC(
             context,
             arrayListOf(
-                "--network-caching=1500",
+                "--network-caching=$cacheMs",
                 "--http-reconnect",
                 "--no-drop-late-frames",
                 "--no-skip-frames"
@@ -110,11 +134,11 @@ fun VlcFallbackPlayer(
         modifier = modifier.fillMaxSize()
     )
 
-    LaunchedEffect(url, attached) {
+    LaunchedEffect(url, attached, cacheMs) {
         if (!attached) return@LaunchedEffect
         val media = Media(libVlc, Uri.parse(url)).apply {
             setHWDecoderEnabled(true, false)
-            addOption(":network-caching=1500")
+            addOption(":network-caching=$cacheMs")
             addOption(":http-reconnect")
         }
         mediaPlayer.media = media

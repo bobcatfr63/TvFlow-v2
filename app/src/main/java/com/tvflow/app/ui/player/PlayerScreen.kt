@@ -531,6 +531,7 @@ fun PlayerScreen(viewModel: PlayerViewModel = hiltViewModel()) {
         } else if (useVlcFallback && !effectiveStreamUrl.isNullOrBlank()) {
             VlcFallbackPlayer(
                 url = effectiveStreamUrl,
+                bufferPreset = state.bufferPreset,
                 modifier = Modifier.fillMaxSize(),
                 onReady = viewModel::reportPlaybackReady,
                 onError = {
