@@ -19,7 +19,7 @@ import javax.inject.Singleton
 private val Context.playerSettingsDataStore by preferencesDataStore(name = "tvflow_player_settings")
 
 data class PlayerPreferences(
-    val bufferPreset: String = "FAST",
+    val bufferPreset: String = "AUTO",
     val videoScale: String = "FIT",
     val subtitlesEnabled: Boolean = true,
     val accent: String = "RAINBOW",
@@ -66,7 +66,7 @@ class SettingsStore @Inject constructor(@ApplicationContext private val context:
 
     val playerPreferences: Flow<PlayerPreferences> = context.playerSettingsDataStore.data.map { prefs ->
         PlayerPreferences(
-            bufferPreset = prefs[Keys.buffer] ?: "FAST",
+            bufferPreset = prefs[Keys.buffer] ?: "AUTO",
             videoScale = prefs[Keys.scale] ?: "FIT",
             subtitlesEnabled = prefs[Keys.subtitles] ?: true,
             accent = prefs[Keys.accent] ?: "RAINBOW",

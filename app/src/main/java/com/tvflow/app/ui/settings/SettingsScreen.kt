@@ -291,7 +291,7 @@ fun SettingsScreen(
 
             item {
                 SectionTitle("Lecteur")
-                ChoiceRow("Buffer", listOf("FAST", "BALANCED", "SAFE"), state.player.bufferPreset, viewModel::setBuffer)
+                ChoiceRow("Buffer", listOf("AUTO", "FAST", "BALANCED", "SAFE"), state.player.bufferPreset, viewModel::setBuffer)
                 ChoiceRow("Image", listOf("FIT", "FILL", "ZOOM"), state.player.videoScale, viewModel::setScale)
                 ChoiceRow(
                     "Thème",

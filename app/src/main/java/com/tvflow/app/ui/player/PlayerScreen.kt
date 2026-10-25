@@ -140,6 +140,7 @@ fun PlayerScreen(viewModel: PlayerViewModel = hiltViewModel()) {
 
     val player = remember(state.bufferPreset) {
         val (minBuffer, maxBuffer, playBuffer, rebuffer) = when (state.bufferPreset) {
+            "AUTO" -> com.tvflow.app.ui.player.autoBufferDurations(context)
             "SAFE" -> intArrayOf(8_000, 30_000, 2_000, 3_500)
             "BALANCED" -> intArrayOf(5_000, 20_000, 1_200, 2_000)
             else -> intArrayOf(3_000, 12_000, 750, 1_500)
