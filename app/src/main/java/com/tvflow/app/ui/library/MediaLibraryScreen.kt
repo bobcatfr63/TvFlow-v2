@@ -11,6 +11,9 @@ import android.webkit.WebViewClient
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
@@ -417,11 +420,12 @@ fun MediaLibraryScreen(
         if (trailerKey != null && !searchMode) {
             Popup(alignment = Alignment.CenterEnd, properties = androidx.compose.ui.window.PopupProperties(focusable = false), onDismissRequest = { trailerKey = null }) {
                 Card(
-                    modifier = Modifier.padding(end = 30.dp).size(width = 460.dp, height = 260.dp),
+                    modifier = Modifier.padding(end = 30.dp).size(width = 270.dp, height = 154.dp),
                     border = BorderStroke(2.dp, MaterialTheme.colorScheme.primary),
                     colors = CardDefaults.cardColors(containerColor = Color.Black)
                 ) {
                     val key = trailerKey!!
+                    Box(Modifier.fillMaxSize().clipToBounds()) {
                     AndroidView(
                         factory = { ctx ->
                             WebView(ctx).apply {
@@ -434,8 +438,9 @@ fun MediaLibraryScreen(
                             }
                         },
                         update = { },
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier.offset(x = (-95).dp).requiredSize(width = 460.dp, height = 260.dp)
                     )
+                    }
                 }
             }
         }
