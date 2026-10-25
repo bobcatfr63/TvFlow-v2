@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -24,6 +25,7 @@ fun AiGatewayControls() {
     var status by remember { mutableStateOf("") }
     var checking by remember { mutableStateOf(false) }
     var inviteCode by remember { mutableStateOf("") }
+    var advanced by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     Column(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("TVFlow AI 2.0 — Groq facultatif")
@@ -42,6 +44,8 @@ fun AiGatewayControls() {
                 checking = false
             }
         }) { Text("Activer TVFlow AI Cloud") }
+        TextButton(onClick = { advanced = !advanced }) { Text(if (advanced) "Masquer les paramètres avancés" else "Configuration avancée") }
+        if (advanced) {
         OutlinedTextField(value = endpoint, onValueChange = { endpoint = it }, singleLine = true,
             label = { Text("Adresse HTTPS de la passerelle") }, modifier = Modifier.fillMaxWidth())
         OutlinedTextField(value = token, onValueChange = { token = it }, singleLine = true,
@@ -53,6 +57,7 @@ fun AiGatewayControls() {
             status = runCatching { config.save(endpoint.trim(), token.trim()); token = "" }
                 .fold({ "Configuration enregistrée" }, { "Adresse ou jeton invalide, ou stockage sécurisé indisponible" })
         }) { Text("Enregistrer la passerelle") }
+        }
         SettingsButton(enabled = !checking, onClick = {
             checking = true
             status = "Test de la passerelle en cours…"
