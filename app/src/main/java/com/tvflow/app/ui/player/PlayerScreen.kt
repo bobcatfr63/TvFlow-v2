@@ -326,7 +326,7 @@ fun PlayerScreen(viewModel: PlayerViewModel = hiltViewModel()) {
     }
 
     // Media3 can reach READY with audio while the video surface is still black on older TV decoders.
-    // Retry once only when a video track is selected and no first frame was rendered.
+    // Switch to libVLC when a video track is selected but no first frame was rendered.
     LaunchedEffect(effectiveStreamUrl, retryEpoch, player, useVlcFallback, castActive) {
         if (effectiveStreamUrl == null || useVlcFallback || castActive || videoWatchdogAttempted) return@LaunchedEffect
         delay(7_000L)
@@ -335,8 +335,10 @@ fun PlayerScreen(viewModel: PlayerViewModel = hiltViewModel()) {
         }
         if (!firstFrameReceived && videoSelected && player.playbackState == Player.STATE_READY) {
             videoWatchdogAttempted = true
-            android.util.Log.w("TVFlowPlayback", "Video first-frame timeout: restarting Media3 once")
-            retryEpoch++
+            android.util.Log.w("TVFlowPlayback", "Video first-frame timeout: switching to libVLC")
+            player.stop()
+            useVlcFallback = true
+            viewModel.reportPlayerError(null)
         }
     }
 
