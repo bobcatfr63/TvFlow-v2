@@ -335,7 +335,8 @@ fun MediaLibraryScreen(
                 columns = GridCells.Fixed(if (compactMobile) 3 else 5),
                 state = mediaGridState,
                 modifier = Modifier
-                    .fillMaxSize()
+                    .weight(1f)
+                    .fillMaxHeight()
                     .padding(
                         start = if (compactMobile) 4.dp else 8.dp,
                         end = if (compactMobile) 8.dp else 16.dp,
