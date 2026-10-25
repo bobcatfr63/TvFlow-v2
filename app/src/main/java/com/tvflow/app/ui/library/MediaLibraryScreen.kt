@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.webkit.WebChromeClient
+import android.view.View
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
@@ -429,7 +431,12 @@ fun MediaLibraryScreen(
                                 settings.domStorageEnabled = true
                                 settings.mediaPlaybackRequiresUserGesture = false
                                 webViewClient = WebViewClient()
-                                                                val html = """<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;padding:0;background:black;width:100vw;height:100vh;overflow:hidden"><iframe width="100%" height="100%" style="display:block;border:0" src="https://www.youtube.com/embed/$key?autoplay=1&amp;mute=0&amp;controls=1&amp;playsinline=1&amp;origin=https%3A%2F%2Ftvflow.app" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe></body></html>"""
+                                webChromeClient = WebChromeClient()
+                                setLayerType(View.LAYER_TYPE_HARDWARE, null)
+                                setBackgroundColor(android.graphics.Color.BLACK)
+                                settings.loadWithOverviewMode = true
+                                settings.useWideViewPort = true
+                                                                val html = """<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"><style>html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#000}iframe{position:fixed;inset:0;width:100vw;height:100vh;border:0;display:block}</style></head><body><iframe src="https://www.youtube.com/embed/$key?autoplay=1&amp;mute=0&amp;controls=1&amp;playsinline=1&amp;origin=https%3A%2F%2Ftvflow.app" allow="autoplay; encrypted-media; fullscreen" allowfullscreen></iframe></body></html>"""
                                 loadDataWithBaseURL("https://tvflow.app/", html, "text/html", "UTF-8", null)
                             }
                         },
