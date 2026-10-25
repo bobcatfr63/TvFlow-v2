@@ -23,6 +23,10 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.take
 import javax.inject.Inject
 
 data class PlayerUiState(
@@ -58,6 +62,7 @@ private data class PlayerStatus(
 class PlayerViewModel @Inject constructor(
     private val repository: XtreamRepository,
     private val settingsStore: SettingsStore,
+    playbackQueue: LivePlaybackQueue,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
     private val initialStreamId: Int = checkNotNull(savedStateHandle["streamId"])
@@ -68,7 +73,13 @@ class PlayerViewModel @Inject constructor(
     private val playerError = MutableStateFlow<String?>(null)
     private val restartUrl = MutableStateFlow<String?>(null)
 
-    private val channelList: StateFlow<List<LiveChannel>> = channelSource()
+    private var selectionJob: Job? = null
+    private var epgJob: Job? = null
+    private val launchQueue = playbackQueue.consume(categoryId, initialStreamId)
+    // Freeze this playback session: health/favorites/history updates must not replace TNT variants.
+    private val channelList: StateFlow<List<LiveChannel>> = (launchQueue?.let { flowOf(it) }
+        ?: channelSource().map { list -> list.filterNot { it.isSectionMarker || it.isHidden } }
+            .filter { it.any { channel -> channel.streamId == initialStreamId } }.take(1))
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     private fun channelSource() = when (categoryId) {
@@ -78,6 +89,9 @@ class PlayerViewModel @Inject constructor(
         "__recent__" -> repository.observeRecentChannels()
         else -> repository.observeChannels(categoryId)
     }
+
+    private val currentChannel = selectedStreamId.flatMapLatest(repository::observeChannel)
+    private val playbackSelection = combine(selectedStreamId, currentChannel) { id, channel -> id to channel }
 
     private val epgFlow = selectedStreamId.flatMapLatest { streamId ->
         if (streamId > 0) repository.observeEpg(streamId) else flowOf(emptyList())
@@ -96,15 +110,16 @@ class PlayerViewModel @Inject constructor(
     val uiState: StateFlow<PlayerUiState> = combine(
         repository.savedCredentials,
         channelList,
-        selectedStreamId,
+        playbackSelection,
         epgFlow,
         statusFlow
-    ) { credentials, list, streamId, epg, status ->
+    ) { credentials, list, selection, epg, status ->
+        val (streamId, current) = selection
         val isEpgLoading = status.epgLoading
         val error = status.error
         val previous = status.previousStreamId
         val index = list.indexOfFirst { it.streamId == streamId }
-        val channel = list.getOrNull(index)
+        val channel = current?.takeIf { it.streamId == streamId } ?: list.getOrNull(index)
         val now = System.currentTimeMillis() / 1000L
         val nowProgram = epg.firstOrNull { it.isLiveAt(now) }
         val nextProgram = epg.firstOrNull { it.startTimestamp >= (nowProgram?.stopTimestamp ?: now) }
@@ -136,7 +151,7 @@ class PlayerViewModel @Inject constructor(
     fun previousChannel() = move(-1)
 
     fun selectChannel(streamId: Int) {
-        if (streamId == selectedStreamId.value) return
+        if (streamId == selectedStreamId.value || channelList.value.none { it.streamId == streamId }) return
         previousStreamId.value = selectedStreamId.value
         selectedStreamId.value = streamId
         onChannelSelected(streamId)
@@ -186,20 +201,16 @@ class PlayerViewModel @Inject constructor(
     }
 
     private fun move(delta: Int) {
-        val state = uiState.value
-        if (state.channelCount <= 1 || state.channelIndex < 0) return
-        val nextIndex = (state.channelIndex + delta + state.channelCount) % state.channelCount
-        val next = channelList.value.getOrNull(nextIndex) ?: return
-        selectChannel(next.streamId)
+        val next = adjacentChannelId(channelList.value, selectedStreamId.value, delta) ?: return
+        selectChannel(next)
     }
 
     private fun onChannelSelected(streamId: Int) {
         playerError.value = null
-        viewModelScope.launch {
+        selectionJob?.cancel()
+        selectionJob = viewModelScope.launch {
             repository.markWatched(streamId)
-            val channel = channelSource()
-                .first { channels -> channels.any { it.streamId == streamId } }
-                .firstOrNull { it.streamId == streamId }
+            val channel = repository.observeChannel(streamId).first()
             if (channel != null) {
                 settingsStore.setLastLiveChannel(
                     streamId = channel.streamId,
@@ -212,11 +223,19 @@ class PlayerViewModel @Inject constructor(
     }
 
     private fun refreshEpg(streamId: Int) {
+        epgJob?.cancel()
         restartUrl.value = null
-        viewModelScope.launch {
+        epgJob = viewModelScope.launch {
             epgLoading.value = true
-            runCatching { repository.refreshEpg(streamId) }
-            epgLoading.value = false
+            try {
+                repository.refreshEpg(streamId)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                // Cached EPG remains usable when the provider is unavailable.
+            } finally {
+                if (selectedStreamId.value == streamId) epgLoading.value = false
+            }
 
             val credentials = repository.savedCredentials.first() ?: return@launch
             val channel = channelList.value.firstOrNull { it.streamId == streamId } ?: return@launch

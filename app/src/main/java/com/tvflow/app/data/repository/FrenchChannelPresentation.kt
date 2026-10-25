@@ -11,7 +11,7 @@ private val FRENCH_PREFIX = Regex("(?i)^\\s*(?:\\|?FR\\|?|FRANCE)\\s*[-:|]\\s*")
 private val QUALITY_TOKEN = Regex(
     "(?i)(^|[^A-Z0-9])(HD|SD|HEVC|H\\.?265|H\\.?264|FHD|FULL\\s*HD|UHD|4K|1080P?|2160P?)(?=$|[^A-Z0-9])"
 )
-private val NORMALIZED_FRENCH_PREFIX = Regex("^\\|?FR\\|?\\s*[-:|]?\\s*")
+private val NORMALIZED_FRENCH_PREFIX = Regex("^\\|?FR\\|?(?=\\s|[-:|])\\s*[-:|]?\\s*")
 private val NORMALIZED_FRANCE_PREFIX = Regex("^FRANCE\\s*[-:|]\\s*")
 private val BRACKETED_TOKEN = Regex("\\[[^]]*]")
 private val MULTI_SPACE = Regex("\\s+")

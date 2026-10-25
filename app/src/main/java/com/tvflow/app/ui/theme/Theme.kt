@@ -161,10 +161,12 @@ fun TVFlowTheme(accent: String = "RAINBOW", showAtmosphere: Boolean = true, cont
     CompositionLocalProvider(LocalRainbowEnabled provides (!isLegacyTv && accent in setOf("RAINBOW", "NEBULA", "INFERNO", "CRYSTAL", "QUANTUM", "OCEAN", "AURORA", "ECLIPSE", "INTERSTELLAR", "HOLOGRAPHIC"))) {
         CompositionLocalProvider(LocalSignatureTheme provides accent) {
             MaterialTheme(colorScheme = palette(accent).toColorScheme()) {
-                Box(Modifier.fillMaxSize()) {
-                    content()
-                    // Ambient effects belong above opaque menus, but NEVER above video playback.
-                    if (showAtmosphere) SignatureAtmosphere(accent, animate = !isLegacyTv)
+                CompositionLocalProvider(androidx.compose.material3.LocalContentColor provides MaterialTheme.colorScheme.onBackground) {
+                    Box(Modifier.fillMaxSize()) {
+                        content()
+                        // Ambient effects belong above opaque menus, but NEVER above video playback.
+                        if (showAtmosphere) SignatureAtmosphere(accent, animate = !isLegacyTv)
+                    }
                 }
             }
         }

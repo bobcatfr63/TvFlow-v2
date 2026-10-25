@@ -63,13 +63,16 @@ data class GuideUiState(
 @HiltViewModel
 class GuideViewModel @Inject constructor(
     private val repository: XtreamRepository,
+    private val playbackQueue: com.tvflow.app.ui.player.LivePlaybackQueue,
     private val settingsStore: SettingsStore
 ) : ViewModel() {
     private val selectedCategoryId = MutableStateFlow<String?>(null)
     private val selectedSubFilterId = MutableStateFlow<String?>(null)
     private val selectedStreamId = MutableStateFlow<Int?>(null)
     private val previewStreamId = MutableStateFlow<Int?>(null)
-    private var previewDelayJob: Job? = null
+    private val previewFocus = StableFocusPreview(viewModelScope) { previewStreamId.value = it }
+    private var selectedEpgJob: Job? = null
+    private var prefetchJob: Job? = null
     private val selectedProgramStart = MutableStateFlow<Long?>(null)
     private val visibleEpgStreamIds = MutableStateFlow<List<Int>>(emptyList())
     private val loading = MutableStateFlow(false)
@@ -171,7 +174,9 @@ class GuideViewModel @Inject constructor(
                 com.tvflow.app.data.repository.canonicalFrenchChannelName(it.name)
             ) ?: Int.MAX_VALUE }
         } else when (order) {
-            GuideSort.NAME -> visible.filterNot { it.isSectionMarker }.sortedBy { channelAlphabeticalKey(it.name) }
+            GuideSort.NAME -> visible.filterNot { it.isSectionMarker }
+                .sortedWith(compareBy<LiveChannel> { it.customOrder ?: Int.MAX_VALUE }
+                    .thenBy { channelAlphabeticalKey(it.name) })
             GuideSort.FAVORITES -> visible.filterNot { it.isSectionMarker }
                 .sortedWith(compareByDescending<LiveChannel> { it.isFavorite }.thenBy { channelAlphabeticalKey(it.name) })
             GuideSort.EPG -> visible.filterNot { it.isSectionMarker }
@@ -197,7 +202,7 @@ class GuideViewModel @Inject constructor(
         }
         viewModelScope.launch {
             repository.activeProfileId.drop(1).collect {
-                previewDelayJob?.cancel()
+                stopPreview()
                 selectedCategoryId.value = null
                 selectedSubFilterId.value = null
                 selectedStreamId.value = null
@@ -216,7 +221,7 @@ class GuideViewModel @Inject constructor(
 
     fun selectSubFilter(id: String?) {
         if (selectedSubFilterId.value == id) return
-        previewDelayJob?.cancel()
+        stopPreview()
         selectedSubFilterId.value = id
         selectedStreamId.value = null
         selectedProgramStart.value = null
@@ -256,7 +261,7 @@ class GuideViewModel @Inject constructor(
     fun dismissParentalPin() { pinRequiredCategory.value = null; pinError.value = null }
 
     private fun applyCategory(id: String) {
-        previewDelayJob?.cancel()
+        stopPreview()
         previewStreamId.value = null
         selectedCategoryId.value = id
         selectedSubFilterId.value = null
@@ -283,37 +288,49 @@ class GuideViewModel @Inject constructor(
 
     fun focusChannel(streamId: Int) {
         if (channels.value.none { it.streamId == streamId && !it.isSectionMarker }) return
-        if (selectedStreamId.value == streamId && previewDelayJob?.isActive == true) return
-        previewDelayJob?.cancel()
-        if (previewStreamId.value != streamId) previewStreamId.value = null
         selectChannel(streamId)
-        if (previewStreamId.value == streamId) return
-        previewDelayJob = viewModelScope.launch {
-            delay(2_000L)
-            if (selectedStreamId.value == streamId &&
-                channels.value.any { it.streamId == streamId && !it.isSectionMarker }
-            ) previewStreamId.value = streamId
-        }
+        previewFocus.focus(streamId)
+    }
+
+    fun blurChannel(streamId: Int) { previewFocus.blur(streamId) }
+
+    fun stopPreview() {
+        previewFocus.cancel()
+        selectedEpgJob?.cancel()
+        prefetchJob?.cancel()
+    }
+
+    fun capturePlayback(): String {
+        val current = state.value
+        val source = current.selectedSubFilterId ?: current.selectedCategoryId ?: GUIDE_ALL
+        playbackQueue.capture(source, current.channels)
+        stopPreview()
+        return source
     }
 
     fun selectChannel(streamId: Int) {
         if (channels.value.firstOrNull { it.streamId == streamId }?.isSectionMarker == true) return
-        if (selectedStreamId.value != streamId) selectedProgramStart.value = null
+        if (selectedStreamId.value == streamId) return
+        selectedProgramStart.value = null
         selectedStreamId.value = streamId
-        viewModelScope.launch { runCatching { repository.refreshEpg(streamId, 16) } }
+        selectedEpgJob?.cancel()
+        selectedEpgJob = viewModelScope.launch {
+            delay(250)
+            try { repository.refreshEpg(streamId, 16) }
+            catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
+            catch (_: Exception) { /* Keep the cached guide. */ }
+        }
     }
 
     fun selectProgram(streamId: Int, startTimestamp: Long) {
-        selectedStreamId.value = streamId
+        focusChannel(streamId)
         selectedProgramStart.value = startTimestamp
     }
 
     fun previewChannel(streamId: Int) {
-        previewDelayJob?.cancel()
-        if (channels.value.firstOrNull { it.streamId == streamId }?.isSectionMarker == true) return
-        if (previewStreamId.value == streamId) return
-        previewStreamId.value = streamId
-        if (selectedStreamId.value != streamId) selectChannel(streamId)
+        if (channels.value.none { it.streamId == streamId && !it.isSectionMarker }) return
+        selectChannel(streamId)
+        previewFocus.playNow(streamId)
     }
 
     fun previousWindow() {
@@ -331,15 +348,18 @@ class GuideViewModel @Inject constructor(
     fun prefetchVisibleEpg(streamIds: List<Int>) {
         val ids = streamIds.distinct().take(20)
         visibleEpgStreamIds.value = ids
+        prefetchJob?.cancel()
         if (ids.isEmpty()) return
-        viewModelScope.launch {
-            runCatching {
+        prefetchJob = viewModelScope.launch {
+            delay(250)
+            try {
                 repository.prefetchEpg(
                     streamIds = ids,
                     limit = 16,
-                    parallelism = 3
+                    parallelism = 2
                 )
-            }
+            } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
+            catch (_: Exception) { /* Cached guide remains visible. */ }
         }
     }
 }

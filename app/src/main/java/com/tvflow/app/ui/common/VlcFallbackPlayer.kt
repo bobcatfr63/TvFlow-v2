@@ -7,6 +7,10 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -39,6 +43,12 @@ fun VlcFallbackPlayer(
     onError: (String) -> Unit = {}
 ) {
     val context = LocalContext.current
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    val readyCallback by rememberUpdatedState(onReady)
+    val endedCallback by rememberUpdatedState(onPlaybackEnded)
+    val errorCallback by rememberUpdatedState(onError)
+    val progressCallback by rememberUpdatedState(onProgress)
+    val finalCallback by rememberUpdatedState(onFinalProgress)
     val libVlc = remember {
         LibVLC(
             context,
@@ -53,18 +63,35 @@ fun VlcFallbackPlayer(
     val mediaPlayer = remember { MediaPlayer(libVlc) }
     var attached by remember { mutableStateOf(false) }
 
-    DisposableEffect(mediaPlayer) {
+    DisposableEffect(mediaPlayer, lifecycle) {
+        var resume = false
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_PAUSE -> { resume = mediaPlayer.isPlaying; mediaPlayer.pause() }
+                Lifecycle.Event.ON_STOP -> mediaPlayer.pause()
+                Lifecycle.Event.ON_RESUME -> if (resume) { resume = false; mediaPlayer.play() }
+                else -> Unit
+            }
+        }
+        lifecycle.addObserver(observer)
         mediaPlayer.setEventListener { event ->
             when (event.type) {
-                MediaPlayer.Event.Playing -> onReady()
-                MediaPlayer.Event.EndReached -> onPlaybackEnded()
-                MediaPlayer.Event.EncounteredError -> onError("Lecture libVLC impossible")
+                MediaPlayer.Event.Playing -> {
+                    if (!lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+                        resume = true
+                        mediaPlayer.pause()
+                    } else readyCallback()
+                }
+                MediaPlayer.Event.EndReached -> endedCallback()
+                MediaPlayer.Event.EncounteredError -> errorCallback("Lecture libVLC impossible")
             }
         }
         onDispose {
+            lifecycle.removeObserver(observer)
+            mediaPlayer.setEventListener(null)
             runCatching {
                 val position = mediaPlayer.time.coerceAtLeast(0L)
-                if (position > 0L) onFinalProgress(position, mediaPlayer.length.coerceAtLeast(0L))
+                if (position > 0L) finalCallback(position, mediaPlayer.length.coerceAtLeast(0L))
             }
             runCatching { mediaPlayer.stop() }
             runCatching { mediaPlayer.detachViews() }
@@ -103,7 +130,7 @@ fun VlcFallbackPlayer(
         if (!attached) return@LaunchedEffect
         while (true) {
             delay(5_000L)
-            onProgress(
+            progressCallback(
                 mediaPlayer.time.coerceAtLeast(0L),
                 mediaPlayer.length.coerceAtLeast(0L)
             )

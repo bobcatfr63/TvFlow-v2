@@ -4,6 +4,8 @@ on:
   workflow_dispatch:
 jobs:
   local-build:
+    # Audit branches are compiled/tested manually on Windows; no automatic release.
+    if: ${{ !startsWith(github.ref, 'refs/heads/audit/') }}
     runs-on: windows-native
     steps:
       - uses: actions/checkout@v4

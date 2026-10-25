@@ -17,6 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.lifecycle.compose.currentStateAsState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -50,6 +51,8 @@ fun StartupScreen(
     viewModel: StartupViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
+    val lifecycleState by androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle.currentStateAsState()
+    val resumed = lifecycleState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)
     val state by viewModel.state.collectAsState()
     val catalogStatus by viewModel.catalogStatus.collectAsState()
     var skippedLoading by rememberSaveable { mutableStateOf(false) }
@@ -59,9 +62,9 @@ fun StartupScreen(
 
     // Compose the first black frame before the potentially expensive Media3 initialization.
     // ExoPlayer must still be created and released on the main thread.
-    LaunchedEffect(context) {
+    LaunchedEffect(context, resumed) {
         delay(250L)
-        if (introFinished) return@LaunchedEffect
+        if (introFinished || exoPlayer != null || !resumed) return@LaunchedEffect
         val decoderStart = SystemClock.uptimeMillis()
         Log.i("TVFlowStartup", "Startup player creation begins")
         val player = ExoPlayer.Builder(context).build().apply {
@@ -74,6 +77,8 @@ fun StartupScreen(
         exoPlayer = player
         Log.i("TVFlowStartup", "Startup player created in ${SystemClock.uptimeMillis() - decoderStart}ms")
     }
+
+    exoPlayer?.let { com.tvflow.app.ui.common.PlayerLifecycleEffect(it) }
 
     LaunchedEffect(exoPlayer) {
         exoPlayer?.prepare()

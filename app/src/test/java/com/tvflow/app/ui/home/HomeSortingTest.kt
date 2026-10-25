@@ -78,6 +78,19 @@ class HomeSortingTest {
         )
     }
 
+    @Test
+    fun tntKeepsFranceChannelsWithoutProviderPrefix() {
+        val channels = listOf("France 2", "France 3 HD", "France 4", "France 5 SD", "Franceinfo")
+            .mapIndexed { index, name -> channel(index, name, false, null) }
+        assertEquals(listOf(0, 1, 2, 3, 4), com.tvflow.app.data.repository.selectTntChannels(channels).map { it.streamId })
+    }
+
+    @Test
+    fun explicitUserOrderWinsOverDefaultAlphabeticalOrder() {
+        val channels = listOf(alpha, gamma.copy(customOrder = 0), beta.copy(customOrder = 1))
+        assertEquals(listOf(3, 2, 1), sortHomeChannels(channels, HomeSort.NAME).map { it.streamId })
+    }
+
     private fun channel(
         id: Int,
         name: String,

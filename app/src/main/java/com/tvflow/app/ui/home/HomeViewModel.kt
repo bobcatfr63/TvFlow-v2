@@ -41,6 +41,7 @@ enum class HomeSort {
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val repository: XtreamRepository,
+    private val playbackQueue: com.tvflow.app.ui.player.LivePlaybackQueue,
     private val settingsStore: SettingsStore
 ) : ViewModel() {
     val categories: StateFlow<List<LiveCategory>> = repository.observeCategories()
@@ -91,6 +92,8 @@ class HomeViewModel @Inject constructor(
             }
         }
     }
+
+    fun capturePlayback(sourceId: String) { playbackQueue.capture(sourceId, channels.value) }
 
     fun selectCategory(id: String) {
         val category = categories.value.firstOrNull { it.id == id }
@@ -155,7 +158,8 @@ internal fun sortHomeChannels(
 ): List<LiveChannel> {
     val visible = list.filterNot { it.isSectionMarker }
     return when (order) {
-        HomeSort.NAME -> visible.sortedBy { channelAlphabeticalKey(it.name) }
+        HomeSort.NAME -> visible.sortedWith(compareBy<LiveChannel> { it.customOrder ?: Int.MAX_VALUE }
+            .thenBy { channelAlphabeticalKey(it.name) })
         HomeSort.FAVORITES -> visible.sortedWith(
             compareByDescending<LiveChannel> { it.isFavorite }
                 .thenBy { channelAlphabeticalKey(it.name) }

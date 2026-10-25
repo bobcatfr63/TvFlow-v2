@@ -96,6 +96,13 @@ interface TVFlowDao {
     @Query("DELETE FROM epg_programs WHERE profileId = :profileId AND streamId = :streamId")
     suspend fun clearEpg(profileId: String, streamId: Int)
 
+    @Transaction
+    suspend fun replaceEpg(profileId: String, streamId: Int, items: List<EpgProgramEntity>) {
+        require(items.all { it.profileId == profileId && it.streamId == streamId })
+        clearEpg(profileId, streamId)
+        upsertEpg(items)
+    }
+
     @Query("DELETE FROM epg_programs WHERE profileId = :profileId AND stopTimestamp < :cutoff")
     suspend fun deleteExpiredEpg(profileId: String, cutoff: Long)
 

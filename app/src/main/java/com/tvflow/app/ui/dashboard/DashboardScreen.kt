@@ -49,6 +49,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.lifecycle.compose.currentStateAsState
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -335,6 +336,8 @@ fun DashboardScreen(
 
 @Composable
 private fun TvVideoBackdrop(url: String, title: String?, mobile: Boolean = false) {
+    val lifecycleState by androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle.currentStateAsState()
+    if (!lifecycleState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)) return
     val context = LocalContext.current
     val player = remember(url) {
         ExoPlayer.Builder(context)
@@ -349,7 +352,7 @@ private fun TvVideoBackdrop(url: String, title: String?, mobile: Boolean = false
                 }
 
                 override fun onPlayerError(error: PlaybackException) {
-                    Log.w("TVFlowHome", "Background playback error: ${error.errorCodeName}", error)
+                    Log.w("TVFlowHome", "Background playback error: ${error.errorCodeName}")
                 }
             })
             setMediaItem(MediaItem.fromUri(url))

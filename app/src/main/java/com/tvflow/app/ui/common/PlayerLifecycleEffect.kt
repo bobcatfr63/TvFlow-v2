@@ -2,40 +2,43 @@ package com.tvflow.app.ui.common
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.getValue
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.media3.common.Player
 
-/**
- * Keeps Media3 playback aligned with the Activity lifecycle.
- * A manually paused player stays paused when the app returns to foreground.
- */
+/** Suspend resources when hidden; never revive Media3 behind libVLC or Cast. */
 @Composable
-fun PlayerLifecycleEffect(player: Player) {
-    val lifecycleOwner = LocalLifecycleOwner.current
-    val resumeState = remember(player) { booleanArrayOf(false) }
-
-    DisposableEffect(lifecycleOwner, player) {
+fun PlayerLifecycleEffect(player: Player, enabled: Boolean = true) {
+    val owner = LocalLifecycleOwner.current
+    val playbackEnabled by rememberUpdatedState(enabled)
+    DisposableEffect(owner, player) {
+        var resume = false
+        var stopped = false
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
                 Lifecycle.Event.ON_PAUSE -> {
-                    // Incoming calls can trigger ON_PAUSE before the Activity stops.
-                    resumeState[0] = player.playWhenReady
+                    resume = playbackEnabled && player.playWhenReady
                     player.pause()
                 }
-                Lifecycle.Event.ON_STOP -> player.pause()
+                Lifecycle.Event.ON_STOP -> {
+                    stopped = player.mediaItemCount > 0
+                    player.stop()
+                }
                 Lifecycle.Event.ON_RESUME -> {
-                    if (resumeState[0] && player.mediaItemCount > 0) {
-                        resumeState[0] = false
-                        player.play()
+                    if (playbackEnabled && player.mediaItemCount > 0) {
+                        if (stopped) player.prepare()
+                        if (resume) player.play()
                     }
+                    stopped = false
+                    resume = false
                 }
                 else -> Unit
             }
         }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+        owner.lifecycle.addObserver(observer)
+        onDispose { owner.lifecycle.removeObserver(observer) }
     }
 }

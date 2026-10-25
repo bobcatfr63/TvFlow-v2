@@ -9,6 +9,7 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
@@ -34,6 +35,11 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.currentStateAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.Composable
 import com.tvflow.app.ui.theme.rainbowBorder
 import androidx.compose.runtime.collectAsState
@@ -100,7 +106,21 @@ fun GuideScreen(
     onSettings: () -> Unit,
     viewModel: GuideViewModel = hiltViewModel()
 ) {
-    val state by viewModel.state.collectAsState()
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    val lifecycleState by lifecycle.currentStateAsState()
+    val resumed = lifecycleState.isAtLeast(Lifecycle.State.RESUMED)
+    var focusedStreamId by remember { mutableStateOf<Int?>(null) }
+    LaunchedEffect(resumed) {
+        if (resumed) focusedStreamId?.let(viewModel::focusChannel) else viewModel.stopPreview()
+    }
+    DisposableEffect(lifecycle, viewModel) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_PAUSE || event == Lifecycle.Event.ON_STOP) viewModel.stopPreview()
+        }
+        lifecycle.addObserver(observer)
+        onDispose { lifecycle.removeObserver(observer); viewModel.stopPreview() }
+    }
 
     state.pinRequiredCategory?.let { category ->
         ParentalPinDialog(
@@ -144,7 +164,7 @@ fun GuideScreen(
             Column(Modifier.fillMaxSize()) {
                 ProgramHero(
                     previewChannel = state.previewChannel,
-                    previewStreamUrl = state.previewStreamUrl,
+                    previewStreamUrl = state.previewStreamUrl.takeIf { resumed },
                     channel = state.selectedChannel,
                     program = state.selectedProgram,
                     loading = state.loading,
@@ -235,10 +255,11 @@ fun GuideScreen(
                                 timelineWidth = timelineWidth,
                                 selected = channel.streamId == state.selectedChannel?.streamId,
                                 previewing = channel.streamId == state.previewChannel?.streamId,
-                                onSelectChannel = { viewModel.focusChannel(channel.streamId) },
+                                onSelectChannel = { focusedStreamId = channel.streamId; if (resumed) viewModel.focusChannel(channel.streamId) },
+                                onLoseFocus = { if (focusedStreamId == channel.streamId) focusedStreamId = null; viewModel.blurChannel(channel.streamId) },
                                 onSelectProgram = { start -> viewModel.selectProgram(channel.streamId, start) },
                                 onPreview = { viewModel.previewChannel(channel.streamId) },
-                                onPlay = { onPlay(channel, state.selectedCategoryId ?: channel.categoryId) }
+                                onPlay = { onPlay(channel, viewModel.capturePlayback()) }
                             )
                         }
                     }
@@ -484,6 +505,12 @@ private fun LivePreview(
     channel: LiveChannel?,
     modifier: Modifier = Modifier
 ) {
+    if (streamUrl.isNullOrBlank()) {
+        Box(modifier, contentAlignment = Alignment.Center) {
+            Text("Aperçu après 2 secondes de focus", color = TextSoft)
+        }
+        return
+    }
     val context = LocalContext.current
     var playbackError by remember { mutableStateOf<String?>(null) }
     var ready by remember { mutableStateOf(false) }
@@ -511,6 +538,9 @@ private fun LivePreview(
 
     DisposableEffect(player) {
         val listener = object : Player.Listener {
+            override fun onRenderedFirstFrame() {
+                android.util.Log.i("TVFlowPlayback", "preview first-frame")
+            }
             override fun onPlaybackStateChanged(playbackState: Int) {
                 ready = playbackState == Player.STATE_READY
                 if (ready) playbackError = null
@@ -763,6 +793,7 @@ private fun GuideRow(
     selected: Boolean,
     previewing: Boolean,
     onSelectChannel: () -> Unit,
+    onLoseFocus: () -> Unit,
     onSelectProgram: (Long) -> Unit,
     onPreview: () -> Unit,
     onPlay: () -> Unit
@@ -771,6 +802,8 @@ private fun GuideRow(
         modifier = Modifier
             .fillMaxWidth()
             .height(54.dp)
+            .onFocusChanged { if (it.hasFocus) onSelectChannel() else onLoseFocus() }
+            .focusGroup()
             .background(if (selected) PanelSelected else Panel)
             .border(
                 width = if (previewing) 1.dp else 0.dp,
@@ -825,7 +858,6 @@ private fun ChannelCell(
                 color = if (focused) Color.White else Color.Transparent,
                 shape = RoundedCornerShape(4.dp)
             )
-            .onFocusChanged { if (it.isFocused) onSelect() }
             .clickable(interactionSource = interaction, indication = null) {
                 if (previewing) onPlay() else onPreview()
             }

@@ -8,3 +8,9 @@ app/build/
 *.aab
 keystore.properties
 *.jks
+
+# Local audit evidence may contain device/account information.
+local-output/
+hs_err_pid*.log
+replay_pid*.log
+scripts/__pycache__/

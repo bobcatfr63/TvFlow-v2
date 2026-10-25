@@ -594,8 +594,7 @@ class XtreamRepository @Inject constructor(
             )
         }
         if (items.isNotEmpty()) {
-            dao.clearEpg(profileId, streamId)
-            dao.upsertEpg(items)
+            dao.replaceEpg(profileId, streamId, items)
             dao.deleteExpiredEpg(profileId, System.currentTimeMillis() / 1000L - 86_400L)
             return
         }
@@ -613,8 +612,8 @@ class XtreamRepository @Inject constructor(
                 dao.observeCategories(id).map { categories ->
                     categories.asSequence()
                         .filterNot { it.isHidden || it.name.trim().matches(Regex("^#{3,}.*#{3,}$")) }
-                        .sortedBy { it.sortOrder }
-                        .map { LiveCategory(it.id, it.name, it.sortOrder, it.isHidden, it.isLocked) }
+                        // DAO already orders customOrder before provider sortOrder.
+                        .map { LiveCategory(it.id, it.name, it.customOrder ?: it.sortOrder, it.isHidden, it.isLocked) }
                         .toList()
                 }
             }
@@ -1683,7 +1682,7 @@ class XtreamRepository @Inject constructor(
 
     suspend fun prefetchEpg(streamIds: List<Int>, limit: Int = 8, parallelism: Int = 4) = coroutineScope {
         val semaphore = Semaphore(parallelism.coerceAtLeast(1))
-        streamIds.distinct().take(24).map { streamId -> async { semaphore.withPermit { runCatching { refreshEpg(streamId, limit) } } } }.forEach { it.await() }
+        streamIds.distinct().take(24).map { streamId -> async { semaphore.withPermit { try { refreshEpg(streamId, limit) } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled } catch (_: Exception) { } } } }.forEach { it.await() }
     }
 
     suspend fun logout() { credentialsStore.clear() }

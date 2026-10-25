@@ -176,7 +176,7 @@ fun PlayerScreen(viewModel: PlayerViewModel = hiltViewModel()) {
             .build()
     }
 
-    PlayerLifecycleEffect(player)
+    PlayerLifecycleEffect(player, enabled = !useVlcFallback && !castActive)
 
     DisposableEffect(activity) {
         val window = activity?.window
@@ -220,6 +220,9 @@ fun PlayerScreen(viewModel: PlayerViewModel = hiltViewModel()) {
 
     DisposableEffect(player) {
         val listener = object : Player.Listener {
+            override fun onRenderedFirstFrame() {
+                android.util.Log.i("TVFlowPlayback", "live first-frame")
+            }
             override fun onPlayerError(error: PlaybackException) {
                 if (catchupUrlOverride != null) {
                     catchupUrlOverride = null
@@ -288,7 +291,7 @@ fun PlayerScreen(viewModel: PlayerViewModel = hiltViewModel()) {
         catchupUrlOverride = null
     }
 
-    LaunchedEffect(media3ErrorEpoch) {
+    LaunchedEffect(media3ErrorEpoch, state.streamUrl) {
         if (media3ErrorEpoch == 0) return@LaunchedEffect
         if (!shouldUseVlcFallback(lastMedia3HttpCode, lastMedia3ErrorName)) return@LaunchedEffect
         if (automaticRetryCount < 2) {
@@ -302,10 +305,11 @@ fun PlayerScreen(viewModel: PlayerViewModel = hiltViewModel()) {
         }
     }
 
-    LaunchedEffect(effectiveStreamUrl, retryEpoch, player) {
+    LaunchedEffect(effectiveStreamUrl, retryEpoch, player, useVlcFallback, castActive) {
+        player.stop()
+        player.clearMediaItems()
+        if (useVlcFallback || castActive) return@LaunchedEffect
         effectiveStreamUrl?.let { url ->
-            player.stop()
-            player.clearMediaItems()
             player.setMediaItem(MediaItem.fromUri(url))
             player.prepare()
             player.playWhenReady = true

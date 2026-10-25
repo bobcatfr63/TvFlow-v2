@@ -113,10 +113,13 @@ fun VodPlayerScreen(
         }
     }
 
-    PlayerLifecycleEffect(player)
+    PlayerLifecycleEffect(player, enabled = !useVlcFallback && !castActive)
 
     DisposableEffect(player) {
         val listener = object : Player.Listener {
+            override fun onRenderedFirstFrame() {
+                android.util.Log.i("TVFlowPlayback", "vod first-frame")
+            }
             override fun onPlayerError(error: PlaybackException) {
                 Log.e(
                     VOD_PLAYER_TAG,
@@ -134,7 +137,8 @@ fun VodPlayerScreen(
                 }
                 if (shouldUseVlcFallback(httpCode, error.errorCodeName)) {
                     vlcHandoffPositionMs = player.currentPosition.coerceAtLeast(state.resumePositionMs)
-                    player.pause()
+                    player.stop()
+                    player.clearMediaItems()
                     useVlcFallback = true
                 } else {
                     viewModel.onPlaybackError(httpCode?.let { "HTTP $it" } ?: error.errorCodeName)
