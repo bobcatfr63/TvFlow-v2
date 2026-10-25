@@ -37,6 +37,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -257,7 +258,10 @@ class DashboardViewModel @Inject constructor(
         content.copy(tonight = tonight)
     }
 
-    private val recommendations = combine(recommendedVod, recommendedSeries) { vod, series -> vod to series }
+    private val recommendations = combine(
+        recommendedVod.onStart { emit(emptyList()) },
+        recommendedSeries.onStart { emit(emptyList()) }
+    ) { vod, series -> vod to series }
 
     val state: StateFlow<DashboardUiState> = combine(
         contentState,
