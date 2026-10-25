@@ -57,7 +57,13 @@ internal object TvFlowIntent {
         "actions" to "action",
         "aventures" to "aventure",
         "ordinateur" to "computer",
-        "ordinateurs" to "computer"
+        "ordinateurs" to "computer",
+        "polar" to "police",
+        "detective" to "police",
+        "angoissant" to "horreur",
+        "marrant" to "comedie",
+        "hilarant" to "comedie",
+        "epouvante" to "horreur"
     )
 
     private fun normalized(value: String) =
@@ -140,7 +146,7 @@ internal object TvFlowIntent {
     /** Genre browsing can use provider category candidates without warming the full text index. */
     fun isGenreBrowsing(query: Parsed): Boolean =
         query.terms.any { it in genreIdsByTerm } &&
-            query.terms.all { it in genreIdsByTerm || it in setOf("francais", "francaise") }
+            query.terms.all { it in genreIdsByTerm || it in setOf("francais", "francaise") || synonyms[it] in genreIdsByTerm }
 
     fun score(
         query: Parsed, title: String, description: String?, year: Int?,
@@ -170,8 +176,10 @@ internal object TvFlowIntent {
                     !matches(plot, "aventure") && !matches(category, "aventure") && !genreMatches("aventure"))) return 0
         val requestedGenres = query.terms.filter { it in genreIdsByTerm }
         if (requestedGenres.any { term ->
-                !genreMatches(term) && !matches(category, term) &&
-                    !matches(plot, term) && !matches(name, term)
+                // Explicit TMDB genres are stronger evidence than a passing word in a synopsis.
+                // For incomplete metadata, retain the existing category/title/plot fallback.
+                if (knownGenreIds.isNotEmpty()) !genreMatches(term)
+                else !matches(category, term) && !matches(plot, term) && !matches(name, term)
             }) return 0
         val matching = query.terms.sumOf { term ->
             when {

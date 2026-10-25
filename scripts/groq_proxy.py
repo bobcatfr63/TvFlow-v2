@@ -61,6 +61,12 @@ class Budget:
                     or sum(n for _, n in minute) + tokens > 7000):
                 raise Rejected(429, "local_quota_exhausted")
             db.execute("INSERT INTO calls VALUES (?,?)", (now, tokens))
+    def status(self):
+        midnight = int(time.time() // 86400) * 86400
+        with self.connect() as db:
+            used = db.execute("SELECT COUNT(*) FROM calls WHERE at >= ?", (midnight,)).fetchone()[0]
+        return {"used": used, "limit": self.daily, "scope": "private_gateway", "period": "utc_day"}
+
     def record(self, tokens, latency):
         with self.connect() as db:
             db.execute("INSERT INTO usage VALUES (?,?,?)", (time.time(), tokens, latency))
@@ -172,6 +178,19 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(body)
         except OSError:
             pass
+    def do_GET(self):
+        gateway = self.server.gateway
+        if self.path != "/v1/usage":
+            return self.respond(404, {"error": "not_found"})
+        auth = self.headers.get("Authorization", "")
+        expected = ("Bearer " + gateway.token).encode("utf-8")
+        if len(gateway.token) < 32 or not hmac.compare_digest(auth.encode("utf-8"), expected):
+            return self.respond(401, {"error": "unauthorized"})
+        try:
+            self.respond(200, gateway.budget.status())
+        except (OSError, sqlite3.Error):
+            self.respond(503, {"error": "gateway_unavailable"})
+
     def do_POST(self):
         gateway = self.server.gateway
         try:
@@ -230,5 +249,8 @@ if __name__ == "__main__":
         raise SystemExit("Configure a private proxy token before starting.")
     state = os.getenv("TVFLOW_GROQ_STATE", r"G:\DevServer\data\tvflow-groq\budget.sqlite3")
     budget = Budget(state, int(os.getenv("TVFLOW_GROQ_DAILY_CAP", "50")))
-    print("TVFlow private gateway: loopback 8765; Groq configured:", bool(KEY), flush=True)
-    Server(("127.0.0.1", 8765), Gateway(budget)).serve_forever()
+    port = int(os.getenv("TVFLOW_GROQ_PORT", "18765"))
+    if not 1024 <= port <= 65535:
+        raise SystemExit("Invalid private gateway port.")
+    print("TVFlow private gateway: loopback port", port, "; Groq configured:", bool(KEY), flush=True)
+    Server(("127.0.0.1", port), Gateway(budget)).serve_forever()

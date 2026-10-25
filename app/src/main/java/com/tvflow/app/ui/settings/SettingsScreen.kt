@@ -261,6 +261,10 @@ fun SettingsScreen(
             }
 
             item {
+                AiGatewayControls()
+            }
+
+            item {
                 SectionTitle("Diagnostic réseau")
                 Text("Teste séparément l’API Xtream, le Direct et la VOD sans exposer les identifiants.")
                 Spacer(Modifier.height(8.dp))
@@ -287,7 +291,7 @@ fun SettingsScreen(
 
             item {
                 SectionTitle("Lecteur")
-                ChoiceRow("Buffer", listOf("FAST", "BALANCED", "SAFE"), state.player.bufferPreset, viewModel::setBuffer)
+                ChoiceRow("Buffer", listOf("AUTO", "FAST", "BALANCED", "SAFE"), state.player.bufferPreset, viewModel::setBuffer)
                 ChoiceRow("Image", listOf("FIT", "FILL", "ZOOM"), state.player.videoScale, viewModel::setScale)
                 ChoiceRow(
                     "Thème",

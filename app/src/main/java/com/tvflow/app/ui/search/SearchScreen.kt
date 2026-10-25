@@ -38,6 +38,8 @@ fun SearchScreen(
 
     Column(Modifier.fillMaxSize().padding(32.dp)) {
         Text("Recherche globale", style = MaterialTheme.typography.headlineLarge, color = Color.White)
+        Text("🔎 Recherche locale · Groq non utilisé sur cet écran",
+            style = MaterialTheme.typography.labelMedium, color = Color(0xFF9FE6FF))
         OutlinedTextField(
             value = query,
             onValueChange = { viewModel.query.value = it },

@@ -26,6 +26,7 @@ import kotlinx.coroutines.withContext
 
 data class TvFlowAiResults(
     val searchedQuery: String = "",
+    val groqStatus: String = "Recherche locale",
     val movies: List<VodItem> = emptyList(),
     val series: List<SeriesItem> = emptyList(),
     val programs: List<Pair<EpgProgram, LiveChannel>> = emptyList(),
@@ -41,19 +42,33 @@ class TvFlowAiViewModel @Inject constructor(
     private val repository: XtreamRepository,
     private val metadata: TmdbMetadataClient,
     private val sports: FootballScheduleClient,
-    private val groqIntent: GroqIntentClient
+    private val groqIntent: GroqIntentClient,
+    private val aiUsage: AiUsageCounter
 ) : ViewModel() {
+    val gatewayUsage = groqIntent.gatewayUsage
+    suspend fun refreshGatewayUsage() = groqIntent.refreshGatewayUsage()
+    val todayGroqRequests = aiUsage.today
+    fun refreshUsage() = aiUsage.refresh()
     val query = MutableStateFlow("")
 
     val results = query.debounce(300).mapLatest { raw ->
         if (raw.trim().length < 2) return@mapLatest TvFlowAiResults(searchedQuery = raw)
-        val rewritten = groqIntent.rewrite(raw)
-        val effectiveQuery = rewritten ?: raw
-        val parsed = TvFlowIntent.parse(effectiveQuery)
+        val parsed = TvFlowIntent.parse(raw)
         val similarityReference = TvFlowSimilarity.referenceTitle(raw)
         val tvQuestion = TvProgramMatcher.isTvQuestion(raw)
         val requestedPerson = TvFlowIntent.requestedPerson(raw)
-        if (parsed.terms.isEmpty() && !tvQuestion && similarityReference == null) return@mapLatest TvFlowAiResults(searchedQuery = raw)
+        // Keep original constraints authoritative. Groq only adds catalog lookup hints.
+        // Similarity, EPG and verified actor searches already have dedicated local paths.
+        val groqAttempted = similarityReference == null && !tvQuestion && requestedPerson == null && TvFlowAiQueryPolicy.needsGroq(raw)
+        val rewritten = if (groqAttempted) groqIntent.rewrite(raw) else null
+        val sourceStatus = when {
+            rewritten != null -> "✨ Groq utilisé pour cette recherche"
+            groqAttempted -> "⚠ Groq indisponible — recherche locale"
+            else -> "🔎 Recherche locale"
+        }
+        if (rewritten != null) groqIntent.refreshGatewayUsage()
+        val searchHints = TvFlowAiQueryPolicy.searchTerms(raw, rewritten)
+        if (parsed.terms.isEmpty() && !tvQuestion && similarityReference == null) return@mapLatest TvFlowAiResults(searchedQuery = raw, groqStatus = sourceStatus)
         try {
             // Catalog, EPG and metadata lookups may block on network or database I/O.
             // Keep them off the CPU-bound Default dispatcher.
@@ -69,6 +84,7 @@ class TvFlowAiViewModel @Inject constructor(
                     if (reference == null || terms.size < 2) {
                         return@withContext TvFlowAiResults(
                             searchedQuery = raw,
+                        groqStatus = sourceStatus,
                             notice = "Impossible de proposer des films similaires : film de référence ou synopsis indisponible dans le catalogue actif."
                         )
                     }
@@ -88,6 +104,7 @@ class TvFlowAiViewModel @Inject constructor(
                         .take(40).map { it.first }
                     return@withContext TvFlowAiResults(
                         searchedQuery = raw,
+                        groqStatus = sourceStatus,
                         movies = matches,
                         notice = if (matches.isEmpty()) "Aucun film similaire confirmé dans ton catalogue pour ce synopsis."
                             else "Suggestions selon les thèmes communs avec ${reference.name}, disponibles sur ton serveur."
@@ -113,7 +130,7 @@ class TvFlowAiViewModel @Inject constructor(
                     runCatching { metadata.movieCreditsForPerson(requestedPerson) }.getOrNull()
                 } else null
                 val searchQueries = if (requestedPerson != null) verifiedCredits.orEmpty().map { it.first }.take(24)
-                    else TvFlowIntent.searchTerms(effectiveQuery).take(8)
+                    else searchHints
                 // Resolve provider genre categories first: avoid building the large
                 // title index for pure genre browsing when these candidates suffice.
                 // Provider categories can identify a genre even when the title and plot do not.
@@ -177,6 +194,7 @@ class TvFlowAiViewModel @Inject constructor(
                 }
                 TvFlowAiResults(
                     searchedQuery = raw,
+                        groqStatus = sourceStatus,
                     notice = when {
                         requestedPerson == null -> null
                         verifiedCredits == null -> "Une clé TMDB valide est nécessaire dans les réglages pour vérifier les acteurs. Aucun résultat approximatif n'est affiché."
@@ -205,7 +223,7 @@ class TvFlowAiViewModel @Inject constructor(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            TvFlowAiResults(searchedQuery = raw, error = "Recherche indisponible. Vérifie le catalogue local.")
+            TvFlowAiResults(searchedQuery = raw, groqStatus = sourceStatus, error = "Recherche indisponible. Vérifie le catalogue local.")
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), TvFlowAiResults())
 }
