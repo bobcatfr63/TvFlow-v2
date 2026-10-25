@@ -47,12 +47,15 @@ class TmdbTrailerLookup @Inject constructor(
                 year == null || date.startsWith(year.toString())
             } ?: return@withContext null
         val id = match.get("id")?.asInt ?: return@withContext null
-        val videos = get("$path/$id/videos", mapOf("language" to "fr-FR"))
-            ?.getAsJsonArray("results")
-        val fallback = if (videos == null || videos.size() == 0) get("$path/$id/videos", mapOf("language" to "en-US"))
-            ?.getAsJsonArray("results") else videos
-        fallback?.mapNotNull { runCatching { it.asJsonObject }.getOrNull() }
-            ?.firstOrNull { it.get("site")?.asString == "YouTube" && it.get("type")?.asString in listOf("Trailer", "Teaser") }
-            ?.get("key")?.asString?.takeIf { it.matches(Regex("[A-Za-z0-9_-]{11}")) }
+        fun selectTrailer(language: String): String? {
+            val results = get("$path/$id/videos", mapOf("language" to language))?.getAsJsonArray("results")
+                ?: return null
+            return results.mapNotNull { runCatching { it.asJsonObject }.getOrNull() }
+                .firstOrNull { video ->
+                    video.get("site")?.asString == "YouTube" &&
+                        video.get("type")?.asString in listOf("Trailer", "Teaser")
+                }?.get("key")?.asString?.takeIf { it.matches(Regex("[A-Za-z0-9_-]{11}")) }
+        }
+        selectTrailer("fr-FR") ?: selectTrailer("en-US")
     }
 }
