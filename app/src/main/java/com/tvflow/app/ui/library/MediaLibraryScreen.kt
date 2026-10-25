@@ -79,11 +79,11 @@ fun MediaLibraryScreen(
     var preview by remember(viewModel.type) { mutableStateOf<MediaPreview?>(null) }
 
     val screenHorizontalPadding = if (compactMobile) 12.dp else 24.dp
-    val topPadding = if (compactMobile) 6.dp else 24.dp
-    val titleVerticalPadding = if (compactMobile) 4.dp else 12.dp
+    val topPadding = if (compactMobile) 4.dp else 8.dp
+    val titleVerticalPadding = if (compactMobile) 4.dp else 6.dp
     val filterSpacing = if (compactMobile) 4.dp else 8.dp
-    val contentTopPadding = if (compactMobile) 4.dp else 10.dp
-    val categoryWidth = if (compactMobile) 154.dp else 280.dp
+    val contentTopPadding = if (compactMobile) 4.dp else 6.dp
+    val categoryWidth = if (compactMobile) 154.dp else 260.dp
 
     LaunchedEffect(categories, selectedId) {
         if (selectedId == null && categories.isNotEmpty()) viewModel.selectCategory(categories.first().id)
@@ -143,8 +143,16 @@ fun MediaLibraryScreen(
                 }
             }
         } else {
+        Row(Modifier.fillMaxSize().padding(top = contentTopPadding)) {
+            Column(
+                modifier = Modifier
+                    .width(categoryWidth)
+                    .fillMaxHeight()
+                    .padding(horizontal = if (compactMobile) 8.dp else 16.dp),
+                verticalArrangement = Arrangement.spacedBy(if (compactMobile) 4.dp else 8.dp)
+            ) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = screenHorizontalPadding),
+            modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(filterSpacing)
         ) {
             ReleaseFilterChip(
@@ -212,21 +220,6 @@ fun MediaLibraryScreen(
             }
             }
         }
-        Row(Modifier.fillMaxSize().padding(top = contentTopPadding)) {
-            Column(
-                modifier = Modifier
-                    .width(categoryWidth)
-                    .fillMaxHeight()
-                    .padding(horizontal = if (compactMobile) 8.dp else 16.dp),
-                verticalArrangement = Arrangement.spacedBy(if (compactMobile) 4.dp else 8.dp)
-            ) {
-                if (isTv) {
-                    MediaPreviewPanel(
-                        preview = preview,
-                        isSeries = viewModel.type == MediaType.SERIES,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
                 LazyColumn(
                     modifier = Modifier.fillMaxWidth().weight(1f),
                     verticalArrangement = Arrangement.spacedBy(if (compactMobile) 4.dp else 8.dp)
