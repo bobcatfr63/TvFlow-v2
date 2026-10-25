@@ -41,6 +41,7 @@ private data class MediaFilter(
 class MediaLibraryViewModel @Inject constructor(
     private val repository: XtreamRepository,
     private val trailerLookup: com.tvflow.app.data.metadata.TmdbTrailerLookup,
+    private val smartCache: com.tvflow.app.data.local.SmartCache,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
     suspend fun trailerKey(title: String, year: Int?): String? = trailerLookup.youtubeKey(type, title, year)
@@ -69,6 +70,7 @@ class MediaLibraryViewModel @Inject constructor(
         else flowOf(emptyList())
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    private var selectedProfileId: String? = null
     private val selectedCategory = MutableStateFlow<String?>(null)
     val selectedCategoryId: StateFlow<String?> = selectedCategory
 
@@ -124,19 +126,37 @@ class MediaLibraryViewModel @Inject constructor(
             }
         }
         viewModelScope.launch {
-            categories.collect { visible ->
-                if (selectedCategory.value != null && visible.none { it.id == selectedCategory.value }) {
-                    selectedCategory.value = visible.firstOrNull()?.id
-                    selectedYearState.value = null
-                    selectedMonthState.value = null
+            combine(repository.activeProfileId, categories) { profile, visible -> profile to visible }
+                .collect { (profile, visible) ->
+                    if (profile == null || visible.isEmpty()) {
+                        selectedCategory.value = null
+                    } else {
+                        val current = selectedCategory.value.takeIf { selectedProfileId == profile }
+                        selectedProfileId = profile
+                        val saved = smartCache.lastCategory(profile, type.name)
+                        val next = when {
+                            current != null && visible.any { it.id == current } -> current
+                            saved != null && visible.any { it.id == saved } -> saved
+                            else -> visible.first().id
+                        }
+                        if (current != next) {
+                            selectedCategory.value = next
+                            selectedYearState.value = null
+                            selectedMonthState.value = null
+                        }
+                    }
                 }
-            }
         }
     }
 
     fun selectCategory(id: String) {
         if (selectedCategory.value == id) return
         selectedCategory.value = id
+        viewModelScope.launch {
+            repository.activeProfileId.first()?.let { profile ->
+                smartCache.saveLastCategory(profile, type.name, id)
+            }
+        }
         // Retain date filtering when browsing categories: date results remain global.
         enrichCategory(id)
     }

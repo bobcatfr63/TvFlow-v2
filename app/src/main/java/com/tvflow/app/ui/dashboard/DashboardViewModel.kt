@@ -37,6 +37,9 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -74,7 +77,8 @@ class DashboardViewModel @Inject constructor(
     private val repository: XtreamRepository,
     private val updateChecker: AppUpdateChecker,
     private val updateManager: AppUpdateManager,
-    private val settingsStore: SettingsStore
+    private val settingsStore: SettingsStore,
+    private val smartCache: com.tvflow.app.data.local.SmartCache
 ) : ViewModel() {
     suspend fun vignettePreviewUrl(vod: VodItem?, series: SeriesItem?): String? = runCatching {
         when {
@@ -192,8 +196,32 @@ class DashboardViewModel @Inject constructor(
 
     // Recommendations follow the visible categories selected in Settings.
     // No Pulse onboarding, explicit taste profile, or legacy France-only filter.
-    private val recommendedVod = repository.observeRecommendedVod()
-    private val recommendedSeries = repository.observeRecommendedSeries()
+    private val recommendedVod = repository.activeProfileId.flatMapLatest { profile ->
+        if (profile == null) flowOf(emptyList()) else
+            repository.observeMediaCategories(MediaType.VOD).flatMapLatest { categories ->
+                val visible = categories.map { it.id }
+                flow {
+                    val saved = smartCache.loadVod(profile, visible)
+                    if (saved.isNotEmpty()) emit(saved)
+                    emitAll(repository.observeRecommendedVod().onEach {
+                        smartCache.saveVod(profile, visible, it)
+                    })
+                }
+            }
+    }
+    private val recommendedSeries = repository.activeProfileId.flatMapLatest { profile ->
+        if (profile == null) flowOf(emptyList()) else
+            repository.observeMediaCategories(MediaType.SERIES).flatMapLatest { categories ->
+                val visible = categories.map { it.id }
+                flow {
+                    val saved = smartCache.loadSeries(profile, visible)
+                    if (saved.isNotEmpty()) emit(saved)
+                    emitAll(repository.observeRecommendedSeries().onEach {
+                        smartCache.saveSeries(profile, visible, it)
+                    })
+                }
+            }
+    }
 
     private val supplementalState = combine(
         updateInfo,
