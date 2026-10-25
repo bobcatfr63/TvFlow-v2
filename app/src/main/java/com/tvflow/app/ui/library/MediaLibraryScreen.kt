@@ -438,7 +438,7 @@ fun MediaLibraryScreen(
                             }
                         },
                         update = { },
-                        modifier = Modifier.offset(x = (-95).dp).requiredSize(width = 460.dp, height = 260.dp)
+                        modifier = Modifier.offset(x = (-55).dp, y = 25.dp).requiredSize(width = 460.dp, height = 260.dp)
                     )
                     }
                 }
