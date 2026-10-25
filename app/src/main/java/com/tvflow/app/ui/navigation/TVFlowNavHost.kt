@@ -1,6 +1,11 @@
 package com.tvflow.app.ui.navigation
 
 import android.net.Uri
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -39,6 +44,19 @@ fun TVFlowNavHost(
     onPlaybackRouteChanged: (Boolean) -> Unit = {}
 ) {
     val navController = rememberNavController()
+    val instantResolver: InstantTvResolver = hiltViewModel()
+    var instantTarget by remember { mutableStateOf<BootLiveTarget?>(null) }
+    var instantTargetResolved by remember { mutableStateOf(false) }
+    LaunchedEffect(bootLiveTarget) {
+        try {
+            instantTarget = instantResolver.resolve()
+        } catch (error: Exception) {
+            android.util.Log.w("TVFlowInstantTV", "TNT selection unavailable", error)
+            instantTarget = null
+        } finally {
+            instantTargetResolved = true
+        }
+    }
     val currentEntry by navController.currentBackStackEntryAsState()
     val route = currentEntry?.destination?.route.orEmpty()
     LaunchedEffect(route) {
@@ -97,12 +115,13 @@ fun TVFlowNavHost(
 
     NavHost(navController = navController, startDestination = "startup") {
         composable("startup") {
-            StartupScreen(
+            if (instantTargetResolved) StartupScreen(
+                instantTv = instantTarget != null,
                 onLoggedIn = {
-                    val target = bootLiveTarget
+                    val target = instantTarget
                     if (target != null) {
                         navController.navigate(
-                            "player/${target.streamId}/${Uri.encode(target.name)}/${Uri.encode(target.categoryId)}"
+                            "player/${target.streamId}/${Uri.encode(target.name)}/${Uri.encode(target.categoryId)}?instantTv=true"
                         ) {
                             popUpTo("startup") { inclusive = true }
                         }
@@ -154,11 +173,11 @@ fun TVFlowNavHost(
             )
         }
         composable("home") {
-            HomeScreen(onPlay = { channel -> openLive(channel.streamId, channel.name, channel.categoryId) })
+            HomeScreen(onPlay = { channel, sourceId -> openLive(channel.streamId, channel.name, sourceId) })
         }
         composable("guide") {
             GuideScreen(
-                onPlay = { channel -> openLive(channel.streamId, channel.name, channel.categoryId) },
+                onPlay = { channel, guideCategory -> openLive(channel.streamId, channel.name, guideCategory) },
                 onDashboard = { navController.navigate("dashboard") { launchSingleTop = true } },
                 onSearch = { navController.navigate("search") { launchSingleTop = true } },
                 onVod = { navController.navigate("library/${MediaType.VOD.name}") { launchSingleTop = true } },
@@ -284,14 +303,23 @@ fun TVFlowNavHost(
             )
         }
         composable(
-            route = "player/{streamId}/{name}/{categoryId}",
+            route = "player/{streamId}/{name}/{categoryId}?instantTv={instantTv}",
             arguments = listOf(
                 navArgument("streamId") { type = NavType.IntType },
                 navArgument("name") { type = NavType.StringType },
-                navArgument("categoryId") { type = NavType.StringType }
+                navArgument("categoryId") { type = NavType.StringType },
+                navArgument("instantTv") { type = NavType.BoolType; defaultValue = false }
             )
-        ) {
-            PlayerScreen()
+        ) { entry ->
+            PlayerScreen(
+                instantTv = entry.arguments?.getBoolean("instantTv") == true,
+                onExitToDashboard = {
+                    navController.navigate("dashboard") {
+                        popUpTo("player/{streamId}/{name}/{categoryId}?instantTv={instantTv}") { inclusive = true }
+                        launchSingleTop = true
+                    }
+                }
+            )
         }
     }
 

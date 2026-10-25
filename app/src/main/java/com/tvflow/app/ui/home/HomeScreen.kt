@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.height
+import com.tvflow.app.ui.guide.LivePreview
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -38,11 +40,12 @@ import com.tvflow.app.ui.common.ParentalPinDialog
 
 @Composable
 fun HomeScreen(
-    onPlay: (LiveChannel) -> Unit,
+    onPlay: (LiveChannel, String) -> Unit,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val categories by viewModel.categories.collectAsState()
     val channels by viewModel.channels.collectAsState()
+    val preview by viewModel.previewChannel.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val selectedSource by viewModel.selectedSource.collectAsState()
     val selectedSort by viewModel.selectedSort.collectAsState()
@@ -130,6 +133,15 @@ fun HomeScreen(
                         channelCount = channels.size,
                         onSort = viewModel::cycleSort
                     )
+                    if (preview != null) {
+                        LivePreview(
+                            streamUrl = preview?.second,
+                            channel = preview?.first,
+                            modifier = Modifier.fillMaxWidth().height(200.dp),
+                            muted = true,
+                            preferVlc = true
+                        )
+                    }
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -141,8 +153,15 @@ fun HomeScreen(
                         ) { channel ->
                             ChannelRow(
                                 channel = channel,
-                                onClick = { onPlay(channel) },
-                                onToggleFavorite = { viewModel.toggleFavorite(channel.streamId) }
+                                onClick = { onPlay(channel, when (val source = selectedSource) {
+                                    ChannelSource.Tnt -> com.tvflow.app.ui.guide.GUIDE_TNT
+                                    ChannelSource.Favorites -> com.tvflow.app.ui.guide.GUIDE_FAVORITES
+                                    ChannelSource.Recent -> "__recent__"
+                                    is ChannelSource.Category -> selectedSubFilterId ?: source.id
+                                    null -> channel.categoryId
+                                }) },
+                                onToggleFavorite = { viewModel.toggleFavorite(channel.streamId) },
+                                onFocused = { viewModel.previewChannel(channel.streamId) }
                             )
                         }
                     }
@@ -277,9 +296,10 @@ private fun SortToolbar(
 }
 
 @Composable
-private fun ChannelRow(channel: LiveChannel, onClick: () -> Unit, onToggleFavorite: () -> Unit) {
+private fun ChannelRow(channel: LiveChannel, onClick: () -> Unit, onToggleFavorite: () -> Unit, onFocused: () -> Unit) {
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
+    LaunchedEffect(focused) { if (focused) onFocused() }
     Card(
         onClick = onClick,
         interactionSource = interaction,

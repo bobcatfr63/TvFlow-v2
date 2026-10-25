@@ -6,6 +6,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -32,6 +33,8 @@ fun VlcFallbackPlayer(
     url: String,
     modifier: Modifier = Modifier,
     startPositionMs: Long = 0L,
+    bufferPreset: String = "FAST",
+    muted: Boolean = false,
     onPlaybackEnded: () -> Unit = {},
     onProgress: (Long, Long) -> Unit = { _, _ -> },
     onFinalProgress: (Long, Long) -> Unit = { _, _ -> },
@@ -39,19 +42,25 @@ fun VlcFallbackPlayer(
     onError: (String) -> Unit = {}
 ) {
     val context = LocalContext.current
-    val libVlc = remember {
+    val networkCacheMs = when (bufferPreset) {
+        "SAFE" -> 3_500
+        "BALANCED" -> 2_000
+        else -> 750
+    }
+    val libVlc = remember(networkCacheMs) {
         LibVLC(
             context,
             arrayListOf(
-                "--network-caching=1500",
+                "--network-caching=$networkCacheMs",
                 "--http-reconnect",
                 "--no-drop-late-frames",
                 "--no-skip-frames"
             )
         )
     }
-    val mediaPlayer = remember { MediaPlayer(libVlc) }
-    var attached by remember { mutableStateOf(false) }
+    val mediaPlayer = remember(libVlc) { MediaPlayer(libVlc) }
+    LaunchedEffect(mediaPlayer, muted) { mediaPlayer.volume = if (muted) 0 else 100 }
+    var attached by remember(mediaPlayer) { mutableStateOf(false) }
 
     DisposableEffect(mediaPlayer) {
         mediaPlayer.setEventListener { event ->
@@ -73,21 +82,23 @@ fun VlcFallbackPlayer(
         }
     }
 
-    AndroidView(
-        factory = { hostContext ->
-            VLCVideoLayout(hostContext).also { layout ->
-                mediaPlayer.attachViews(layout, null, false, false)
-                attached = true
-            }
-        },
-        modifier = modifier.fillMaxSize()
-    )
+    key(mediaPlayer) {
+        AndroidView(
+            factory = { hostContext ->
+                VLCVideoLayout(hostContext).also { layout ->
+                    mediaPlayer.attachViews(layout, null, false, false)
+                    attached = true
+                }
+            },
+            modifier = modifier.fillMaxSize()
+        )
+    }
 
-    LaunchedEffect(url, attached) {
+    LaunchedEffect(url, attached, mediaPlayer, networkCacheMs) {
         if (!attached) return@LaunchedEffect
         val media = Media(libVlc, Uri.parse(url)).apply {
             setHWDecoderEnabled(true, false)
-            addOption(":network-caching=1500")
+            addOption(":network-caching=$networkCacheMs")
             addOption(":http-reconnect")
         }
         mediaPlayer.media = media

@@ -7,6 +7,10 @@ import com.tvflow.app.data.repository.XtreamRepository
 import com.tvflow.app.data.local.SettingsStore
 import com.tvflow.app.domain.EpgProgram
 import com.tvflow.app.domain.LiveChannel
+import com.tvflow.app.data.repository.selectTntChannels
+import com.tvflow.app.ui.guide.GUIDE_ALL
+import com.tvflow.app.ui.guide.GUIDE_FAVORITES
+import com.tvflow.app.ui.guide.GUIDE_TNT
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -15,6 +19,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -63,8 +68,16 @@ class PlayerViewModel @Inject constructor(
     private val playerError = MutableStateFlow<String?>(null)
     private val restartUrl = MutableStateFlow<String?>(null)
 
-    private val channelList: StateFlow<List<LiveChannel>> = repository.observeChannels(categoryId)
+    private val channelList: StateFlow<List<LiveChannel>> = channelSource()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    private fun channelSource() = when (categoryId) {
+        GUIDE_TNT -> repository.observeAllChannels().map(::selectTntChannels)
+        GUIDE_ALL -> repository.observeAllChannels()
+        GUIDE_FAVORITES -> repository.observeFavorites()
+        "__recent__" -> repository.observeRecentChannels()
+        else -> repository.observeChannels(categoryId)
+    }
 
     private val epgFlow = selectedStreamId.flatMapLatest { streamId ->
         if (streamId > 0) repository.observeEpg(streamId) else flowOf(emptyList())
@@ -184,7 +197,7 @@ class PlayerViewModel @Inject constructor(
         playerError.value = null
         viewModelScope.launch {
             repository.markWatched(streamId)
-            val channel = repository.observeChannels(categoryId)
+            val channel = channelSource()
                 .first { channels -> channels.any { it.streamId == streamId } }
                 .firstOrNull { it.streamId == streamId }
             if (channel != null) {

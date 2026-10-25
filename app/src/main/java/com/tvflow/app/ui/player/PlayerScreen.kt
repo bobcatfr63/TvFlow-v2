@@ -2,6 +2,7 @@
 
 package com.tvflow.app.ui.player
 
+import androidx.activity.compose.BackHandler
 import android.app.Activity
 import android.content.Context
 import android.media.AudioManager
@@ -103,7 +104,18 @@ private data class PlayerTrack(
 )
 
 @Composable
-fun PlayerScreen(viewModel: PlayerViewModel = hiltViewModel()) {
+fun PlayerScreen(
+    instantTv: Boolean = false,
+    onExitToDashboard: () -> Unit = {},
+    viewModel: PlayerViewModel = hiltViewModel()
+) {
+    var instantLogoVisible by remember(instantTv) { mutableStateOf(instantTv) }
+    LaunchedEffect(instantTv) {
+        if (instantTv) {
+            delay(2_000L)
+            instantLogoVisible = false
+        }
+    }
     val context = LocalContext.current
     val state by viewModel.uiState.collectAsState()
     val focusRequester = remember { FocusRequester() }
@@ -117,6 +129,9 @@ fun PlayerScreen(viewModel: PlayerViewModel = hiltViewModel()) {
     var gestureLabel by remember { mutableStateOf<String?>(null) }
     var overlayVisible by remember { mutableStateOf(true) }
     var sidePanel by remember { mutableStateOf(SidePanel.NONE) }
+    BackHandler(enabled = instantTv && sidePanel == SidePanel.NONE) {
+        onExitToDashboard()
+    }
     var overlayEpoch by remember { mutableStateOf(0L) }
     var retryEpoch by remember { mutableIntStateOf(0) }
     var videoScale by remember { mutableStateOf(VideoScale.FIT) }
@@ -128,6 +143,9 @@ fun PlayerScreen(viewModel: PlayerViewModel = hiltViewModel()) {
     var lastMedia3HttpCode by remember { mutableStateOf<Int?>(null) }
     var lastMedia3ErrorName by remember { mutableStateOf<String?>(null) }
     var useVlcFallback by remember { mutableStateOf(false) }
+    var firstVideoFrameRendered by remember { mutableStateOf(false) }
+    var playbackReadyForVideo by remember { mutableStateOf(false) }
+    var videoWatchdogEpoch by remember { mutableIntStateOf(0) }
     var liveUrlOverride by remember { mutableStateOf<String?>(null) }
     var catchupUrlOverride by remember { mutableStateOf<String?>(null) }
     var formatFallbackTried by remember { mutableStateOf(false) }
@@ -135,8 +153,12 @@ fun PlayerScreen(viewModel: PlayerViewModel = hiltViewModel()) {
     val effectiveStreamUrl = catchupUrlOverride ?: liveUrlOverride ?: state.streamUrl
     val isCatchup = catchupUrlOverride != null
 
-    val player = remember(state.bufferPreset) {
-        val (minBuffer, maxBuffer, playBuffer, rebuffer) = when (state.bufferPreset) {
+    var autoBufferLevel by remember { mutableIntStateOf(1) }
+    val effectiveBufferPreset = if (state.bufferPreset == "AUTO") {
+        when (autoBufferLevel) { 0 -> "FAST"; 2 -> "SAFE"; else -> "BALANCED" }
+    } else state.bufferPreset
+    val player = remember(effectiveBufferPreset) {
+        val (minBuffer, maxBuffer, playBuffer, rebuffer) = when (effectiveBufferPreset) {
             "SAFE" -> intArrayOf(8_000, 30_000, 2_000, 3_500)
             "BALANCED" -> intArrayOf(5_000, 20_000, 1_200, 2_000)
             else -> intArrayOf(3_000, 12_000, 750, 1_500)
@@ -246,6 +268,9 @@ fun PlayerScreen(viewModel: PlayerViewModel = hiltViewModel()) {
                 } else {
                     lastMedia3HttpCode = httpCode
                     lastMedia3ErrorName = error.errorCodeName
+                    if (state.bufferPreset == "AUTO" && httpCode == null) {
+                        autoBufferLevel = (autoBufferLevel + 1).coerceAtMost(2)
+                    }
                     media3ErrorEpoch++
                     viewModel.reportPlaybackFailure(httpCode, error.errorCodeName)
                     viewModel.reportPlayerError(
@@ -254,9 +279,16 @@ fun PlayerScreen(viewModel: PlayerViewModel = hiltViewModel()) {
                 }
             }
 
+            override fun onRenderedFirstFrame() {
+                firstVideoFrameRendered = true
+                android.util.Log.i("TVFlowVideo", "Media3 rendered first video frame")
+                viewModel.reportPlaybackReady()
+            }
+
             override fun onPlaybackStateChanged(playbackState: Int) {
                 if (playbackState == Player.STATE_READY) {
-                    viewModel.reportPlaybackReady()
+                    playbackReadyForVideo = true
+                    android.util.Log.i("TVFlowVideo", "Media3 ready; awaiting first video frame")
                     viewModel.reportPlayerError(null)
                     refreshTracks()
                 } else if (playbackState == Player.STATE_ENDED && catchupUrlOverride != null) {
@@ -302,8 +334,23 @@ fun PlayerScreen(viewModel: PlayerViewModel = hiltViewModel()) {
         }
     }
 
-    LaunchedEffect(effectiveStreamUrl, retryEpoch, player) {
+    LaunchedEffect(useVlcFallback, player) {
+        if (useVlcFallback) {
+            player.playWhenReady = false
+            player.volume = 0f
+            player.stop()
+            player.clearMediaItems()
+        } else {
+            player.volume = 1f
+        }
+    }
+
+    LaunchedEffect(effectiveStreamUrl, retryEpoch, player, useVlcFallback) {
+        if (useVlcFallback) return@LaunchedEffect
         effectiveStreamUrl?.let { url ->
+            firstVideoFrameRendered = false
+            playbackReadyForVideo = false
+            videoWatchdogEpoch++
             player.stop()
             player.clearMediaItems()
             player.setMediaItem(MediaItem.fromUri(url))
@@ -312,6 +359,17 @@ fun PlayerScreen(viewModel: PlayerViewModel = hiltViewModel()) {
             overlayVisible = true
             sidePanel = SidePanel.NONE
             overlayEpoch = System.currentTimeMillis()
+        }
+    }
+
+    LaunchedEffect(videoWatchdogEpoch, effectiveStreamUrl, useVlcFallback, castActive) {
+        if (effectiveStreamUrl.isNullOrBlank() || useVlcFallback || castActive) return@LaunchedEffect
+        delay(7_000L)
+        if (playbackReadyForVideo && !firstVideoFrameRendered && !useVlcFallback && !castActive) {
+            android.util.Log.w("TVFlowVideo", "No first video frame after Media3 READY; switching to VLC")
+            player.stop()
+            useVlcFallback = true
+            viewModel.reportPlayerError(null)
         }
     }
 
@@ -496,6 +554,7 @@ fun PlayerScreen(viewModel: PlayerViewModel = hiltViewModel()) {
             VlcFallbackPlayer(
                 url = effectiveStreamUrl,
                 modifier = Modifier.fillMaxSize(),
+                bufferPreset = effectiveBufferPreset,
                 onReady = viewModel::reportPlaybackReady,
                 onError = {
                     useVlcFallback = false
@@ -624,6 +683,19 @@ fun PlayerScreen(viewModel: PlayerViewModel = hiltViewModel()) {
             Box(
                 Modifier.align(Alignment.Center).background(MaterialTheme.colorScheme.surface.copy(alpha = 0.88f), RoundedCornerShape(14.dp)).padding(horizontal = 24.dp, vertical = 16.dp)
             ) { Text(label, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleMedium) }
+        }
+
+        if (instantLogoVisible) {
+            Text(
+                text = "TVFlow",
+                modifier = Modifier.align(Alignment.TopCenter)
+                    .padding(top = 36.dp)
+                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.70f), RoundedCornerShape(12.dp))
+                    .padding(horizontal = 24.dp, vertical = 10.dp),
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
         }
 
         AnimatedVisibility(

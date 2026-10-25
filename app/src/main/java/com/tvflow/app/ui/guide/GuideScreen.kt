@@ -92,7 +92,7 @@ private val TextSoft = Color(0xFFD7E5EE)
 
 @Composable
 fun GuideScreen(
-    onPlay: (LiveChannel) -> Unit,
+    onPlay: (LiveChannel, String) -> Unit,
     onDashboard: () -> Unit,
     onSearch: () -> Unit,
     onVod: () -> Unit,
@@ -235,10 +235,10 @@ fun GuideScreen(
                                 timelineWidth = timelineWidth,
                                 selected = channel.streamId == state.selectedChannel?.streamId,
                                 previewing = channel.streamId == state.previewChannel?.streamId,
-                                onSelectChannel = { viewModel.selectChannel(channel.streamId) },
+                                onSelectChannel = { viewModel.focusChannel(channel.streamId) },
                                 onSelectProgram = { start -> viewModel.selectProgram(channel.streamId, start) },
                                 onPreview = { viewModel.previewChannel(channel.streamId) },
-                                onPlay = { onPlay(channel) }
+                                onPlay = { onPlay(channel, state.selectedCategoryId ?: channel.categoryId) }
                             )
                         }
                     }
@@ -479,10 +479,12 @@ private fun ProgramHero(
 
 
 @Composable
-private fun LivePreview(
+internal fun LivePreview(
     streamUrl: String?,
     channel: LiveChannel?,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    muted: Boolean = false,
+    preferVlc: Boolean = false
 ) {
     val context = LocalContext.current
     var playbackError by remember { mutableStateOf<String?>(null) }
@@ -507,6 +509,7 @@ private fun LivePreview(
             }
     }
 
+    LaunchedEffect(muted, player) { player.volume = if (muted) 0f else 1f }
     PlayerLifecycleEffect(player)
 
     DisposableEffect(player) {
@@ -528,7 +531,8 @@ private fun LivePreview(
         }
     }
 
-    LaunchedEffect(streamUrl) {
+    LaunchedEffect(streamUrl, preferVlc) {
+        if (preferVlc) return@LaunchedEffect
         ready = false
         playbackError = null
         player.stop()
@@ -540,6 +544,14 @@ private fun LivePreview(
         }
     }
 
+    if (preferVlc && !streamUrl.isNullOrBlank()) {
+        com.tvflow.app.ui.common.VlcFallbackPlayer(
+            url = streamUrl,
+            modifier = modifier,
+            muted = muted
+        )
+        return
+    }
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
         if (!streamUrl.isNullOrBlank()) {
             AndroidView(

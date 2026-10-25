@@ -46,6 +46,16 @@ class HomeViewModel @Inject constructor(
     val categories: StateFlow<List<LiveCategory>> = repository.observeCategories()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    private val previewId = MutableStateFlow<Int?>(null)
+    val previewChannel = combine(previewId, repository.savedCredentials, repository.observeAllChannels()) { id, credentials, channels ->
+        if (id == null || credentials == null) null else channels.firstOrNull { it.streamId == id }?.let { channel ->
+            channel to repository.streamUrl(credentials, channel)
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    fun previewChannel(id: Int) { previewId.value = id }
+    fun clearPreview() { previewId.value = null }
+
     private val source = MutableStateFlow<ChannelSource?>(null)
     val selectedSource: StateFlow<ChannelSource?> = source
     private val _pinRequiredCategory = MutableStateFlow<LiveCategory?>(null)

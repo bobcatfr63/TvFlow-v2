@@ -88,6 +88,7 @@ fun MediaLibraryScreen(
     val isTv = remember(context) {
         context.packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK)
     }
+    var selectedPreview by remember(viewModel.type) { mutableStateOf<MediaPreview?>(null) }
     val compactMobile = !isTv
     val powerManager = remember(context) { context.getSystemService(PowerManager::class.java) }
     val reduceMotion = powerManager?.isPowerSaveMode == true
@@ -107,6 +108,7 @@ fun MediaLibraryScreen(
 
     // A category has its own first page. Never keep the previous category's scroll offset.
     LaunchedEffect(selectedId) {
+        selectedPreview = null
         if (selectedId != null) mediaGridState.scrollToItem(0)
     }
 
@@ -162,6 +164,13 @@ fun MediaLibraryScreen(
                 vertical = titleVerticalPadding
             )
         )
+        if (!compactMobile && selectedPreview != null) {
+            MediaPreviewPanel(
+                preview = selectedPreview,
+                isSeries = viewModel.type == MediaType.SERIES,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp)
+            )
+        }
         ReleaseFilterChip(
             label = if (searchMode) "← Retour aux catégories" else "⌕ Rechercher dans les ${if (viewModel.type == MediaType.VOD) "films" else "séries"}",
             selected = searchMode,
@@ -177,7 +186,7 @@ fun MediaLibraryScreen(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = screenHorizontalPadding)
             )
             LazyVerticalGrid(
-                columns = GridCells.Fixed(if (compactMobile) 3 else 4),
+                columns = GridCells.Fixed(if (compactMobile) 3 else 5),
                 state = searchGridState,
                 modifier = Modifier.fillMaxSize().padding(horizontal = screenHorizontalPadding),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -187,13 +196,17 @@ fun MediaLibraryScreen(
                     items(searchedVod.size, key = { searchedVod[it].streamId }) { index ->
                         val item = searchedVod[index]
                         MediaPoster(item.name, item.posterUrl, item.rating, item.releaseYear, item.releaseMonth,
-                            item.synopsis, compactMobile, reduceMotion || searchMoving) { onVodSelected(item) }
+                            item.synopsis, compactMobile, reduceMotion || searchMoving,
+                            onFocused = { selectedPreview = MediaPreview(item.name, item.posterUrl, item.rating, item.releaseYear, item.releaseMonth, item.synopsis) }
+                        ) { onVodSelected(item) }
                     }
                 } else {
                     items(searchedSeries.size, key = { searchedSeries[it].seriesId }) { index ->
                         val item = searchedSeries[index]
                         MediaPoster(item.name, item.coverUrl, item.rating, item.releaseYear, item.releaseMonth,
-                            item.plot, compactMobile, reduceMotion || searchMoving) { onSeriesSelected(item) }
+                            item.plot, compactMobile, reduceMotion || searchMoving,
+                            onFocused = { selectedPreview = MediaPreview(item.name, item.coverUrl, item.rating, item.releaseYear, item.releaseMonth, item.plot) }
+                        ) { onSeriesSelected(item) }
                     }
                 }
             }
@@ -331,7 +344,7 @@ fun MediaLibraryScreen(
             }
 
             LazyVerticalGrid(
-                columns = GridCells.Fixed(if (compactMobile) 3 else 4),
+                columns = GridCells.Fixed(if (compactMobile) 3 else 5),
                 state = mediaGridState,
                 modifier = Modifier
                     .fillMaxSize()
@@ -371,7 +384,8 @@ fun MediaLibraryScreen(
                                 releaseYear = item.releaseYear,
                                 releaseMonth = item.releaseMonth,
                                 synopsis = item.synopsis,
-                                compact = compactMobile
+                                compact = compactMobile,
+                                onFocused = { selectedPreview = MediaPreview(item.name, item.posterUrl, item.rating, item.releaseYear, item.releaseMonth, item.synopsis) }
                             ) { onVodSelected(item) }
                         }
                     }
@@ -386,7 +400,8 @@ fun MediaLibraryScreen(
                                 releaseYear = item.releaseYear,
                                 releaseMonth = item.releaseMonth,
                                 synopsis = item.plot,
-                                compact = compactMobile
+                                compact = compactMobile,
+                                onFocused = { selectedPreview = MediaPreview(item.name, item.coverUrl, item.rating, item.releaseYear, item.releaseMonth, item.plot) }
                             ) { onSeriesSelected(item) }
                         }
                     }
@@ -500,10 +515,12 @@ private fun MediaPoster(
     synopsis: String?,
     compact: Boolean = false,
     reduceMotion: Boolean = false,
+    onFocused: () -> Unit = {},
     onClick: () -> Unit
 ) {
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
+    LaunchedEffect(focused) { if (focused) onFocused() }
     val focusScale by animateFloatAsState(
         targetValue = if (focused) 1.035f else 1f,
         animationSpec = tween(durationMillis = if (reduceMotion) 0 else 100),
