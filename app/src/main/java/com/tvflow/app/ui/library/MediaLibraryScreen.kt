@@ -162,6 +162,7 @@ fun MediaLibraryScreen(
         if (selectedId == null && categories.isNotEmpty()) viewModel.selectCategory(categories.first().id)
     }
 
+    Box(Modifier.fillMaxSize()) {
     Column(
         Modifier
             .fillMaxSize()
@@ -416,8 +417,9 @@ fun MediaLibraryScreen(
             }
         }
         }
+        }
         if (trailerKey != null && !searchMode) {
-            Popup(alignment = Alignment.CenterEnd, properties = androidx.compose.ui.window.PopupProperties(focusable = false), onDismissRequest = { trailerKey = null }) {
+            Box(modifier = Modifier.align(Alignment.CenterEnd)) {
                 Card(
                     modifier = Modifier.padding(end = 16.dp).size(width = 368.dp, height = 207.dp),
                     border = BorderStroke(2.dp, MaterialTheme.colorScheme.primary),
