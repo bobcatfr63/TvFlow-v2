@@ -16,6 +16,10 @@ import androidx.compose.material3.TextButton
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.draw.alpha
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.lifecycle.compose.currentStateAsState
 import androidx.compose.runtime.Composable
@@ -57,6 +61,7 @@ fun StartupScreen(
     val catalogStatus by viewModel.catalogStatus.collectAsState()
     var skippedLoading by rememberSaveable { mutableStateOf(false) }
     var introFinished by rememberSaveable { mutableStateOf(false) }
+    var introFirstFrame by remember { mutableStateOf(false) }
 
     var exoPlayer by remember(context) { mutableStateOf<ExoPlayer?>(null) }
 
@@ -89,6 +94,10 @@ fun StartupScreen(
         if (player == null) return@DisposableEffect onDispose { }
 
         val listener = object : Player.Listener {
+            override fun onRenderedFirstFrame() {
+                introFirstFrame = true
+                Log.i("TVFlowStartup", "Intro first frame rendered")
+            }
             override fun onPlaybackStateChanged(playbackState: Int) {
                 if (playbackState == Player.STATE_ENDED) {
                     introFinished = true
@@ -145,8 +154,15 @@ fun StartupScreen(
                     Text("Accéder à TVFlow")
                 }
             }
-        } else if (!introFinished) AndroidView(
-            modifier = Modifier.fillMaxSize(),
+        } else if (!introFinished) {
+            if (!introFirstFrame) {
+                Box(Modifier.fillMaxSize().background(Color(0xFF07111F)), contentAlignment = Alignment.Center) {
+                    Image(painter = painterResource(R.drawable.ic_launcher), contentDescription = "TVFlow",
+                        modifier = Modifier.size(108.dp))
+                }
+            }
+            AndroidView(
+            modifier = Modifier.fillMaxSize().alpha(if (introFirstFrame) 1f else 0f),
             factory = { viewContext ->
                 PlayerView(viewContext).apply {
                     useController = false
@@ -158,6 +174,7 @@ fun StartupScreen(
             update = { playerView ->
                 playerView.player = exoPlayer
             }
-        )
+            )
+        }
     }
 }
