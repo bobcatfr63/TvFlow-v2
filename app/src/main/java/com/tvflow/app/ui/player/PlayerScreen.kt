@@ -129,7 +129,8 @@ fun PlayerScreen(viewModel: PlayerViewModel = hiltViewModel()) {
     var media3ErrorEpoch by remember { mutableIntStateOf(0) }
     var lastMedia3HttpCode by remember { mutableStateOf<Int?>(null) }
     var lastMedia3ErrorName by remember { mutableStateOf<String?>(null) }
-    var useVlcFallback by remember { mutableStateOf(false) }
+    val preferVlcOnThisDevice = remember { android.os.Build.MODEL.equals("MIBOX3", ignoreCase = true) }
+    var useVlcFallback by remember { mutableStateOf(preferVlcOnThisDevice) }
     var liveUrlOverride by remember { mutableStateOf<String?>(null) }
     var catchupUrlOverride by remember { mutableStateOf<String?>(null) }
     var formatFallbackTried by remember { mutableStateOf(false) }
@@ -290,7 +291,7 @@ fun PlayerScreen(viewModel: PlayerViewModel = hiltViewModel()) {
         media3ErrorEpoch = 0
         lastMedia3HttpCode = null
         lastMedia3ErrorName = null
-        useVlcFallback = false
+        useVlcFallback = preferVlcOnThisDevice
         formatFallbackTried = false
         liveUrlOverride = null
         catchupUrlOverride = null
