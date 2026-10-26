@@ -37,6 +37,7 @@ data class ExternalMediaMetadata(
     val synopsis: String?,
     val releaseYear: Int?,
     val releaseMonth: Int?,
+    val releaseDate: String? = null,
     val imageUrl: String?,
     val rating: String?,
     val genreIds: String? = null
@@ -267,6 +268,7 @@ class TmdbMetadataClient @Inject constructor(
                 synopsis = string(best, "overview")?.takeIf { it.isNotBlank() },
                 releaseYear = parsed.first,
                 releaseMonth = parsed.second,
+                releaseDate = date?.takeIf { Regex("\\d{4}-\\d{2}-\\d{2}").matches(it) },
                 imageUrl = posterPath?.takeIf { it.isNotBlank() }?.let { "https://image.tmdb.org/t/p/w500" + it },
                 rating = best.get("vote_average")?.takeIf { !it.isJsonNull }?.asDouble
                     ?.takeIf { it > 0.0 }

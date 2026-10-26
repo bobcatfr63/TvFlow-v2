@@ -773,6 +773,7 @@ class XtreamRepository @Inject constructor(
             }.getOrNull()
             tmdbEnrichmentTracker.record(profileId, metadata != null && (metadata.synopsis?.isNotBlank() == true || metadata.imageUrl?.isNotBlank() == true || metadata.releaseYear != null))
             if (metadata != null) {
+                metadata.releaseDate?.let { dao.updateVodReleaseDate(profileId, streamId, it) }
                 dao.fillMissingVodMetadataFromTmdb(
                     profileId = profileId,
                     streamId = streamId,
@@ -985,6 +986,7 @@ class XtreamRepository @Inject constructor(
                 }.getOrNull()
                 tmdbEnrichmentTracker.record(profileId, metadata != null && (metadata.synopsis?.isNotBlank() == true || metadata.imageUrl?.isNotBlank() == true || metadata.releaseYear != null))
                 if (metadata == null) return@forEach
+                metadata.releaseDate?.let { dao.updateSeriesReleaseDate(profileId, item.seriesId, it) }
                 dao.fillMissingSeriesMetadataFromTmdb(
                     profileId = profileId,
                     seriesId = item.seriesId,

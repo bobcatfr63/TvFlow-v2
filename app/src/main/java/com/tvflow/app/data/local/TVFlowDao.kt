@@ -265,7 +265,7 @@ interface TVFlowDao {
     @Query("SELECT * FROM series_items WHERE profileId = :profileId AND categoryId IN (:categoryIds) AND releaseYear IS NOT NULL ORDER BY releaseYear DESC, COALESCE(releaseMonth, 0) DESC, name LIMIT :limit")
     fun observeRecentSeriesReleasesForCategories(profileId: String, categoryIds: List<String>, limit: Int): Flow<List<SeriesItemEntity>>
 
-    @Query("SELECT * FROM vod_items WHERE profileId = :profileId AND (:categoryId IS NULL OR categoryId = :categoryId) AND (:year IS NULL OR releaseYear = :year) AND (:month IS NULL OR releaseMonth = :month) ORDER BY CASE WHEN :sort = 'AZ' THEN name COLLATE NOCASE END ASC, CASE WHEN :sort = 'DATE' AND releaseYear IS NULL THEN 1 ELSE 0 END, CASE WHEN :sort = 'DATE' THEN releaseYear END DESC, CASE WHEN :sort = 'DATE' THEN releaseMonth END DESC, name COLLATE NOCASE")
+    @Query("SELECT * FROM vod_items WHERE profileId = :profileId AND (:categoryId IS NULL OR categoryId = :categoryId) AND (:year IS NULL OR releaseYear = :year) AND (:month IS NULL OR releaseMonth = :month) ORDER BY CASE WHEN :sort = 'AZ' THEN name COLLATE NOCASE END ASC, CASE WHEN :sort = 'DATE' AND releaseYear IS NULL THEN 1 ELSE 0 END, CASE WHEN :sort = 'DATE' THEN releaseYear END DESC, CASE WHEN :sort = 'DATE' THEN releaseMonth END DESC, CASE WHEN :sort = 'DATE' THEN releaseDateIso END DESC, name COLLATE NOCASE")
     fun pagingVod(profileId: String, categoryId: String?, year: Int?, month: Int?, sort: String): PagingSource<Int, VodItemEntity>
 
     @Query("SELECT DISTINCT releaseYear FROM vod_items WHERE profileId = :profileId AND (:categoryId IS NULL OR categoryId = :categoryId) AND releaseYear IS NOT NULL ORDER BY releaseYear DESC")
@@ -292,10 +292,16 @@ interface TVFlowDao {
     @Query("UPDATE vod_items SET synopsis = COALESCE(NULLIF(TRIM(synopsis), ''), :synopsis), releaseYear = COALESCE(releaseYear, :year), releaseMonth = COALESCE(releaseMonth, :month), posterUrl = COALESCE(NULLIF(TRIM(posterUrl), ''), :posterUrl), rating = COALESCE(NULLIF(TRIM(rating), ''), :rating), tmdbGenreIds = COALESCE(:genreIds, tmdbGenreIds), detailsFetchedAt = COALESCE(:detailsFetchedAt, detailsFetchedAt) WHERE profileId = :profileId AND streamId = :streamId")
     suspend fun fillMissingVodMetadataFromTmdb(profileId: String, streamId: Int, synopsis: String?, year: Int?, month: Int?, posterUrl: String?, rating: String?, detailsFetchedAt: Long?, genreIds: String?)
 
+    @Query("UPDATE vod_items SET releaseDateIso = :date, releaseDateSource = 'TMDB', releaseYear = CAST(substr(:date,1,4) AS INTEGER), releaseMonth = CAST(substr(:date,6,2) AS INTEGER) WHERE profileId = :profileId AND streamId = :streamId AND :date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'")
+    suspend fun updateVodReleaseDate(profileId: String, streamId: Int, date: String)
+
     @Query("SELECT * FROM series_items WHERE profileId = :profileId AND categoryId = :categoryId ORDER BY name")
     fun observeSeries(profileId: String, categoryId: String): Flow<List<SeriesItemEntity>>
 
-    @Query("SELECT * FROM series_items WHERE profileId = :profileId AND (:categoryId IS NULL OR categoryId = :categoryId) AND (:year IS NULL OR releaseYear = :year) AND (:month IS NULL OR releaseMonth = :month) ORDER BY CASE WHEN :sort = 'AZ' THEN name COLLATE NOCASE END ASC, CASE WHEN :sort = 'DATE' AND releaseYear IS NULL THEN 1 ELSE 0 END, CASE WHEN :sort = 'DATE' THEN releaseYear END DESC, CASE WHEN :sort = 'DATE' THEN releaseMonth END DESC, name COLLATE NOCASE")
+    @Query("UPDATE series_items SET releaseDateIso = :date, releaseDateSource = 'TMDB', releaseYear = CAST(substr(:date,1,4) AS INTEGER), releaseMonth = CAST(substr(:date,6,2) AS INTEGER) WHERE profileId = :profileId AND seriesId = :seriesId AND :date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'")
+    suspend fun updateSeriesReleaseDate(profileId: String, seriesId: Int, date: String)
+
+    @Query("SELECT * FROM series_items WHERE profileId = :profileId AND (:categoryId IS NULL OR categoryId = :categoryId) AND (:year IS NULL OR releaseYear = :year) AND (:month IS NULL OR releaseMonth = :month) ORDER BY CASE WHEN :sort = 'AZ' THEN name COLLATE NOCASE END ASC, CASE WHEN :sort = 'DATE' AND releaseYear IS NULL THEN 1 ELSE 0 END, CASE WHEN :sort = 'DATE' THEN releaseYear END DESC, CASE WHEN :sort = 'DATE' THEN releaseMonth END DESC, CASE WHEN :sort = 'DATE' THEN releaseDateIso END DESC, name COLLATE NOCASE")
     fun pagingSeries(profileId: String, categoryId: String?, year: Int?, month: Int?, sort: String): PagingSource<Int, SeriesItemEntity>
 
     @Query("SELECT DISTINCT releaseYear FROM series_items WHERE profileId = :profileId AND (:categoryId IS NULL OR categoryId = :categoryId) AND releaseYear IS NOT NULL ORDER BY releaseYear DESC")

@@ -28,6 +28,9 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -378,8 +381,9 @@ private fun MediaPreviewPanel(
     isSeries: Boolean,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     Card(
-        modifier = modifier.height(if (preview == null) 76.dp else 150.dp),
+        modifier = modifier.height(if (preview == null) 76.dp else 190.dp),
         colors = CardDefaults.cardColors(containerColor = Color(0xFF0B2033)),
         border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))
     ) {
@@ -445,9 +449,14 @@ private fun MediaPreviewPanel(
                             ?: "Synopsis en cours de récupération…",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 4,
+                        maxLines = 3,
                         overflow = TextOverflow.Ellipsis
                     )
+                    TextButton(onClick = {
+                        val query = Uri.encode(preview.title + " bande annonce officielle " + (preview.releaseYear ?: ""))
+                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.youtube.com/results?search_query=$query"))
+                        runCatching { context.startActivity(intent) }
+                    }) { Text("▶ Chercher une bande-annonce", color = Color.White) }
                 }
             }
         }

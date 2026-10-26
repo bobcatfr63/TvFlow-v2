@@ -32,6 +32,8 @@ data class VodItemEntity(
     val synopsis: String? = null,
     val releaseYear: Int? = null,
     val releaseMonth: Int? = null,
+    val releaseDateIso: String? = null,
+    val releaseDateSource: String? = null,
     val containerExtension: String?,
     val detailsFetchedAt: Long? = null,
     val tmdbGenreIds: String? = null,
@@ -53,6 +55,8 @@ data class SeriesItemEntity(
     val plot: String?,
     val releaseYear: Int? = null,
     val releaseMonth: Int? = null,
+    val releaseDateIso: String? = null,
+    val releaseDateSource: String? = null,
     val tmdbGenreIds: String? = null,
     val tmdbGenreAttemptAt: Long? = null
 )
