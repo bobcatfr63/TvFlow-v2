@@ -13,6 +13,6 @@ import javax.inject.Inject
 @HiltViewModel
 class ThemeViewModel @Inject constructor(settingsStore: SettingsStore) : ViewModel() {
     val accent: StateFlow<String> = settingsStore.playerPreferences
-        .map { it.accent }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "BLUE")
+        .map { "OLED" }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "OLED")
 }

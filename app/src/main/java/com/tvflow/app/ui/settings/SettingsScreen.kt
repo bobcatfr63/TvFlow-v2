@@ -315,12 +315,7 @@ fun SettingsScreen(
                 SectionTitle("Lecteur")
                 ChoiceRow("Buffer", listOf("AUTO", "FAST", "BALANCED", "SAFE"), state.player.bufferPreset, viewModel::setBuffer)
                 ChoiceRow("Image", listOf("FIT", "FILL", "ZOOM"), state.player.videoScale, viewModel::setScale)
-                ChoiceRow(
-                    "Thème",
-                    listOf("RAINBOW", "NEBULA", "INFERNO", "CRYSTAL", "QUANTUM", "OCEAN", "AURORA", "ECLIPSE", "INTERSTELLAR", "HOLOGRAPHIC", "BLUE", "DARK", "OLED", "PURPLE", "GREEN", "HIGH_CONTRAST"),
-                    state.player.accent,
-                    viewModel::setAccent
-                )
+                Text("Thème : OLED", style = MaterialTheme.typography.bodyMedium)
                 ToggleRow("Sous-titres par défaut", state.player.subtitlesEnabled) { viewModel.setSubtitles(it) }
                 ChoiceRow(
                     "Aperçus animés accueil mobile",
