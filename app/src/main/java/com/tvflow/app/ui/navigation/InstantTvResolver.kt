@@ -17,6 +17,7 @@ class InstantTvResolver @Inject constructor(
     private val settingsStore: SettingsStore
 ) : ViewModel() {
     suspend fun resolve(): BootLiveTarget? {
+        if (!settingsStore.playerPreferences.first().resumeLiveOnAppLaunch) return null
         val last = settingsStore.lastLiveChannel.first()
         val channels = withTimeoutOrNull(2_500L) {
             repository.observeAllChannels().first { it.isNotEmpty() }

@@ -361,9 +361,14 @@ fun SettingsScreen(
                 }
             }
 
-            if (isTv) {
+            if (isTv && settingsCategory == "Lecture & démarrage") {
                 item {
                     SectionTitle("Démarrage de la TV")
+                    ToggleRow(
+                        "Ouvrir la dernière chaîne au lancement de TVFlow",
+                        state.player.resumeLiveOnAppLaunch
+                    ) { viewModel.setResumeLiveOnAppLaunch(it) }
+                    Text("Désactivé : TVFlow ouvre l'accueil normal. Ce choix est indépendant du démarrage automatique avec la box.", style = MaterialTheme.typography.bodySmall)
                     ToggleRow(
                         "Démarrer TVFlow avec la box Android TV",
                         state.player.autoStartOnTvBoot

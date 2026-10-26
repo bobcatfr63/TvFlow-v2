@@ -33,6 +33,7 @@ import com.tvflow.app.ui.search.SearchScreen
 import com.tvflow.app.ui.search.TvFlowAiScreen
 import com.tvflow.app.ui.settings.SettingsScreen
 import com.tvflow.app.ui.series.SeriesDetailsScreen
+import com.tvflow.app.util.isTelevisionUi
 import com.tvflow.app.ui.startup.StartupScreen
 import com.tvflow.app.ui.update.GlobalUpdateOverlay
 import com.tvflow.app.ui.vod.VodDetailsScreen
@@ -44,12 +45,14 @@ fun TVFlowNavHost(
     onPlaybackRouteChanged: (Boolean) -> Unit = {}
 ) {
     val navController = rememberNavController()
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val isTvDevice = context.isTelevisionUi()
     val instantResolver: InstantTvResolver = hiltViewModel()
     var instantTarget by remember { mutableStateOf<BootLiveTarget?>(null) }
     var instantTargetResolved by remember { mutableStateOf(false) }
     LaunchedEffect(bootLiveTarget) {
         try {
-            instantTarget = instantResolver.resolve()
+            instantTarget = if (isTvDevice) instantResolver.resolve() else null
         } catch (error: Exception) {
             android.util.Log.w("TVFlowInstantTV", "TNT selection unavailable", error)
             instantTarget = null

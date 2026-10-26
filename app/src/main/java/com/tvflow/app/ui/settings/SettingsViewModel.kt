@@ -365,6 +365,7 @@ class SettingsViewModel @Inject constructor(
     fun setHideOfflineStreams(value: Boolean) { viewModelScope.launch { settingsStore.setHideOfflineStreams(value) } }
     fun setAutoStartOnTvBoot(value: Boolean) { viewModelScope.launch { settingsStore.setAutoStartOnTvBoot(value) } }
     fun setResumeLastLiveOnTvBoot(value: Boolean) { viewModelScope.launch { settingsStore.setResumeLastLiveOnTvBoot(value) } }
+    fun setResumeLiveOnAppLaunch(value: Boolean) { viewModelScope.launch { settingsStore.setResumeLiveOnAppLaunch(value) } }
     fun setTmdbToken(value: String) {
         viewModelScope.launch {
             if (value.isBlank()) {
