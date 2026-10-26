@@ -136,6 +136,8 @@ fun PlayerScreen(
     var overlayEpoch by remember { mutableStateOf(0L) }
     var retryEpoch by remember { mutableIntStateOf(0) }
     var videoScale by remember { mutableStateOf(VideoScale.FIT) }
+    var streamWidth by remember { mutableIntStateOf(0) }
+    var streamHeight by remember { mutableIntStateOf(0) }
     var audioTracks by remember { mutableStateOf(emptyList<PlayerTrack>()) }
     var subtitleTracks by remember { mutableStateOf(emptyList<PlayerTrack>()) }
     var subtitlesDisabled by remember { mutableStateOf(false) }
@@ -294,6 +296,11 @@ fun PlayerScreen(
                         httpCode?.let { "HTTP $it" } ?: error.errorCodeName
                     )
                 }
+            }
+
+            override fun onVideoSizeChanged(videoSize: androidx.media3.common.VideoSize) {
+                streamWidth = videoSize.width
+                streamHeight = videoSize.height
             }
 
             override fun onRenderedFirstFrame() {
@@ -507,13 +514,14 @@ fun PlayerScreen(
                         true
                     }
                     KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_MENU -> {
-                        sidePanel = if (sidePanel == SidePanel.CHANNELS) SidePanel.NONE else SidePanel.CHANNELS
+                        sidePanel = if (sidePanel == SidePanel.OPTIONS) SidePanel.NONE else if (sidePanel == SidePanel.CHANNELS) SidePanel.NONE else SidePanel.CHANNELS
                         overlayVisible = true
                         overlayEpoch = System.currentTimeMillis()
                         true
                     }
                     KeyEvent.KEYCODE_DPAD_RIGHT -> {
-                        sidePanel = if (sidePanel == SidePanel.OPTIONS) SidePanel.NONE else SidePanel.OPTIONS
+                        if (sidePanel != SidePanel.NONE) return@onPreviewKeyEvent false
+                        sidePanel = SidePanel.OPTIONS
                         overlayVisible = true
                         overlayEpoch = System.currentTimeMillis()
                         true
@@ -655,6 +663,8 @@ fun PlayerScreen(
         ) {
             PlayerOptionsPanel(
                 scale = videoScale,
+                streamWidth = streamWidth,
+                streamHeight = streamHeight,
                 audioTracks = audioTracks,
                 subtitleTracks = subtitleTracks,
                 subtitlesDisabled = subtitlesDisabled,
@@ -772,6 +782,8 @@ private fun MiniGuide(
 @Composable
 private fun PlayerOptionsPanel(
     scale: VideoScale,
+    streamWidth: Int,
+    streamHeight: Int,
     audioTracks: List<PlayerTrack>,
     subtitleTracks: List<PlayerTrack>,
     subtitlesDisabled: Boolean,
@@ -787,6 +799,8 @@ private fun PlayerOptionsPanel(
     onReturnToLive: () -> Unit,
     onPreviousChannel: () -> Unit
 ) {
+    val firstActionFocus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { firstActionFocus.requestFocus() }
     Column(
         modifier = Modifier
             .width(430.dp)
@@ -798,9 +812,14 @@ private fun PlayerOptionsPanel(
         Text("Réglages lecteur", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(4.dp))
 
+        val resolution = if (streamWidth > 0 && streamHeight > 0) {
+            val quality = when { streamHeight >= 2160 -> "UHD"; streamHeight >= 1080 -> "FHD"; streamHeight >= 720 -> "HD"; else -> "SD" }
+            "$quality · ${streamWidth} × ${streamHeight}"
+        } else "Résolution indisponible"
+        Text("Flux vidéo : $resolution", style = MaterialTheme.typography.bodyMedium)
         Text("Image", style = MaterialTheme.typography.titleMedium)
         VideoScale.entries.forEach { item ->
-            FocusActionRow(selected = item == scale, onClick = { onScaleChange(item) }) {
+            FocusActionRow(selected = item == scale, focusRequester = if (item == VideoScale.FIT) firstActionFocus else null, onClick = { onScaleChange(item) }) {
                 Text(if (item == scale) "● ${item.label}" else "○ ${item.label}")
             }
         }
@@ -840,6 +859,7 @@ private fun PlayerOptionsPanel(
 @Composable
 private fun FocusActionRow(
     selected: Boolean = false,
+    focusRequester: FocusRequester? = null,
     onClick: () -> Unit,
     content: @Composable RowScope.() -> Unit
 ) {
@@ -856,6 +876,7 @@ private fun FocusActionRow(
                 },
                 RoundedCornerShape(10.dp)
             )
+            .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
             .clickable(interactionSource = interaction, indication = null, onClick = onClick)
             .focusable(interactionSource = interaction)
             .padding(horizontal = 14.dp, vertical = 11.dp),
