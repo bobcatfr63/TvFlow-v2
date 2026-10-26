@@ -138,8 +138,8 @@ fun HomeScreen(
                             streamUrl = preview?.second,
                             channel = preview?.first,
                             modifier = Modifier.fillMaxWidth().height(200.dp),
-                            muted = true,
-                            preferVlc = true
+                            muted = false,
+                            preferVlc = false
                         )
                     }
                     LazyColumn(

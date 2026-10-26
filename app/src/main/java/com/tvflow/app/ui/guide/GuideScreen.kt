@@ -74,6 +74,7 @@ import com.tvflow.app.domain.LiveChannel
 import com.tvflow.app.ui.common.ParentalPinDialog
 import com.tvflow.app.ui.common.PlayerLifecycleEffect
 import com.tvflow.app.ui.common.iptvMediaSourceFactory
+import com.tvflow.app.util.isTelevisionUi
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -560,7 +561,7 @@ internal fun LivePreview(
         if (!streamUrl.isNullOrBlank()) {
             AndroidView(
                 factory = {
-                    PlayerView(it).apply {
+                    (if (context.isTelevisionUi()) android.view.LayoutInflater.from(it).inflate(com.tvflow.app.R.layout.tvflow_texture_player, null, false) as PlayerView else PlayerView(it)).apply {
                         this.player = player
                         useController = false
                         keepScreenOn = true
