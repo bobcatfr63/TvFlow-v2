@@ -31,6 +31,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import android.content.Intent
 import android.net.Uri
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -93,6 +97,21 @@ fun MediaLibraryScreen(
         context.packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK)
     }
     var selectedPreview by remember(viewModel.type) { mutableStateOf<MediaPreview?>(null) }
+    var trailerKey by remember { mutableStateOf<String?>(null) }
+    val trailerCache = remember { LinkedHashMap<String, String?>() }
+    LaunchedEffect(selectedPreview?.title, selectedPreview?.releaseYear, searchMode, isTv) {
+        trailerKey = null
+        val item = selectedPreview ?: return@LaunchedEffect
+        if (!isTv || searchMode) return@LaunchedEffect
+        delay(2_000L)
+        val cacheKey = "${viewModel.type}:${item.title}:${item.releaseYear}"
+        trailerKey = if (trailerCache.containsKey(cacheKey)) trailerCache[cacheKey] else {
+            val result = runCatching { viewModel.resolveTrailer(item.title, item.releaseYear) }.getOrNull()
+            if (trailerCache.size >= 40) trailerCache.remove(trailerCache.keys.first())
+            trailerCache[cacheKey] = result
+            result
+        }
+    }
     val compactMobile = !isTv
     val powerManager = remember(context) { context.getSystemService(PowerManager::class.java) }
     val reduceMotion = powerManager?.isPowerSaveMode == true
@@ -171,6 +190,7 @@ fun MediaLibraryScreen(
         if (!compactMobile && selectedPreview != null) {
             MediaPreviewPanel(
                 preview = selectedPreview,
+                trailerKey = trailerKey,
                 isSeries = viewModel.type == MediaType.SERIES,
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp)
             )
@@ -378,12 +398,13 @@ private data class MediaPreview(
 @Composable
 private fun MediaPreviewPanel(
     preview: MediaPreview?,
+    trailerKey: String?,
     isSeries: Boolean,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     Card(
-        modifier = modifier.height(if (preview == null) 76.dp else 190.dp),
+        modifier = modifier.height(if (preview == null) 76.dp else if (trailerKey != null) 225.dp else 190.dp),
         colors = CardDefaults.cardColors(containerColor = Color(0xFF0B2033)),
         border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))
     ) {
@@ -410,7 +431,9 @@ private fun MediaPreviewPanel(
                 modifier = Modifier.fillMaxSize().padding(10.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                AsyncImage(
+                if (trailerKey != null) {
+                    TrailerWebPreview(trailerKey, Modifier.width(290.dp).fillMaxHeight())
+                } else AsyncImage(
                     model = preview.image,
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
@@ -461,6 +484,39 @@ private fun MediaPreviewPanel(
             }
         }
     }
+}
+
+@Composable
+private fun TrailerWebPreview(videoKey: String, modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    val webView = remember(videoKey) {
+        WebView(context).apply {
+            settings.javaScriptEnabled = true
+            settings.domStorageEnabled = true
+            settings.mediaPlaybackRequiresUserGesture = false
+            webViewClient = WebViewClient()
+            setBackgroundColor(android.graphics.Color.BLACK)
+            val url = "https://www.youtube-nocookie.com/embed/$videoKey?autoplay=1&mute=0&playsinline=1&controls=1&rel=0"
+            val html = """
+                <html><head><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/></head>
+                <body style="margin:0;background:black;overflow:hidden">
+                <iframe width="100%" height="100%" src="$url"
+                    allow="autoplay; encrypted-media; picture-in-picture"
+                    referrerpolicy="strict-origin-when-cross-origin"
+                    style="border:0" allowfullscreen></iframe>
+                </body></html>
+            """.trimIndent()
+            loadDataWithBaseURL("https://www.youtube.com/", html, "text/html", "UTF-8", null)
+        }
+    }
+    DisposableEffect(webView) {
+        onDispose {
+            webView.stopLoading()
+            webView.loadUrl("about:blank")
+            webView.destroy()
+        }
+    }
+    AndroidView(factory = { webView }, modifier = modifier)
 }
 
 private val mediaTitlePrefix = Regex("""(?i)^\s*(?:FR|VF|VOSTFR)\s*[-:|]\s*""")

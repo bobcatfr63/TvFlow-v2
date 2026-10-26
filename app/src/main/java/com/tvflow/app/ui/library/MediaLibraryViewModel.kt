@@ -41,6 +41,7 @@ private data class MediaFilter(
 @HiltViewModel
 class MediaLibraryViewModel @Inject constructor(
     private val repository: XtreamRepository,
+    private val tmdbMetadataClient: com.tvflow.app.data.metadata.TmdbMetadataClient,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
     val type: MediaType = runCatching {
@@ -151,6 +152,9 @@ class MediaLibraryViewModel @Inject constructor(
     fun selectMonth(month: Int?) {
         selectedMonthState.value = month
     }
+
+    suspend fun resolveTrailer(title: String, year: Int?): String? =
+        tmdbMetadataClient.trailerYoutubeKey(type, title, year)
 
     fun refresh() {
         viewModelScope.launch { runCatching { repository.refreshMediaCatalog() } }

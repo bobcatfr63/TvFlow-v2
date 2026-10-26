@@ -129,6 +129,47 @@ class TmdbMetadataClient @Inject constructor(
         }.distinctBy { normalize(it.first) to it.second }.take(150)
     }
 
+    /** Resolve an official trailer only for a focused title; no catalog-wide video requests. */
+    suspend fun trailerYoutubeKey(type: MediaType, rawTitle: String, knownYear: Int?): String? =
+        withContext(Dispatchers.IO) {
+            val credential = settingsStore.currentTmdbToken()?.let(::normalizeCredential)?.takeIf { it.isNotBlank() }
+                ?: return@withContext null
+            if (credential == rejectedCredential) return@withContext null
+            val apiKeyMode = credential.matches(Regex("^[a-fA-F0-9]{32}$"))
+            fun request(url: okhttp3.HttpUrl): JsonObject? {
+                val address = if (apiKeyMode) url.newBuilder().addQueryParameter("api_key", credential).build() else url
+                val builder = Request.Builder().url(address).header("Accept", "application/json")
+                if (!apiKeyMode) builder.header("Authorization", "Bearer $credential")
+                return runCatching {
+                    client.newCall(builder.build()).execute().use { response ->
+                        if (!response.isSuccessful) return@use null
+                        JsonParser.parseString(response.body?.string().orEmpty()).asJsonObject
+                    }
+                }.getOrNull()
+            }
+            val query = TmdbTitleCleaner.clean(rawTitle)
+            if (query.length < 2) return@withContext null
+            val path = if (type == MediaType.VOD) "movie" else "tv"
+            val searchUrl = "https://api.themoviedb.org/3/search/$path".toHttpUrl().newBuilder()
+                .addQueryParameter("query", query).addQueryParameter("language", "fr-FR").build()
+            val match = request(searchUrl)?.getAsJsonArray("results")
+                ?.mapNotNull { runCatching { it.asJsonObject }.getOrNull() }
+                ?.mapNotNull { candidate -> scoreCandidate(type, query, knownYear, candidate)?.let { candidate to it } }
+                ?.maxByOrNull { it.second }?.takeIf { it.second >= 80 }?.first ?: return@withContext null
+            val id = runCatching { match.get("id").asInt }.getOrNull() ?: return@withContext null
+            fun videos(language: String): List<JsonObject> {
+                val address = "https://api.themoviedb.org/3/$path/$id/videos".toHttpUrl().newBuilder()
+                    .addQueryParameter("language", language).build()
+                return request(address)?.getAsJsonArray("results")
+                    ?.mapNotNull { runCatching { it.asJsonObject }.getOrNull() }.orEmpty()
+            }
+            val results = videos("fr-FR").ifEmpty { videos("en-US") }
+            results.filter { string(it, "site").equals("YouTube", true) && string(it, "type") in listOf("Trailer", "Teaser") }
+                .sortedWith(compareByDescending<JsonObject> { string(it, "official") == "true" }
+                    .thenBy { string(it, "type") != "Trailer" })
+                .firstNotNullOfOrNull { string(it, "key")?.takeIf { key -> key.matches(Regex("[A-Za-z0-9_-]{11}")) } }
+        }
+
     // Single-flight per title and short-lived bounded RAM cache. No catalog-wide prefetch.
     private val inFlight = java.util.concurrent.ConcurrentHashMap<String, kotlinx.coroutines.CompletableDeferred<ExternalMediaMetadata?>>()
     private val foundCache = object : LinkedHashMap<String, Pair<Long, ExternalMediaMetadata>>(256, 0.75f, true) {
