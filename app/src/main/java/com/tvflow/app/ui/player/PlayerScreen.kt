@@ -35,6 +35,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.foundation.border
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -801,11 +804,13 @@ private fun PlayerOptionsPanel(
 ) {
     val firstActionFocus = remember { FocusRequester() }
     LaunchedEffect(Unit) { firstActionFocus.requestFocus() }
+    CompositionLocalProvider(LocalContentColor provides androidx.compose.ui.graphics.Color.White) {
     Column(
         modifier = Modifier
             .width(430.dp)
             .fillMaxHeight()
-            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.97f))
+            .background(androidx.compose.ui.graphics.Color(0xFF080C16))
+            .border(1.dp, androidx.compose.ui.graphics.Color(0xFF516783))
             .padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
@@ -854,6 +859,7 @@ private fun PlayerOptionsPanel(
             FocusActionRow(onClick = onPreviousChannel) { Text("↶ Revenir à la chaîne précédente") }
         }
     }
+    }
 }
 
 @Composable
@@ -870,19 +876,21 @@ private fun FocusActionRow(
             .fillMaxWidth()
             .background(
                 when {
-                    focused -> MaterialTheme.colorScheme.primaryContainer
-                    selected -> MaterialTheme.colorScheme.secondaryContainer
-                    else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f)
+                    focused -> androidx.compose.ui.graphics.Color(0xFF2966CC)
+                    selected -> androidx.compose.ui.graphics.Color(0xFF253A59)
+                    else -> androidx.compose.ui.graphics.Color(0xFF182337)
                 },
                 RoundedCornerShape(10.dp)
             )
+            .border(if (focused) 2.dp else 1.dp, if (focused) androidx.compose.ui.graphics.Color(0xFF9BD7FF) else androidx.compose.ui.graphics.Color(0xFF344968), RoundedCornerShape(10.dp))
             .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
             .clickable(interactionSource = interaction, indication = null, onClick = onClick)
             .focusable(interactionSource = interaction)
             .padding(horizontal = 14.dp, vertical = 11.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        content = content
-    )
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        CompositionLocalProvider(LocalContentColor provides androidx.compose.ui.graphics.Color.White) { content() }
+    }
 }
 
 @Composable
