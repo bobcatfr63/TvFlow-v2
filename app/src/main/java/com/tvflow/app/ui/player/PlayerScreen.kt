@@ -726,7 +726,7 @@ fun PlayerScreen(
         }
 
         AnimatedVisibility(
-            visible = overlayVisible,
+            visible = overlayVisible && sidePanel == SidePanel.NONE,
             modifier = Modifier.align(Alignment.BottomCenter)
         ) {
             PlayerOverlay(
@@ -804,6 +804,7 @@ private fun PlayerOptionsPanel(
 ) {
     val firstActionFocus = remember { FocusRequester() }
     LaunchedEffect(Unit) { firstActionFocus.requestFocus() }
+    androidx.compose.material3.ProvideTextStyle(androidx.compose.material3.LocalTextStyle.current.copy(color = androidx.compose.ui.graphics.Color.White)) {
     CompositionLocalProvider(LocalContentColor provides androidx.compose.ui.graphics.Color.White) {
     Column(
         modifier = Modifier
@@ -858,6 +859,7 @@ private fun PlayerOptionsPanel(
         if (hasPreviousChannel) {
             FocusActionRow(onClick = onPreviousChannel) { Text("↶ Revenir à la chaîne précédente") }
         }
+    }
     }
     }
 }
