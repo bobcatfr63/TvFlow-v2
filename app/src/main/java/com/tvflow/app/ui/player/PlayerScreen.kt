@@ -333,7 +333,7 @@ fun PlayerScreen(
             retryEpoch++
         } else {
             player.stop()
-            if (!vlcFailedForStream) useVlcFallback = true
+            if (!vlcFailedForStream && !context.isTelevisionUi()) useVlcFallback = true
             viewModel.reportPlayerError(null)
         }
     }
@@ -370,10 +370,17 @@ fun PlayerScreen(
         if (effectiveStreamUrl.isNullOrBlank() || useVlcFallback || castActive) return@LaunchedEffect
         delay(7_000L)
         if (playbackReadyForVideo && !firstVideoFrameRendered && !useVlcFallback && !castActive) {
-            android.util.Log.w("TVFlowVideo", "No first video frame after Media3 READY; switching to VLC")
-            player.stop()
-            useVlcFallback = true
-            viewModel.reportPlayerError(null)
+            android.util.Log.w("TVFlowVideo", "No first video frame after Media3 READY; retry on safe TV surface")
+            if (context.isTelevisionUi()) {
+                if (automaticRetryCount < 3) {
+                    automaticRetryCount++
+                    retryEpoch++
+                } else viewModel.reportPlayerError("Vidéo indisponible sur ce flux (audio reçu)")
+            } else {
+                player.stop()
+                useVlcFallback = true
+                viewModel.reportPlayerError(null)
+            }
         }
     }
 
@@ -570,7 +577,7 @@ fun PlayerScreen(
         } else {
             AndroidView(
                 factory = {
-                    PlayerView(it).apply {
+                    (if (context.isTelevisionUi()) android.view.LayoutInflater.from(it).inflate(com.tvflow.app.R.layout.tvflow_texture_player, null, false) as PlayerView else PlayerView(it)).apply {
                         this.player = player
                         useController = false
                         keepScreenOn = true
