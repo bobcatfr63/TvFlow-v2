@@ -204,6 +204,19 @@ fun PlayerScreen(
 
     PlayerLifecycleEffect(player)
 
+    // Playback diagnostics only; never restart or alter the stream from this sampler.
+    LaunchedEffect(player, effectiveStreamUrl, useVlcFallback, castActive) {
+        if (effectiveStreamUrl.isNullOrBlank() || useVlcFallback || castActive) return@LaunchedEffect
+        while (true) {
+            delay(10_000L)
+            android.util.Log.i("TVFlowPlaybackHealth",
+                "state=${player.playbackState} playing=${player.isPlaying} " +
+                "ready=${player.playWhenReady} positionMs=${player.currentPosition} " +
+                "bufferedMs=${player.totalBufferedDuration} videoSize=${player.videoSize.width}x${player.videoSize.height} " +
+                "firstFrame=$firstVideoFrameRendered")
+        }
+    }
+
     DisposableEffect(activity) {
         val window = activity?.window
         if (window != null) {
