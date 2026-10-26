@@ -63,8 +63,8 @@ fun HomeScreen(
     }
 
     LaunchedEffect(categories, selectedSource) {
-        if (selectedSource == null && categories.isNotEmpty()) {
-            viewModel.selectCategory(categories.first().id)
+        if (selectedSource == null) {
+            viewModel.selectTnt()
         }
     }
 

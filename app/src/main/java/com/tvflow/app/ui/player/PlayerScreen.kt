@@ -30,6 +30,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -757,6 +759,10 @@ private fun MiniGuide(
     val from = (selectedIndex - 5).coerceAtLeast(0)
     val to = (selectedIndex + 7).coerceAtMost(channels.size)
     val visibleChannels = channels.subList(from, to)
+    val firstChannelFocus = remember { FocusRequester() }
+    LaunchedEffect(selectedStreamId, visibleChannels.size) {
+        if (visibleChannels.isNotEmpty()) firstChannelFocus.requestFocus()
+    }
 
     Column(
         modifier = Modifier
@@ -771,6 +777,7 @@ private fun MiniGuide(
             items(visibleChannels, key = { it.streamId }) { channel ->
                 FocusActionRow(
                     selected = channel.streamId == selectedStreamId,
+                    focusRequester = if (channel.streamId == selectedStreamId || (selectedStreamId !in visibleChannels.map { it.streamId } && channel == visibleChannels.first())) firstChannelFocus else null,
                     onClick = { onSelect(channel.streamId) }
                 ) {
                     AsyncImage(model = channel.logoUrl, contentDescription = null, modifier = Modifier.width(46.dp))
@@ -812,6 +819,7 @@ private fun PlayerOptionsPanel(
             .fillMaxHeight()
             .background(androidx.compose.ui.graphics.Color(0xFF080C16))
             .border(1.dp, androidx.compose.ui.graphics.Color(0xFF516783))
+            .verticalScroll(rememberScrollState())
             .padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
@@ -910,11 +918,13 @@ private fun PlayerOverlay(
             .coerceIn(0f, 1f)
     } else 0f
 
+    androidx.compose.material3.ProvideTextStyle(androidx.compose.material3.LocalTextStyle.current.copy(color = androidx.compose.ui.graphics.Color.White)) {
+    CompositionLocalProvider(LocalContentColor provides androidx.compose.ui.graphics.Color.White) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .background(
-                MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
+                androidx.compose.ui.graphics.Color(0xF2080C16),
                 RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
             )
             .padding(horizontal = 32.dp, vertical = 18.dp)
@@ -981,6 +991,8 @@ private fun PlayerOverlay(
             Spacer(Modifier.height(12.dp))
             LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth())
         }
+    }
+    }
     }
 }
 
