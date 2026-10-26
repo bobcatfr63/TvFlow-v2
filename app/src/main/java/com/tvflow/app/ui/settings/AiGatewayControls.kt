@@ -25,6 +25,9 @@ fun AiGatewayControls() {
     var status by remember { mutableStateOf("") }
     var checking by remember { mutableStateOf(false) }
     var inviteCode by remember { mutableStateOf("") }
+    var requestEmail by remember { mutableStateOf("") }
+    var sendingRequest by remember { mutableStateOf(false) }
+    var requestResult by remember { mutableStateOf("") }
     var advanced by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     Column(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -44,6 +47,20 @@ fun AiGatewayControls() {
                 checking = false
             }
         }) { Text("Activer TVFlow AI Cloud") }
+        Text("Pas encore de code ? Demande ton accès Groq et TMDB depuis TVFlow.")
+        OutlinedTextField(value = requestEmail, onValueChange = { requestEmail = it.take(254) },
+            label = { Text("Adresse e-mail pour la demande") }, singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                keyboardType = androidx.compose.ui.text.input.KeyboardType.Email))
+        SettingsButton(enabled = !sendingRequest && requestEmail.contains('@'), onClick = {
+            sendingRequest = true
+            scope.launch {
+                requestResult = com.tvflow.app.ui.search.TvFlowCloudRequest.send(requestEmail, android.os.Build.MODEL ?: "TVFlow")
+                sendingRequest = false
+            }
+        }) { Text(if (sendingRequest) "Envoi en cours…" else "Demander un accès TVFlow Cloud") }
+        if (requestResult.isNotBlank()) Text(requestResult)
         TextButton(onClick = { advanced = !advanced }) { Text(if (advanced) "Masquer les paramètres avancés" else "Configuration avancée") }
         if (advanced) {
         OutlinedTextField(value = endpoint, onValueChange = { endpoint = it }, singleLine = true,
