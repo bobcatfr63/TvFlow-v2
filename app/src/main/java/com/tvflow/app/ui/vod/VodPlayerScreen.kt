@@ -50,6 +50,10 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.datasource.HttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.DefaultLoadControl
+import com.tvflow.app.ui.common.AdaptiveBufferPolicy
+import com.tvflow.app.data.local.SettingsStore
+import kotlinx.coroutines.flow.first
 import androidx.media3.ui.PlayerView
 import androidx.media3.ui.R as Media3UiR
 import com.tvflow.app.cast.CastPlaybackEffect
@@ -75,8 +79,15 @@ fun VodPlayerScreen(
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
     val activity = context as? Activity
+    val settingsStore = remember(context) { SettingsStore(context.applicationContext) }
+    val playerPrefs by settingsStore.playerPreferences.collectAsState(initial = com.tvflow.app.data.local.PlayerPreferences())
+    // Keep a single player for the whole VOD session; changing presets must not interrupt decoding.
     val player = remember {
+        val durations = AdaptiveBufferPolicy.durations("AUTO")
         ExoPlayer.Builder(context)
+            .setLoadControl(DefaultLoadControl.Builder()
+                .setBufferDurationsMs(durations.min, durations.max, durations.start, durations.rebuffer)
+                .build())
             .setMediaSourceFactory(iptvMediaSourceFactory(context))
             .build()
     }
@@ -297,6 +308,7 @@ fun VodPlayerScreen(
                 url = state.streamUrl.orEmpty(),
                 modifier = Modifier.fillMaxSize(),
                 startPositionMs = vlcHandoffPositionMs.coerceAtLeast(state.resumePositionMs),
+                bufferPreset = playerPrefs.bufferPreset,
                 onPlaybackEnded = { viewModel.onPlaybackEnded() },
                 onProgress = { position, duration ->
                     viewModel.updatePlaybackProgress(position, duration)

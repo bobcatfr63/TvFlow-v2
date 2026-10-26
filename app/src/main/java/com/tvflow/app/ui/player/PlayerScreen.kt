@@ -169,11 +169,7 @@ fun PlayerScreen(
         when (autoBufferLevel) { 0 -> "FAST"; 2 -> "SAFE"; else -> "BALANCED" }
     } else state.bufferPreset
     val player = remember(effectiveBufferPreset) {
-        val (minBuffer, maxBuffer, playBuffer, rebuffer) = when (effectiveBufferPreset) {
-            "SAFE" -> intArrayOf(8_000, 30_000, 2_000, 3_500)
-            "BALANCED" -> intArrayOf(5_000, 20_000, 1_200, 2_000)
-            else -> intArrayOf(3_000, 12_000, 750, 1_500)
-        }
+        val (minBuffer, maxBuffer, playBuffer, rebuffer) = com.tvflow.app.ui.common.AdaptiveBufferPolicy.durations(effectiveBufferPreset)
         val loadControl = DefaultLoadControl.Builder()
             .setBufferDurationsMs(minBuffer, maxBuffer, playBuffer, rebuffer)
             .build()

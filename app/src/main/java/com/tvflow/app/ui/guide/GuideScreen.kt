@@ -496,13 +496,9 @@ internal fun LivePreview(
     var ready by remember { mutableStateOf(false) }
 
     val player = remember {
+        val previewBuffer = com.tvflow.app.ui.common.AdaptiveBufferPolicy.durations("AUTO", isPreview = true)
         val loadControl = DefaultLoadControl.Builder()
-            .setBufferDurationsMs(
-                1_500,
-                6_000,
-                400,
-                900
-            )
+            .setBufferDurationsMs(previewBuffer.min, previewBuffer.max, previewBuffer.start, previewBuffer.rebuffer)
             .build()
         ExoPlayer.Builder(context)
             .setLoadControl(loadControl)

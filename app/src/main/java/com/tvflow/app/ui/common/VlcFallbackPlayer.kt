@@ -42,11 +42,7 @@ fun VlcFallbackPlayer(
     onError: (String) -> Unit = {}
 ) {
     val context = LocalContext.current
-    val networkCacheMs = when (bufferPreset) {
-        "SAFE" -> 3_500
-        "BALANCED" -> 2_000
-        else -> 750
-    }
+    val networkCacheMs = AdaptiveBufferPolicy.vlcCacheMs(bufferPreset)
     val libVlc = remember(networkCacheMs) {
         LibVLC(
             context,
