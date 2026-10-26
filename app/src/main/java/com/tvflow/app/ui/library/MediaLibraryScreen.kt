@@ -403,6 +403,7 @@ private fun MediaPreviewPanel(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val safeWebPreview = android.os.Build.VERSION.SDK_INT >= 29
     Card(
         modifier = modifier.height(if (preview == null) 76.dp else if (trailerKey != null) 225.dp else 190.dp),
         colors = CardDefaults.cardColors(containerColor = Color(0xFF0B2033)),
@@ -431,7 +432,7 @@ private fun MediaPreviewPanel(
                 modifier = Modifier.fillMaxSize().padding(10.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                if (trailerKey != null) {
+                if (trailerKey != null && safeWebPreview) {
                     TrailerWebPreview(trailerKey, Modifier.width(290.dp).fillMaxHeight())
                 } else AsyncImage(
                     model = preview.image,
@@ -476,10 +477,11 @@ private fun MediaPreviewPanel(
                         overflow = TextOverflow.Ellipsis
                     )
                     TextButton(onClick = {
+                        val videoUrl = trailerKey?.let { "https://www.youtube.com/watch?v=$it" }
                         val query = Uri.encode(preview.title + " bande annonce officielle " + (preview.releaseYear ?: ""))
-                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.youtube.com/results?search_query=$query"))
-                        runCatching { context.startActivity(intent) }
-                    }) { Text("▶ Chercher une bande-annonce", color = Color.White) }
+                        val url = videoUrl ?: "https://www.youtube.com/results?search_query=$query"
+                        runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
+                    }) { Text(if (trailerKey != null) "▶ Lire la bande-annonce avec son" else "▶ Chercher une bande-annonce", color = Color.White) }
                 }
             }
         }
