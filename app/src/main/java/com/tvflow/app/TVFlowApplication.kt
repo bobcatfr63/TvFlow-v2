@@ -38,6 +38,7 @@ class TVFlowApplication : Application() {
         TvFlowConnect.startReceiverIfTv(this)
         Log.i("TVFlowStartup", "Receiver ready ${SystemClock.uptimeMillis() - bootStart}ms")
         appScope.launch(Dispatchers.IO) { UpdateNotificationWorker.schedule(this@TVFlowApplication) }
+        appScope.launch(Dispatchers.IO) { com.tvflow.app.ui.search.TvFlowCloudRequest.schedule(this@TVFlowApplication) }
         Log.i("TVFlowStartup", "WorkManager scheduling delegated ${SystemClock.uptimeMillis() - bootStart}ms")
         startFavoriteSync()
         Log.i("TVFlowStartup", "Application initialized ${SystemClock.uptimeMillis() - bootStart}ms")

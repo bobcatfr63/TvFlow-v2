@@ -28,12 +28,15 @@ fun AiGatewayControls() {
     var requestEmail by remember { mutableStateOf("") }
     var sendingRequest by remember { mutableStateOf(false) }
     var requestResult by remember { mutableStateOf("") }
+    var cloudState by remember { mutableStateOf(com.tvflow.app.ui.search.TvFlowCloudRequest.state(context)) }
     var advanced by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     Column(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("TVFlow AI 2.0 — Groq facultatif")
         Text("Sans passerelle disponible, la recherche locale reste active. Configure uniquement ton accès privé.")
         Text("Accès TVFlow AI Cloud (bêta privée)")
+        Text(cloudState)
+        TextButton(onClick = { com.tvflow.app.ui.search.TvFlowCloudRequest.checkNow(context); cloudState = com.tvflow.app.ui.search.TvFlowCloudRequest.state(context) }) { Text("Actualiser le statut Cloud") }
         OutlinedTextField(value = inviteCode, onValueChange = { inviteCode = it }, singleLine = true,
             label = { Text("Code d'invitation") }, modifier = Modifier.fillMaxWidth())
         SettingsButton(enabled = !checking && inviteCode.isNotBlank(), onClick = {
@@ -56,7 +59,8 @@ fun AiGatewayControls() {
         SettingsButton(enabled = !sendingRequest && requestEmail.contains('@'), onClick = {
             sendingRequest = true
             scope.launch {
-                requestResult = com.tvflow.app.ui.search.TvFlowCloudRequest.send(requestEmail, android.os.Build.MODEL ?: "TVFlow")
+                requestResult = com.tvflow.app.ui.search.TvFlowCloudRequest.send(context, requestEmail, android.os.Build.MODEL ?: "TVFlow")
+                cloudState = com.tvflow.app.ui.search.TvFlowCloudRequest.state(context)
                 sendingRequest = false
             }
         }) { Text(if (sendingRequest) "Envoi en cours…" else "Demander un accès TVFlow Cloud") }
