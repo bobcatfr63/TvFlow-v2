@@ -128,7 +128,34 @@ class TmdbMetadataClient @Inject constructor(
         }.distinctBy { normalize(it.first) to it.second }.take(150)
     }
 
-    suspend fun search(
+    // Single-flight per title and short-lived bounded RAM cache. No catalog-wide prefetch.
+    private val inFlight = java.util.concurrent.ConcurrentHashMap<String, kotlinx.coroutines.CompletableDeferred<ExternalMediaMetadata?>>()
+    private val foundCache = object : LinkedHashMap<String, Pair<Long, ExternalMediaMetadata>>(256, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Pair<Long, ExternalMediaMetadata>>?) = size > 256
+    }
+    suspend fun search(type: MediaType, rawTitle: String, knownYear: Int?): ExternalMediaMetadata? {
+        val identity = type.name + "|" + rawTitle.trim().lowercase(java.util.Locale.ROOT) + "|" + knownYear +
+            "|" + AiGatewayConfig(context).token().hashCode() + "|" + settingsStore.currentTmdbToken().hashCode()
+        synchronized(foundCache) {
+            foundCache[identity]?.let { if (System.currentTimeMillis() - it.first < 30 * 60_000L) return it.second }
+        }
+        val mine = kotlinx.coroutines.CompletableDeferred<ExternalMediaMetadata?>()
+        val running = inFlight.putIfAbsent(identity, mine)
+        if (running != null) return running.await()
+        try {
+            val result = searchUncached(type, rawTitle, knownYear)
+            if (result != null) synchronized(foundCache) { foundCache[identity] = System.currentTimeMillis() to result }
+            mine.complete(result)
+            return result
+        } catch (e: Throwable) {
+            mine.completeExceptionally(e)
+            throw e
+        } finally {
+            inFlight.remove(identity, mine)
+        }
+    }
+
+    private suspend fun searchUncached(
         type: MediaType,
         rawTitle: String,
         knownYear: Int?
