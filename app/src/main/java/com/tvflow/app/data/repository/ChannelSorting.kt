@@ -17,6 +17,19 @@ internal fun channelAlphabeticalKey(name: String): String {
         .lowercase(Locale.ROOT)
 }
 
+/** Quality inferred from the provider's label; actual resolution is available only during playback. */
+internal fun tntQualityRank(name: String): Int {
+    val upper = name.uppercase(Locale.ROOT)
+    fun has(label: String) = Regex("(?<![A-Z0-9])(?:" + label + ")(?![A-Z0-9])").containsMatchIn(upper)
+    return when {
+        has("4K|UHD|2160P") -> 4
+        has("FHD|FULL\\s*HD|1080[PI]") -> 3
+        has("HD|720[PI]") -> 2
+        has("SD|576[PI]") -> 1
+        else -> 0
+    }
+}
+
 /** One French TNT stream per recognised channel, regardless of IPTV category.
  * Never trust arbitrary provider logical numbers as proof of TNT membership.
  */
@@ -39,8 +52,8 @@ internal fun selectTntChannels(channels: List<LiveChannel>): List<LiveChannel> {
                     com.tvflow.app.domain.StreamHealth.UNSTABLE -> 1
                     else -> 0
                 }
-            }.thenBy { if (it.epgChannelId.isNullOrBlank()) 0 else 1 }
-                .thenBy { if (it.name.contains("HD", ignoreCase = true)) 1 else 0 })!!
+            }.thenBy { tntQualityRank(it.name) }
+                .thenBy { if (it.epgChannelId.isNullOrBlank()) 0 else 1 })!!
         }
 }
 
