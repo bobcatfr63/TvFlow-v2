@@ -366,23 +366,29 @@ fun SettingsScreen(
             if (isTv && settingsCategory == "Lecture & démarrage") {
                 item {
                     SectionTitle("Démarrage de la TV")
-                    ToggleRow(
-                        "Ouvrir la dernière chaîne au lancement de TVFlow",
-                        state.player.resumeLiveOnAppLaunch
-                    ) { viewModel.setResumeLiveOnAppLaunch(it) }
-                    Text("Désactivé : TVFlow ouvre l'accueil normal. Ce choix est indépendant du démarrage automatique avec la box.", style = MaterialTheme.typography.bodySmall)
-                    ToggleRow(
-                        "Démarrer TVFlow avec la box Android TV",
-                        state.player.autoStartOnTvBoot
-                    ) { viewModel.setAutoStartOnTvBoot(it) }
-                    ToggleRow(
-                        "Reprendre automatiquement la dernière chaîne",
-                        state.player.resumeLastLiveOnTvBoot
-                    ) { viewModel.setResumeLastLiveOnTvBoot(it) }
-                    Text(
-                        "La reprise de chaîne active automatiquement le démarrage de TVFlow. La dernière chaîne n’est mémorisée qu’après une lecture réellement démarrée.",
-                        style = MaterialTheme.typography.bodySmall
-                    )
+                    Text("Au lancement de TVFlow", fontWeight = FontWeight.SemiBold)
+                    listOf("HOME" to "Accueil normal", "LAST" to "Dernière chaîne regardée", "TNT" to "Première chaîne TNT").forEach { (mode, label) ->
+                        SettingsButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            selected = state.player.appLaunchMode == mode,
+                            onClick = { viewModel.setAppLaunchMode(mode) }
+                        ) { Text(if (state.player.appLaunchMode == mode) "● $label" else "○ $label") }
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Text("Au démarrage de la Mi Box", fontWeight = FontWeight.SemiBold)
+                    val bootMode = when {
+                        !state.player.autoStartOnTvBoot -> "OFF"
+                        state.player.resumeLastLiveOnTvBoot -> "LAST"
+                        else -> "HOME"
+                    }
+                    listOf("OFF" to "Ne pas lancer TVFlow", "HOME" to "Lancer sur l'accueil", "LAST" to "Lancer sur la dernière chaîne").forEach { (mode, label) ->
+                        SettingsButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            selected = bootMode == mode,
+                            onClick = { viewModel.setTvBootMode(mode) }
+                        ) { Text(if (bootMode == mode) "● $label" else "○ $label") }
+                    }
+                    Text("Les deux choix sont indépendants. Le démarrage automatique dépend aussi des autorisations Android TV.", style = MaterialTheme.typography.bodySmall)
                     Spacer(Modifier.height(8.dp))
                     Text("Écran d’accueil de la box", fontWeight = FontWeight.SemiBold)
                     ToggleRow(

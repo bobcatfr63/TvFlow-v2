@@ -28,6 +28,7 @@ data class PlayerPreferences(
     val autoStartOnTvBoot: Boolean = false,
     val resumeLastLiveOnTvBoot: Boolean = false,
     val resumeLiveOnAppLaunch: Boolean = true,
+    val appLaunchMode: String = "HOME",
     val tvLauncherEnabled: Boolean = false,
     val autoNextEpisode: Boolean = true,
     val nextEpisodeCountdownSeconds: Int = 10,
@@ -53,6 +54,7 @@ class SettingsStore @Inject constructor(@ApplicationContext private val context:
         val autoStartOnTvBoot = booleanPreferencesKey("auto_start_on_tv_boot")
         val resumeLastLiveOnTvBoot = booleanPreferencesKey("resume_last_live_on_tv_boot")
         val resumeLiveOnAppLaunch = booleanPreferencesKey("resume_live_on_app_launch")
+        val appLaunchMode = stringPreferencesKey("app_launch_mode")
         val tvLauncherEnabled = booleanPreferencesKey("tv_launcher_enabled")
         val lastLiveStreamId = intPreferencesKey("last_live_stream_id")
         val lastLiveName = stringPreferencesKey("last_live_name")
@@ -76,7 +78,8 @@ class SettingsStore @Inject constructor(@ApplicationContext private val context:
             hideOfflineStreams = prefs[Keys.hideOfflineStreams] ?: false,
             autoStartOnTvBoot = prefs[Keys.autoStartOnTvBoot] ?: false,
             resumeLastLiveOnTvBoot = prefs[Keys.resumeLastLiveOnTvBoot] ?: false,
-            resumeLiveOnAppLaunch = prefs[Keys.resumeLiveOnAppLaunch] ?: true,
+            resumeLiveOnAppLaunch = prefs[Keys.resumeLiveOnAppLaunch] ?: false,
+            appLaunchMode = prefs[Keys.appLaunchMode] ?: if (prefs[Keys.resumeLiveOnAppLaunch] == true) "LAST" else "HOME",
             tvLauncherEnabled = prefs[Keys.tvLauncherEnabled] ?: false,
             autoNextEpisode = prefs[Keys.autoNextEpisode] ?: true,
             nextEpisodeCountdownSeconds = (prefs[Keys.nextEpisodeCountdownSeconds] ?: 10).coerceIn(3, 30),
@@ -113,6 +116,12 @@ class SettingsStore @Inject constructor(@ApplicationContext private val context:
     }
     suspend fun setResumeLiveOnAppLaunch(value: Boolean) = context.playerSettingsDataStore.edit {
         it[Keys.resumeLiveOnAppLaunch] = value
+        it[Keys.appLaunchMode] = if (value) "LAST" else "HOME"
+    }
+    suspend fun setAppLaunchMode(value: String) = context.playerSettingsDataStore.edit {
+        require(value in setOf("HOME", "LAST", "TNT"))
+        it[Keys.appLaunchMode] = value
+        it[Keys.resumeLiveOnAppLaunch] = value != "HOME"
     }
     suspend fun setTvLauncherEnabled(value: Boolean) = context.playerSettingsDataStore.edit {
         it[Keys.tvLauncherEnabled] = value

@@ -366,6 +366,14 @@ class SettingsViewModel @Inject constructor(
     fun setAutoStartOnTvBoot(value: Boolean) { viewModelScope.launch { settingsStore.setAutoStartOnTvBoot(value) } }
     fun setResumeLastLiveOnTvBoot(value: Boolean) { viewModelScope.launch { settingsStore.setResumeLastLiveOnTvBoot(value) } }
     fun setResumeLiveOnAppLaunch(value: Boolean) { viewModelScope.launch { settingsStore.setResumeLiveOnAppLaunch(value) } }
+    fun setAppLaunchMode(mode: String) { viewModelScope.launch { settingsStore.setAppLaunchMode(mode) } }
+    fun setTvBootMode(mode: String) { viewModelScope.launch {
+        when (mode) {
+            "OFF" -> settingsStore.setAutoStartOnTvBoot(false)
+            "HOME" -> { settingsStore.setResumeLastLiveOnTvBoot(false); settingsStore.setAutoStartOnTvBoot(true) }
+            "LAST" -> settingsStore.setResumeLastLiveOnTvBoot(true)
+        }
+    } }
     fun setTmdbToken(value: String) {
         viewModelScope.launch {
             if (value.isBlank()) {

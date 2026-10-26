@@ -17,13 +17,14 @@ class InstantTvResolver @Inject constructor(
     private val settingsStore: SettingsStore
 ) : ViewModel() {
     suspend fun resolve(): BootLiveTarget? {
-        if (!settingsStore.playerPreferences.first().resumeLiveOnAppLaunch) return null
+        val mode = settingsStore.playerPreferences.first().appLaunchMode
+        if (mode == "HOME") return null
         val last = settingsStore.lastLiveChannel.first()
         val channels = withTimeoutOrNull(2_500L) {
             repository.observeAllChannels().first { it.isNotEmpty() }
         } ?: return null
         val tnt = selectTntChannels(channels)
-        val selected = tnt.firstOrNull { it.streamId == last?.streamId } ?: tnt.firstOrNull()
+        val selected = if (mode == "TNT") tnt.firstOrNull() else tnt.firstOrNull { it.streamId == last?.streamId } ?: last?.let { item -> channels.firstOrNull { it.streamId == item.streamId } }
         return selected?.let { BootLiveTarget(it.streamId, it.name, GUIDE_TNT) }
     }
 }
