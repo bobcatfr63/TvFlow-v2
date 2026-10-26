@@ -33,7 +33,8 @@ import kotlinx.coroutines.launch
 private data class MediaFilter(
     val categoryId: String?,
     val year: Int?,
-    val month: Int?
+    val month: Int?,
+    val sort: String
 )
 
 @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
@@ -69,6 +70,9 @@ class MediaLibraryViewModel @Inject constructor(
     private val selectedCategory = MutableStateFlow<String?>(null)
     val selectedCategoryId: StateFlow<String?> = selectedCategory
 
+    val sortOrder = MutableStateFlow("DATE")
+    fun selectSort(value: String) { if (value in setOf("DATE", "AZ")) sortOrder.value = value }
+
     private val selectedYearState = MutableStateFlow<Int?>(null)
     val selectedYear: StateFlow<Int?> = selectedYearState
 
@@ -88,14 +92,15 @@ class MediaLibraryViewModel @Inject constructor(
     private val filter = combine(
         selectedCategory,
         selectedYearState,
-        selectedMonthState
-    ) { categoryId, year, month ->
-        MediaFilter(categoryId, year, month)
+        selectedMonthState,
+        sortOrder
+    ) { categoryId, year, month, sort ->
+        MediaFilter(categoryId, year, month, sort)
     }
 
     val vod: Flow<PagingData<VodItem>> = filter.flatMapLatest { filter ->
         if (type == MediaType.VOD && filter.categoryId != null) {
-            repository.pagedVod(if (filter.year != null) null else filter.categoryId, filter.year, filter.month)
+            repository.pagedVod(if (filter.year != null) null else filter.categoryId, filter.year, filter.month, filter.sort)
         } else {
             flowOf(PagingData.empty())
         }
@@ -103,7 +108,7 @@ class MediaLibraryViewModel @Inject constructor(
 
     val series: Flow<PagingData<SeriesItem>> = filter.flatMapLatest { filter ->
         if (type == MediaType.SERIES && filter.categoryId != null) {
-            repository.pagedSeries(if (filter.year != null) null else filter.categoryId, filter.year, filter.month)
+            repository.pagedSeries(if (filter.year != null) null else filter.categoryId, filter.year, filter.month, filter.sort)
         } else {
             flowOf(PagingData.empty())
         }

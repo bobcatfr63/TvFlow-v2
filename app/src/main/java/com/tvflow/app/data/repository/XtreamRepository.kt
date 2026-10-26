@@ -902,26 +902,26 @@ class XtreamRepository @Inject constructor(
 
     fun observeSeries(categoryId: String): Flow<List<SeriesItem>> = activeProfileId.flatMapLatest { id -> if (id == null) flowOf(emptyList()) else dao.observeSeries(id, categoryId) }.map { list -> list.map { it.toDomain() } }
 
-    fun pagedVod(categoryId: String?, year: Int? = null, month: Int? = null): Flow<PagingData<VodItem>> =
+    fun pagedVod(categoryId: String?, year: Int? = null, month: Int? = null, sort: String = "DATE"): Flow<PagingData<VodItem>> =
         activeProfileId.flatMapLatest { profileId ->
             if (profileId == null) {
                 flowOf(PagingData.empty())
             } else {
                 Pager(
                     config = PagingConfig(pageSize = 60, prefetchDistance = 20, enablePlaceholders = false),
-                    pagingSourceFactory = { dao.pagingVod(profileId, categoryId, year, month) }
+                    pagingSourceFactory = { dao.pagingVod(profileId, categoryId, year, month, sort) }
                 ).flow.map { paging -> paging.map { it.toDomain() } }
             }
         }
 
-    fun pagedSeries(categoryId: String?, year: Int? = null, month: Int? = null): Flow<PagingData<SeriesItem>> =
+    fun pagedSeries(categoryId: String?, year: Int? = null, month: Int? = null, sort: String = "DATE"): Flow<PagingData<SeriesItem>> =
         activeProfileId.flatMapLatest { profileId ->
             if (profileId == null) {
                 flowOf(PagingData.empty())
             } else {
                 Pager(
                     config = PagingConfig(pageSize = 60, prefetchDistance = 20, enablePlaceholders = false),
-                    pagingSourceFactory = { dao.pagingSeries(profileId, categoryId, year, month) }
+                    pagingSourceFactory = { dao.pagingSeries(profileId, categoryId, year, month, sort) }
                 ).flow.map { paging -> paging.map { it.toDomain() } }
             }
         }

@@ -69,6 +69,7 @@ fun MediaLibraryScreen(
 ) {
     val categories by viewModel.categories.collectAsState()
     val selectedId by viewModel.selectedCategoryId.collectAsState()
+    val sortOrder by viewModel.sortOrder.collectAsState()
     val releaseYears by viewModel.releaseYears.collectAsState()
     val releaseMonths by viewModel.releaseMonths.collectAsState()
     val selectedYear by viewModel.selectedYear.collectAsState()
@@ -215,69 +216,19 @@ fun MediaLibraryScreen(
             modifier = Modifier.fillMaxWidth().padding(horizontal = screenHorizontalPadding),
             verticalArrangement = Arrangement.spacedBy(filterSpacing)
         ) {
-            ReleaseFilterChip(
-                label = when {
-                    expandedDateFilters -> "▴ Masquer les filtres de dates"
-                    selectedYear != null -> "▾ Sorties : ${selectedYear}${selectedMonth?.let { " • ${monthName(it)}" }.orEmpty()}"
-                    else -> "▾ Filtrer par date de sortie"
-                },
-                selected = selectedYear != null,
-                onClick = { expandedDateFilters = !expandedDateFilters },
-                compact = compactMobile
-            )
-            if (selectedYear != null) {
-                Text(
-                    "Toutes les catégories • ${selectedYear}${selectedMonth?.let { " / ${monthName(it)}" }.orEmpty()}",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = Color(0xFF67DEFF)
+            Row(horizontalArrangement = Arrangement.spacedBy(filterSpacing)) {
+                ReleaseFilterChip(
+                    label = "Sortie réelle : récent → ancien",
+                    selected = sortOrder == "DATE",
+                    onClick = { viewModel.selectSort("DATE") },
+                    compact = compactMobile
                 )
-            }
-            if (expandedDateFilters) {
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(filterSpacing)) {
-                item {
-                    ReleaseFilterChip(
-                        label = "Toutes les dates",
-                        selected = selectedYear == null,
-                        onClick = { viewModel.selectYear(null) },
-                        compact = compactMobile
-                    )
-                }
-                items(releaseYears, key = { it }) { year ->
-                    ReleaseFilterChip(
-                        label = year.toString(),
-                        selected = selectedYear == year,
-                        onClick = { viewModel.selectYear(year) },
-                        compact = compactMobile
-                    )
-                }
-            }
-            if (releaseYears.isEmpty()) {
-                Text(
-                    "Les dates de sortie s’afficheront dès qu’elles seront disponibles.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                ReleaseFilterChip(
+                    label = "Titre : A → Z",
+                    selected = sortOrder == "AZ",
+                    onClick = { viewModel.selectSort("AZ") },
+                    compact = compactMobile
                 )
-            }
-            if (selectedYear != null && releaseMonths.isNotEmpty()) {
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(filterSpacing)) {
-                    item {
-                        ReleaseFilterChip(
-                            label = "Tous les mois",
-                            selected = selectedMonth == null,
-                            onClick = { viewModel.selectMonth(null) },
-                            compact = compactMobile
-                        )
-                    }
-                    items(releaseMonths, key = { it }) { month ->
-                        ReleaseFilterChip(
-                            label = monthName(month),
-                            selected = selectedMonth == month,
-                            onClick = { viewModel.selectMonth(month) },
-                            compact = compactMobile
-                        )
-                    }
-                }
-            }
             }
         }
         Row(Modifier.fillMaxSize().padding(top = contentTopPadding)) {
