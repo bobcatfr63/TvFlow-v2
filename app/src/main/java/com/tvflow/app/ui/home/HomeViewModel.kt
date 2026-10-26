@@ -16,6 +16,8 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.map
@@ -86,14 +88,16 @@ class HomeViewModel @Inject constructor(
         }
         stream.map { it as List<LiveChannel>? }
             .onStart { emit(null) }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+    }.flowOn(Dispatchers.Default)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     val isLoading: StateFlow<Boolean> = channelLoadState.map { it == null }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
 
     val channels: StateFlow<List<LiveChannel>> = combine(channelLoadState, sort) { list, order ->
         if (source.value == ChannelSource.Tnt) list.orEmpty() else sortHomeChannels(list.orEmpty(), order)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    }.flowOn(Dispatchers.Default)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
 
     init {
