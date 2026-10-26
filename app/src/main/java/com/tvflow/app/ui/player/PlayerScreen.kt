@@ -147,6 +147,7 @@ fun PlayerScreen(
     var vlcFailedForStream by remember { mutableStateOf(false) }
     var useVlcFallback by remember { mutableStateOf(phoneVlcFirst) }
     var firstVideoFrameRendered by remember { mutableStateOf(false) }
+    var videoViewReady by remember { mutableStateOf(false) }
     var playbackReadyForVideo by remember { mutableStateOf(false) }
     var videoWatchdogEpoch by remember { mutableIntStateOf(0) }
     var liveUrlOverride by remember { mutableStateOf<String?>(null) }
@@ -349,8 +350,8 @@ fun PlayerScreen(
         }
     }
 
-    LaunchedEffect(effectiveStreamUrl, retryEpoch, player, useVlcFallback) {
-        if (useVlcFallback) return@LaunchedEffect
+    LaunchedEffect(effectiveStreamUrl, retryEpoch, player, useVlcFallback, videoViewReady) {
+        if (useVlcFallback || !videoViewReady) return@LaunchedEffect
         effectiveStreamUrl?.let { url ->
             firstVideoFrameRendered = false
             playbackReadyForVideo = false
@@ -579,6 +580,7 @@ fun PlayerScreen(
                 factory = {
                     (if (context.isTelevisionUi()) android.view.LayoutInflater.from(it).inflate(com.tvflow.app.R.layout.tvflow_texture_player, null, false) as PlayerView else PlayerView(it)).apply {
                         this.player = player
+                        videoViewReady = true
                         useController = false
                         keepScreenOn = true
                         resizeMode = videoScale.resizeMode
@@ -588,7 +590,10 @@ fun PlayerScreen(
                         )
                     }
                 },
-                update = { it.resizeMode = videoScale.resizeMode },
+                update = { view ->
+                    if (view.player !== player) view.player = player
+                    view.resizeMode = videoScale.resizeMode
+                },
                 modifier = Modifier.fillMaxSize()
             )
         }
