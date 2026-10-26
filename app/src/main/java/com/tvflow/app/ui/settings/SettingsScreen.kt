@@ -122,6 +122,8 @@ fun SettingsScreen(
     var showChannelAdvanced by remember { mutableStateOf(false) }
     var showMediaOrganization by remember { mutableStateOf(false) }
     var showMediaBulk by remember { mutableStateOf(false) }
+    var channelVisibilityFilter by remember { mutableStateOf(CategoryVisibilityFilter.VISIBLE) }
+    var mediaVisibilityFilter by remember { mutableStateOf(CategoryVisibilityFilter.VISIBLE) }
     var selectedMediaIds by remember { mutableStateOf(setOf<String>()) }
     val hiddenMediaKeys by viewModel.hiddenMediaKeys.collectAsState()
 
@@ -528,6 +530,9 @@ fun SettingsScreen(
 
         if (showMediaOrganization) {
             val allMedia = state.vodCategories + state.seriesCategories
+            val shownMedia = allMedia.filter { category ->
+                mediaVisibilityFilter.accepts("${category.type}:${category.id}" in hiddenMediaKeys)
+            }
             fun mediaKey(category: MediaCategory) = "${category.type}:${category.id}"
             Column(
                 Modifier.weight(1f).fillMaxHeight(),
@@ -544,6 +549,7 @@ fun SettingsScreen(
                     }
                 }
                 Text("Appuie sur une catégorie pour l'afficher ou la masquer. Les modifications sont enregistrées automatiquement.")
+                CategoryVisibilityFilterButtons(mediaVisibilityFilter) { mediaVisibilityFilter = it }
                 SettingsButton(onClick = { showMediaBulk = !showMediaBulk }) {
                     Text(if (showMediaBulk) "Masquer les actions de groupe" else "Selection multiple / actions de groupe")
                 }
@@ -551,11 +557,11 @@ fun SettingsScreen(
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     SettingsButton(
                         onClick = {
-                            selectedMediaIds = if (selectedMediaIds.size == allMedia.size) {
-                                emptySet()
-                            } else allMedia.map(::mediaKey).toSet()
+                            selectedMediaIds = if (shownMedia.isNotEmpty() && shownMedia.all { mediaKey(it) in selectedMediaIds }) {
+                                selectedMediaIds - shownMedia.map(::mediaKey).toSet()
+                            } else selectedMediaIds + shownMedia.map(::mediaKey).toSet()
                         }
-                    ) { Text(if (selectedMediaIds.size == allMedia.size && allMedia.isNotEmpty()) "Désélectionner" else "Tout sélectionner") }
+                    ) { Text(if (shownMedia.isNotEmpty() && shownMedia.all { mediaKey(it) in selectedMediaIds } && allMedia.isNotEmpty()) "Désélectionner" else "Tout sélectionner") }
                     SettingsButton(
                         onClick = { viewModel.setMediaCategoriesHidden(allMedia.filter { mediaKey(it) in selectedMediaIds }, true) },
                         enabled = selectedMediaIds.isNotEmpty() && !state.busy
@@ -568,7 +574,7 @@ fun SettingsScreen(
                 }
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     item { SectionTitle("Films") }
-                    items(state.vodCategories, key = { "vod:" + it.id }) { category ->
+                    items(state.vodCategories.filter { mediaVisibilityFilter.accepts(mediaKey(it) in hiddenMediaKeys) }, key = { "vod:" + it.id }) { category ->
                         val key = mediaKey(category)
                         SettingsButton(
                             modifier = Modifier.fillMaxWidth(),
@@ -577,7 +583,7 @@ fun SettingsScreen(
                         ) { Text("${if (key in hiddenMediaKeys) "○ Masqué" else "● Visible"}  ${category.name}") }
                     }
                     item { SectionTitle("Séries") }
-                    items(state.seriesCategories, key = { "series:" + it.id }) { category ->
+                    items(state.seriesCategories.filter { mediaVisibilityFilter.accepts(mediaKey(it) in hiddenMediaKeys) }, key = { "series:" + it.id }) { category ->
                         val key = mediaKey(category)
                         SettingsButton(
                             modifier = Modifier.fillMaxWidth(),
@@ -600,14 +606,16 @@ fun SettingsScreen(
                     SettingsButton(onClick = { showChannelOrganization = false }) { Text("← Réglages") }
                 }
                 Text("Choisis les catégories à afficher ou masquer. Les chaînes à l'intérieur ne sont pas modifiées.")
+                CategoryVisibilityFilterButtons(channelVisibilityFilter) { channelVisibilityFilter = it }
+                val displayedCategories = state.categories.filter { channelVisibilityFilter.accepts(it.isHidden) }
                 Spacer(Modifier.height(10.dp))
-                val allSelected = state.categories.isNotEmpty() &&
-                    state.selectedCategoryIds.size == state.categories.size
+                val allSelected = displayedCategories.isNotEmpty() &&
+                    displayedCategories.all { it.id in state.selectedCategoryIds }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     SettingsButton(
                         onClick = {
-                            if (allSelected) viewModel.clearCategorySelection()
-                            else viewModel.selectAllCategories()
+                            if (allSelected) displayedCategories.forEach { if (it.id in state.selectedCategoryIds) viewModel.toggleCategorySelection(it.id) }
+                            else displayedCategories.forEach { if (it.id !in state.selectedCategoryIds) viewModel.toggleCategorySelection(it.id) }
                         },
                         selected = allSelected
                     ) { Text(if (allSelected) "Tout désélectionner" else "Tout sélectionner") }
@@ -622,7 +630,7 @@ fun SettingsScreen(
                 }
                 Spacer(Modifier.height(10.dp))
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    items(state.categories, key = { it.id }) { category ->
+                    items(displayedCategories, key = { it.id }) { category ->
                         SettingsButton(
                             modifier = Modifier.fillMaxWidth(),
                             selected = category.id in state.selectedCategoryIds,
@@ -641,6 +649,29 @@ fun SettingsScreen(
             }
         }
     }
+    }
+}
+
+private enum class CategoryVisibilityFilter(val label: String) {
+    VISIBLE("Visibles"), HIDDEN("Masquées"), ALL("Toutes");
+    fun accepts(hidden: Boolean) = when (this) {
+        VISIBLE -> !hidden
+        HIDDEN -> hidden
+        ALL -> true
+    }
+}
+
+@Composable
+private fun CategoryVisibilityFilterButtons(
+    current: CategoryVisibilityFilter,
+    onChange: (CategoryVisibilityFilter) -> Unit
+) {
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        listOf(CategoryVisibilityFilter.ALL, CategoryVisibilityFilter.VISIBLE, CategoryVisibilityFilter.HIDDEN).forEach { option ->
+            SettingsButton(onClick = { onChange(option) }, selected = current == option) {
+                Text(option.label)
+            }
+        }
     }
 }
 
