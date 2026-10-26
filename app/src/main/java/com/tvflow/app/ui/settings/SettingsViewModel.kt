@@ -100,7 +100,7 @@ class SettingsViewModel @Inject constructor(
     }
 
     private val validatedTmdbConfigured = combine(settingsStore.tmdbToken, tmdbValid) { token, valid ->
-        !token.isNullOrBlank() && valid != false
+        (!token.isNullOrBlank() && valid != false) || com.tvflow.app.ui.search.AiGatewayConfig(application).token().isNotBlank()
     }
 
     private val account = combine(

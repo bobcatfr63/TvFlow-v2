@@ -720,7 +720,7 @@ class XtreamRepository @Inject constructor(
     suspend fun enrichVodDetails(streamId: Int) {
         val profileId = currentProfileId()
         val item = dao.getVodItem(profileId, streamId) ?: return
-        val needsGenres = item.tmdbGenreIds.isNullOrBlank() && !settingsStore.currentTmdbToken().isNullOrBlank()
+        val needsGenres = item.tmdbGenreIds.isNullOrBlank() && (!settingsStore.currentTmdbToken().isNullOrBlank() || com.tvflow.app.ui.search.AiGatewayConfig(context).token().isNotBlank())
         if (!item.synopsis.isNullOrBlank() && !needsGenres) return
 
         val now = System.currentTimeMillis()
@@ -764,7 +764,7 @@ class XtreamRepository @Inject constructor(
             }
         }
 
-        if (!settingsStore.currentTmdbToken().isNullOrBlank()) {
+        if ((!settingsStore.currentTmdbToken().isNullOrBlank() || com.tvflow.app.ui.search.AiGatewayConfig(context).token().isNotBlank())) {
             val latest = dao.getVodItem(profileId, streamId) ?: item
             val metadata = runCatching {
                 tmdbMetadataClient.search(MediaType.VOD, latest.name, latest.releaseYear)
@@ -947,7 +947,7 @@ class XtreamRepository @Inject constructor(
     suspend fun enrichMissingMediaMetadata(type: MediaType, categoryId: String, limit: Int = 24) {
         if (limit <= 0) return
         // Series enrichment only uses TMDB: do not mark attempts while no key is configured.
-        if (type == MediaType.SERIES && settingsStore.currentTmdbToken().isNullOrBlank()) return
+        if (type == MediaType.SERIES && settingsStore.currentTmdbToken().isNullOrBlank() && com.tvflow.app.ui.search.AiGatewayConfig(context).token().isBlank()) return
         val profileId = currentProfileId()
         when (type) {
             MediaType.VOD -> {

@@ -19,6 +19,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
@@ -108,6 +111,8 @@ fun SettingsScreen(
             confirmButton = { Button(onClick = { showPremium = false }) { Text("Compris") } }
         )
     }
+    val settingsListState = rememberLazyListState()
+    val settingsScrollScope = rememberCoroutineScope()
     var tmdbToken by remember { mutableStateOf("") }
     var showTmdbGuide by remember { mutableStateOf(false) }
     var tmdbGuideStep by remember { mutableStateOf(0) }
@@ -211,12 +216,25 @@ fun SettingsScreen(
         if (!showChannelOrganization && !showMediaOrganization) {
         LazyColumn(
             Modifier.weight(1f).fillMaxHeight(),
+            state = settingsListState,
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item {
                 Text("Réglages TVFlow", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(8.dp))
                 SettingsButton(onClick = onBack) { Text("← Retour") }
+                Spacer(Modifier.height(12.dp))
+                Text("Accès rapide", style = MaterialTheme.typography.titleMedium)
+                androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("Organisation" to 1, "Comptes & sauvegardes" to 2,
+                        "IA & réseau" to 4, "Lecture" to 6, "Démarrage" to 7,
+                        "Films & séries" to 8, "Parental" to 9, "À propos" to 10)
+                        .forEach { (label, target) ->
+                            SettingsButton(onClick = { settingsScrollScope.launch { settingsListState.animateScrollToItem(target) } }) {
+                                Text(label)
+                            }
+                        }
+                }
             }
 
             item {
@@ -408,8 +426,8 @@ fun SettingsScreen(
                     }
                 )
                 Text(
-                    if (state.tmdbConfigured) "Clé TMDB enregistrée. L'enrichissement dépend des fiches manquantes et des actualisations du catalogue. Aucun total vérifié n'est disponible pour l'instant."
-                    else "Clé non configurée : l'enrichissement TMDB est désactivé. Les films et séries du serveur actif restent accessibles.",
+                    if (state.tmdbConfigured) "Enrichissement TMDB disponible (Cloud ou clé locale). Les fiches manquantes seront complétées pendant les actualisations du catalogue."
+                    else "TMDB Cloud s'active avec une invitation TVFlow Cloud. Sinon, une clé TMDB personnelle reste possible. Les films et séries IPTV restent accessibles.",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodySmall
                 )

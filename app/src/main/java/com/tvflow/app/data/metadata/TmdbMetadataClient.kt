@@ -4,6 +4,7 @@ import android.util.Log
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import com.tvflow.app.data.local.SettingsStore
+import com.tvflow.app.ui.search.AiGatewayConfig
 import com.tvflow.app.domain.MediaType
 import java.text.Normalizer
 import javax.inject.Inject
@@ -14,6 +15,9 @@ import kotlinx.coroutines.withContext
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONObject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -39,7 +43,8 @@ data class ExternalMediaMetadata(
 @Singleton
 class TmdbMetadataClient @Inject constructor(
     private val client: OkHttpClient,
-    private val settingsStore: SettingsStore
+    private val settingsStore: SettingsStore,
+    @dagger.hilt.android.qualifiers.ApplicationContext private val context: android.content.Context
 ) {
     private val _diagnostics = MutableStateFlow(TmdbRequestDiagnostics())
     val diagnostics: StateFlow<TmdbRequestDiagnostics> = _diagnostics
@@ -117,8 +122,10 @@ class TmdbMetadataClient @Inject constructor(
         rawTitle: String,
         knownYear: Int?
     ): ExternalMediaMetadata? = withContext(Dispatchers.IO) {
-        val credential = settingsStore.currentTmdbToken()?.let(::normalizeCredential)?.takeIf { it.isNotBlank() } ?: return@withContext null
-        if (credential == rejectedCredential) return@withContext null
+        val credential = settingsStore.currentTmdbToken()?.let(::normalizeCredential)?.takeIf { it.isNotBlank() }
+        val cloudToken = AiGatewayConfig(context).token().takeIf { it.isNotBlank() }
+        if (credential == null && cloudToken == null) return@withContext null
+        if (credential != null && credential == rejectedCredential) return@withContext null
         val inferredYear = knownYear ?: extractYear(rawTitle)
         val query = TmdbTitleCleaner.clean(rawTitle)
         if (query.length < 2) return@withContext null
@@ -134,7 +141,7 @@ class TmdbMetadataClient @Inject constructor(
             MediaType.VOD -> "https://api.themoviedb.org/3/search/movie"
             MediaType.SERIES -> "https://api.themoviedb.org/3/search/tv"
         }
-        val apiKeyMode = credential.matches(Regex("^[a-fA-F0-9]{32}$"))
+        val apiKeyMode = credential?.matches(Regex("^[a-fA-F0-9]{32}$")) == true
         val urlBuilder = endpoint.toHttpUrl().newBuilder()
             .addQueryParameter("query", query)
             .addQueryParameter("language", "fr-FR")
@@ -147,15 +154,27 @@ class TmdbMetadataClient @Inject constructor(
         val requestBuilder = Request.Builder()
             .url(url)
             .header("Accept", "application/json")
-        if (!apiKeyMode) {
+        if (!apiKeyMode && credential != null) {
             requestBuilder.header("Authorization", "Bearer " + credential)
         }
-        val request = requestBuilder.build()
-
-        val response = try { client.newCall(request).execute() } catch (error: java.io.IOException) {
-            recordDiagnostic("network")
-            Log.w("TVFlowTmdb", "type=$type query=$query network_failure", error)
-            return@withContext null
+        val localRequest = requestBuilder.build()
+        val cloudRequest = cloudToken?.let { session ->
+            val payload = JSONObject().put("type", if (type == MediaType.VOD) "movie" else "tv")
+                .put("query", query).toString()
+            Request.Builder().url("https://sxynniwybomzkguzomyn.supabase.co/functions/v1/tvflow-metadata")
+                .header("Authorization", "Bearer $session")
+                .post(payload.toRequestBody("application/json".toMediaType())).build()
+        }
+        val response = try {
+            val remote = cloudRequest?.let { client.newCall(it).execute() }
+            if (remote != null && remote.isSuccessful) remote else {
+                remote?.close()
+                if (credential == null) return@withContext null
+                client.newCall(localRequest).execute()
+            }
+        } catch (error: java.io.IOException) {
+            if (credential == null) return@withContext null
+            try { client.newCall(localRequest).execute() } catch (_: java.io.IOException) { return@withContext null }
         }
         response.use { response ->
             if (!response.isSuccessful) {
