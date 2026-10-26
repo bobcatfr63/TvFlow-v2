@@ -93,6 +93,7 @@ class SettingsViewModel @Inject constructor(
     private val _refreshProgress = MutableStateFlow<RefreshProgress?>(null)
     val refreshProgress: StateFlow<RefreshProgress?> = _refreshProgress
     val tmdbDiagnostics = tmdbMetadataClient.diagnostics
+    val tmdbSourceStats = tmdbMetadataClient.sources
     val tmdbGenreCoverage = repository.observeTmdbGenreCoverage()
 
     private val channels = selectedCategoryId.flatMapLatest { id ->
@@ -287,6 +288,20 @@ class SettingsViewModel @Inject constructor(
                 _refreshProgress.value = null
                 busy.value = false
             }
+        }
+    }
+
+    fun testTmdbCloud() {
+        viewModelScope.launch {
+            if (busy.value) return@launch
+            busy.value = true
+            try {
+                val result = tmdbMetadataClient.search(MediaType.VOD, "Inception", 2010)
+                message.value = if (result != null) "Test TMDB réussi : ${tmdbMetadataClient.sources.value.lastSource}" else
+                    "TMDB : aucune correspondance. Vérifie l'activation TVFlow Cloud ou la clé locale."
+            } catch (_: Exception) {
+                message.value = "TMDB indisponible pour le moment."
+            } finally { busy.value = false }
         }
     }
 

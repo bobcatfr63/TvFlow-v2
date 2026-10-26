@@ -73,6 +73,7 @@ fun SettingsScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val tmdbDiagnostics by viewModel.tmdbDiagnostics.collectAsState()
+    val tmdbSourceStats by viewModel.tmdbSourceStats.collectAsState()
     val tmdbGenreCoverage by viewModel.tmdbGenreCoverage.collectAsState(initial = com.tvflow.app.data.repository.XtreamRepository.TmdbGenreCoverage())
     val refreshProgress by viewModel.refreshProgress.collectAsState()
     val context = LocalContext.current
@@ -111,6 +112,7 @@ fun SettingsScreen(
             confirmButton = { Button(onClick = { showPremium = false }) { Text("Compris") } }
         )
     }
+    var settingsCategory by remember { mutableStateOf<String?>(null) }
     val settingsListState = rememberLazyListState()
     val settingsScrollScope = rememberCoroutineScope()
     var tmdbToken by remember { mutableStateOf("") }
@@ -220,24 +222,24 @@ fun SettingsScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item {
-                Text("Réglages TVFlow", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.height(8.dp))
-                SettingsButton(onClick = onBack) { Text("← Retour") }
-                Spacer(Modifier.height(12.dp))
-                Text("Accès rapide", style = MaterialTheme.typography.titleMedium)
-                androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf("Organisation" to 1, "Comptes & sauvegardes" to 2,
-                        "IA & réseau" to 4, "Lecture" to 6, "Démarrage" to 7,
-                        "Films & séries" to 8, "Parental" to 9, "À propos" to 10)
-                        .forEach { (label, target) ->
-                            SettingsButton(onClick = { settingsScrollScope.launch { settingsListState.animateScrollToItem(target) } }) {
-                                Text(label)
-                            }
+                Text(if (settingsCategory == null) "Réglages TVFlow" else settingsCategory!!,
+                    style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
+                SettingsButton(onClick = {
+                    if (settingsCategory == null) onBack() else settingsCategory = null
+                }) { Text("← Retour") }
+            }
+            if (settingsCategory == null) item {
+                listOf("Organisation", "Comptes & sauvegardes", "IA & métadonnées",
+                    "Réseau", "Lecture & démarrage", "Contrôle parental", "À propos")
+                    .forEach { category ->
+                        SettingsButton(onClick = { settingsCategory = category }, modifier = Modifier.fillMaxWidth()) {
+                            Text("$category  ›")
                         }
-                }
+                        Spacer(Modifier.height(8.dp))
+                    }
             }
 
-            item {
+            if (settingsCategory == "Organisation") item {
                 SettingsButton(
                     onClick = { showChannelOrganization = true },
                     modifier = Modifier.fillMaxWidth()
@@ -253,7 +255,7 @@ fun SettingsScreen(
                 }
             }
 
-            item {
+            if (settingsCategory == "Comptes & sauvegardes") item {
                 SectionTitle("TVFlow Premium")
                 SettingsButton(onClick = { showPremium = true }, modifier = Modifier.fillMaxWidth()) {
                     Text("Premium à vie · 4,99 €  ›")
@@ -274,15 +276,15 @@ fun SettingsScreen(
                 }
             }
 
-            item {
+            if (settingsCategory == "Comptes & sauvegardes") item {
                 BackupControls()
             }
 
-            item {
+            if (settingsCategory == "IA & métadonnées") item {
                 AiGatewayControls()
             }
 
-            item {
+            if (settingsCategory == "Réseau") item {
                 SectionTitle("Diagnostic réseau")
                 Text("Teste séparément l’API Xtream, le Direct et la VOD sans exposer les identifiants.")
                 Spacer(Modifier.height(8.dp))
@@ -307,7 +309,7 @@ fun SettingsScreen(
                 }
             }
 
-            item {
+            if (settingsCategory == "Lecture & démarrage") item {
                 SectionTitle("Lecteur")
                 ChoiceRow("Buffer", listOf("AUTO", "FAST", "BALANCED", "SAFE"), state.player.bufferPreset, viewModel::setBuffer)
                 ChoiceRow("Image", listOf("FIT", "FILL", "ZOOM"), state.player.videoScale, viewModel::setScale)
@@ -413,8 +415,14 @@ fun SettingsScreen(
                 }
             }
 
-            item {
-                SectionTitle("Métadonnées films & séries")
+            if (settingsCategory == "IA & métadonnées") item {
+                SectionTitle("TMDB — sources et statistiques")
+                SettingsButton(onClick = viewModel::testTmdbCloud, enabled = !state.busy) {
+                    Text("Tester TMDB maintenant")
+                }
+                Text("Source de la dernière recherche : ${tmdbSourceStats.lastSource}")
+                Text("Recherches correspondantes : Cloud ${tmdbSourceStats.cloud} • Clé locale ${tmdbSourceStats.local} • Cache serveur ${tmdbSourceStats.cloudCacheHits}")
+                Text("Compteurs depuis le démarrage de l'application. Une affiche déjà stockée dans le catalogue n'entraîne aucune nouvelle requête.", style = MaterialTheme.typography.bodySmall)
                 SettingsButton(onClick = { tmdbGuideStep = 0; showTmdbGuide = true }) {
                     Text("Guide : configurer TMDB étape par étape")
                 }
@@ -479,7 +487,7 @@ fun SettingsScreen(
                 )
             }
 
-            item {
+            if (settingsCategory == "Contrôle parental") item {
                 SectionTitle("Contrôle parental")
                 Text(if (state.pinConfigured) "PIN configuré" else "Aucun PIN configuré")
                 OutlinedTextField(
@@ -495,7 +503,7 @@ fun SettingsScreen(
                 }
             }
 
-            item {
+            if (settingsCategory == "À propos") item {
                 SectionTitle("À propos")
                 Text("TVFlow v${BuildConfig.VERSION_NAME} • build ${BuildConfig.VERSION_CODE}")
                 Text("${BuildConfig.BUILD_CHANNEL} • ${BuildConfig.GIT_SHA}", style = MaterialTheme.typography.bodySmall)

@@ -21,6 +21,8 @@ import org.json.JSONObject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
+data class TmdbSourceStats(val cloud: Int = 0, val local: Int = 0, val cloudCacheHits: Int = 0, val lastSource: String = "Aucune recherche")
+
 data class TmdbRequestDiagnostics(
     val matched: Int = 0,
     val noMatch: Int = 0,
@@ -48,6 +50,15 @@ class TmdbMetadataClient @Inject constructor(
 ) {
     private val _diagnostics = MutableStateFlow(TmdbRequestDiagnostics())
     val diagnostics: StateFlow<TmdbRequestDiagnostics> = _diagnostics
+    private val _sources = MutableStateFlow(TmdbSourceStats())
+    val sources: StateFlow<TmdbSourceStats> = _sources
+    @Synchronized private fun recordSource(cloud: Boolean, cacheHit: Boolean = false) {
+        val old = _sources.value
+        _sources.value = if (cloud) old.copy(cloud = old.cloud + 1,
+            cloudCacheHits = old.cloudCacheHits + if (cacheHit) 1 else 0,
+            lastSource = if (cacheHit) "Cloud — cache serveur" else "Cloud — TMDB")
+        else old.copy(local = old.local + 1, lastSource = "Clé locale TMDB")
+    }
 
     @Synchronized private fun recordDiagnostic(kind: String) {
         val current = _diagnostics.value
@@ -165,9 +176,13 @@ class TmdbMetadataClient @Inject constructor(
                 .header("Authorization", "Bearer $session")
                 .post(payload.toRequestBody("application/json".toMediaType())).build()
         }
+        var cloudUsed = false
         val response = try {
             val remote = cloudRequest?.let { client.newCall(it).execute() }
-            if (remote != null && remote.isSuccessful) remote else {
+            if (remote != null && remote.isSuccessful) {
+                cloudUsed = true
+                remote
+            } else {
                 remote?.close()
                 if (credential == null) return@withContext null
                 client.newCall(localRequest).execute()
@@ -211,6 +226,9 @@ class TmdbMetadataClient @Inject constructor(
                 synchronized(missedLookups) { missedLookups[lookupKey] = System.currentTimeMillis() }
                 return@withContext null
             }
+            recordSource(cloudUsed, cloudUsed && runCatching {
+                JsonParser.parseString(body).asJsonObject.get("cache")?.asString == "hit"
+            }.getOrDefault(false))
             recordDiagnostic("matched")
             synchronized(missedLookups) { missedLookups.remove(lookupKey) }
 
