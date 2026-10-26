@@ -610,22 +610,6 @@ fun PlayerScreen(
             onSent = { player.pause() }
         )
 
-        if (useVlcFallback && !castActive) {
-            Text(
-                "Secours VLC",
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(16.dp)
-                    .background(
-                        MaterialTheme.colorScheme.surface.copy(alpha = 0.82f),
-                        RoundedCornerShape(8.dp)
-                    )
-                    .padding(horizontal = 12.dp, vertical = 7.dp),
-                color = MaterialTheme.colorScheme.onSurface,
-                style = MaterialTheme.typography.labelMedium
-            )
-        }
-
         AnimatedVisibility(
             visible = sidePanel == SidePanel.CHANNELS,
             modifier = Modifier.align(Alignment.CenterStart)

@@ -404,17 +404,6 @@ fun VodPlayerScreen(
         )
         }
 
-        if (useVlcFallback && !castActive) {
-            Text(
-                "Secours VLC",
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(16.dp),
-                color = MaterialTheme.colorScheme.primary,
-                style = MaterialTheme.typography.labelLarge
-            )
-        }
-
         val navigationSeriesId = state.seriesId
         if (
             episodeNavigationVisible &&
