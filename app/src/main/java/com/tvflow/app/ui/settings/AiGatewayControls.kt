@@ -37,6 +37,7 @@ fun AiGatewayControls() {
         Text("Accès TVFlow AI Cloud (bêta privée)")
         Text(cloudState)
         TextButton(onClick = { com.tvflow.app.ui.search.TvFlowCloudRequest.checkNow(context); cloudState = com.tvflow.app.ui.search.TvFlowCloudRequest.state(context) }) { Text("Actualiser le statut Cloud") }
+        if (cloudState != "Accès Cloud actif") {
         OutlinedTextField(value = inviteCode, onValueChange = { inviteCode = it }, singleLine = true,
             label = { Text("Code d'invitation") }, modifier = Modifier.fillMaxWidth())
         SettingsButton(enabled = !checking && inviteCode.isNotBlank(), onClick = {
@@ -65,6 +66,9 @@ fun AiGatewayControls() {
             }
         }) { Text(if (sendingRequest) "Envoi en cours…" else "Demander un accès TVFlow Cloud") }
         if (requestResult.isNotBlank()) Text(requestResult)
+        } else {
+            Text("Groq et TMDB disponibles avec votre autorisation Cloud. Quotas gérés dans TVFlow Manager.")
+        }
         TextButton(onClick = { advanced = !advanced }) { Text(if (advanced) "Masquer les paramètres avancés" else "Configuration avancée") }
         if (advanced) {
         OutlinedTextField(value = endpoint, onValueChange = { endpoint = it }, singleLine = true,
@@ -89,7 +93,15 @@ fun AiGatewayControls() {
                 checking = false
             }
         }) { Text(if (checking) "Vérification…" else "Tester la connexion Groq") }
-        SettingsButton(onClick = { config.clear(); endpoint = ""; token = ""; status = "Recherche locale activée" }) {
+        SettingsButton(enabled = !checking && config.token().isNotBlank(), onClick = {
+            checking = true
+            status = "Test TMDB Cloud en cours…"
+            scope.launch {
+                status = com.tvflow.app.ui.search.TvFlowCloudDiagnostics.testTmdb(context)
+                checking = false
+            }
+        }) { Text("Tester la connexion TMDB") }
+        SettingsButton(onClick = { config.clear(); endpoint = ""; token = ""; cloudState = com.tvflow.app.ui.search.TvFlowCloudRequest.state(context); status = "Recherche locale activée" }) {
             Text("Utiliser uniquement le moteur local")
         }
         if (status.isNotBlank()) Text(status)
