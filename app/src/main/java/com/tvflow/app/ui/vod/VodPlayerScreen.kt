@@ -59,6 +59,7 @@ import com.tvflow.app.connect.TvFlowSendButton
 import com.tvflow.app.domain.Episode
 import com.tvflow.app.ui.common.PlayerLifecycleEffect
 import com.tvflow.app.ui.common.VlcFallbackPlayer
+import com.tvflow.app.util.isTelevisionUi
 import com.tvflow.app.ui.common.iptvMediaSourceFactory
 import com.tvflow.app.ui.common.shouldSaveVlcProgress
 import com.tvflow.app.ui.common.shouldUseVlcFallback
@@ -82,7 +83,9 @@ fun VodPlayerScreen(
     val audioManager = remember { context.getSystemService(Context.AUDIO_SERVICE) as AudioManager }
     var infoVisible by remember { mutableStateOf(false) }
     var gestureLabel by remember { mutableStateOf<String?>(null) }
-    var useVlcFallback by remember { mutableStateOf(false) }
+    val phoneVlcFirst = remember(context) { !context.isTelevisionUi() }
+    var vlcFailedForStream by remember { mutableStateOf(false) }
+    var useVlcFallback by remember { mutableStateOf(phoneVlcFirst) }
     var vlcHandoffPositionMs by remember { mutableStateOf(0L) }
     var lastVlcProgressSaveMs by remember { mutableStateOf(0L) }
     var episodeNavigationVisible by remember { mutableStateOf(false) }
@@ -132,7 +135,7 @@ fun VodPlayerScreen(
                     }
                     cause = cause.cause
                 }
-                if (shouldUseVlcFallback(httpCode, error.errorCodeName)) {
+                if (!vlcFailedForStream && shouldUseVlcFallback(httpCode, error.errorCodeName)) {
                     vlcHandoffPositionMs = player.currentPosition.coerceAtLeast(state.resumePositionMs)
                     player.pause()
                     useVlcFallback = true
@@ -164,10 +167,12 @@ fun VodPlayerScreen(
     }
 
     LaunchedEffect(state.streamUrl) {
-        useVlcFallback = false
+        vlcFailedForStream = false
+        useVlcFallback = phoneVlcFirst
         vlcHandoffPositionMs = 0L
         lastVlcProgressSaveMs = 0L
         val url = state.streamUrl ?: return@LaunchedEffect
+        if (useVlcFallback) { player.stop(); player.clearMediaItems(); return@LaunchedEffect }
         Log.i(VOD_PLAYER_TAG, "Preparing Media3: media=${state.mediaKey}, extension=${state.containerExtension ?: "unknown"}, resumeMs=${state.resumePositionMs}")
         player.setMediaItem(MediaItem.fromUri(url))
         player.prepare()
@@ -303,8 +308,15 @@ fun VodPlayerScreen(
                 },
                 onFinalProgress = { position, duration -> viewModel.saveFinalProgress(position, duration) },
                 onError = { error ->
+                    vlcFailedForStream = true
                     useVlcFallback = false
                     viewModel.onPlaybackError(error)
+                    state.streamUrl?.let { url ->
+                        player.setMediaItem(MediaItem.fromUri(url))
+                        player.prepare()
+                        if (vlcHandoffPositionMs > 0L) player.seekTo(vlcHandoffPositionMs)
+                        player.playWhenReady = true
+                    }
                 }
             )
             else -> AndroidView(

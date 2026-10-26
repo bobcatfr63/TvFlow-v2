@@ -80,6 +80,7 @@ import com.tvflow.app.connect.TvFlowSendButton
 import com.tvflow.app.domain.LiveChannel
 import com.tvflow.app.ui.common.PlayerLifecycleEffect
 import com.tvflow.app.ui.common.VlcFallbackPlayer
+import com.tvflow.app.util.isTelevisionUi
 import com.tvflow.app.ui.common.iptvMediaSourceFactory
 import com.tvflow.app.ui.common.liveM3u8Fallback
 import com.tvflow.app.ui.common.shouldUseVlcFallback
@@ -142,7 +143,9 @@ fun PlayerScreen(
     var media3ErrorEpoch by remember { mutableIntStateOf(0) }
     var lastMedia3HttpCode by remember { mutableStateOf<Int?>(null) }
     var lastMedia3ErrorName by remember { mutableStateOf<String?>(null) }
-    var useVlcFallback by remember { mutableStateOf(false) }
+    val phoneVlcFirst = remember(context) { !context.isTelevisionUi() }
+    var vlcFailedForStream by remember { mutableStateOf(false) }
+    var useVlcFallback by remember { mutableStateOf(phoneVlcFirst) }
     var firstVideoFrameRendered by remember { mutableStateOf(false) }
     var playbackReadyForVideo by remember { mutableStateOf(false) }
     var videoWatchdogEpoch by remember { mutableIntStateOf(0) }
@@ -314,7 +317,8 @@ fun PlayerScreen(
         media3ErrorEpoch = 0
         lastMedia3HttpCode = null
         lastMedia3ErrorName = null
-        useVlcFallback = false
+        vlcFailedForStream = false
+        useVlcFallback = phoneVlcFirst
         formatFallbackTried = false
         liveUrlOverride = null
         catchupUrlOverride = null
@@ -329,7 +333,7 @@ fun PlayerScreen(
             retryEpoch++
         } else {
             player.stop()
-            useVlcFallback = true
+            if (!vlcFailedForStream) useVlcFallback = true
             viewModel.reportPlayerError(null)
         }
     }
@@ -557,6 +561,7 @@ fun PlayerScreen(
                 bufferPreset = effectiveBufferPreset,
                 onReady = viewModel::reportPlaybackReady,
                 onError = {
+                    vlcFailedForStream = true
                     useVlcFallback = false
                     viewModel.reportPlaybackFailure(null, it)
                     viewModel.reportPlayerError(it)

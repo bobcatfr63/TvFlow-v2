@@ -420,6 +420,9 @@ fun SettingsScreen(
                 SettingsButton(onClick = viewModel::testTmdbCloud, enabled = !state.busy) {
                     Text("Tester TMDB maintenant")
                 }
+                state.message?.takeIf { it.startsWith("Test TMDB") || it.startsWith("TMDB :") || it.startsWith("TMDB indisponible") }?.let {
+                    Text(it, color = MaterialTheme.colorScheme.primary)
+                }
                 Text("Source de la dernière recherche : ${tmdbSourceStats.lastSource}")
                 Text("Recherches correspondantes : Cloud ${tmdbSourceStats.cloud} • Clé locale ${tmdbSourceStats.local} • Cache serveur ${tmdbSourceStats.cloudCacheHits}")
                 Text("Compteurs depuis le démarrage de l'application. Une affiche déjà stockée dans le catalogue n'entraîne aucune nouvelle requête.", style = MaterialTheme.typography.bodySmall)
@@ -514,7 +517,7 @@ fun SettingsScreen(
                 )
             }
 
-            state.message?.let { message -> item { Text(message, color = MaterialTheme.colorScheme.primary) } }
+            state.message?.takeUnless { it.startsWith("Test TMDB") || it.startsWith("TMDB :") || it.startsWith("TMDB indisponible") }?.let { message -> item { Text(message, color = MaterialTheme.colorScheme.primary) } }
         }
         }
 
