@@ -612,7 +612,7 @@ fun SettingsScreen(
                 Spacer(Modifier.height(10.dp))
                 val allSelected = displayedCategories.isNotEmpty() &&
                     displayedCategories.all { it.id in state.selectedCategoryIds }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     SettingsButton(
                         onClick = {
                             if (allSelected) displayedCategories.forEach { if (it.id in state.selectedCategoryIds) viewModel.toggleCategorySelection(it.id) }

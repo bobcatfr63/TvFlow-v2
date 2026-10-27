@@ -908,6 +908,23 @@ private fun PlayerOverlay(
     onRetry: () -> Unit
 ) {
     val current = state.nowProgram
+    if (!LocalContext.current.isTelevisionUi()) {
+        Column(
+            modifier = Modifier.fillMaxWidth()
+                .background(androidx.compose.ui.graphics.Color(0xF2080C16), RoundedCornerShape(14.dp))
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Text(state.channel?.name ?: "Chargement…", maxLines = 2, overflow = TextOverflow.Ellipsis,
+                style = MaterialTheme.typography.titleMedium, color = androidx.compose.ui.graphics.Color.White)
+            Text("${state.channelIndex + 1}/${state.channelCount}  •  ${current?.title ?: "Programme indisponible"}",
+                maxLines = 2, overflow = TextOverflow.Ellipsis, color = androidx.compose.ui.graphics.Color.White)
+            if (isCatchup) Text("Revenir au direct", modifier = Modifier.clickable(onClick = onReturnToLive), color = androidx.compose.ui.graphics.Color.White)
+            else if (state.restartUrl != null) Text("Recommencer", modifier = Modifier.clickable(onClick = onRestartProgram), color = androidx.compose.ui.graphics.Color.White)
+            state.playerError?.let { Text("Réessayer", modifier = Modifier.clickable(onClick = onRetry), color = MaterialTheme.colorScheme.error) }
+        }
+        return
+    }
     val nowSeconds = System.currentTimeMillis() / 1000L
     val progress = if (current != null && current.stopTimestamp > current.startTimestamp) {
         ((nowSeconds - current.startTimestamp).toFloat() / (current.stopTimestamp - current.startTimestamp).toFloat())
