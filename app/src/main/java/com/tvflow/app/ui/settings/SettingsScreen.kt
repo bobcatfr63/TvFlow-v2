@@ -549,10 +549,10 @@ fun SettingsScreen(
                         Text("← Réglages")
                     }
                 }
-                Text("Appuie sur une catégorie pour l'afficher ou la masquer. Les modifications sont enregistrées automatiquement.")
+                if (isTv) Text("Appuie sur une catégorie pour l'afficher ou la masquer. Les modifications sont enregistrées automatiquement.")
                 CategoryVisibilityFilterButtons(mediaVisibilityFilter) { mediaVisibilityFilter = it }
                 SettingsButton(onClick = { showMediaBulk = !showMediaBulk }) {
-                    Text(if (showMediaBulk) "Masquer les actions de groupe" else "Selection multiple / actions de groupe")
+                    Text(if (showMediaBulk) "Masquer les actions de groupe" else "Sélection multiple", maxLines = 1)
                 }
                 if (showMediaBulk) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -573,7 +573,7 @@ fun SettingsScreen(
                     ) { Text("Afficher") }
                 }
                 }
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                LazyColumn(modifier = Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     item { SectionTitle("Films") }
                     items(state.vodCategories.filter { mediaVisibilityFilter.accepts(mediaKey(it) in hiddenMediaKeys) }, key = { "vod:" + it.id }) { category ->
                         val key = mediaKey(category)
