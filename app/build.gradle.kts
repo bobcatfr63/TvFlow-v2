@@ -66,7 +66,7 @@ extensions.configure<ApplicationExtension>("android") {
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.tvflow.app"
+        applicationId = if (providers.environmentVariable("TVFLOW_PHONE_BUILD").orNull == "1") "com.tvflow.app.phone" else "com.tvflow.app"
         minSdk = 24
         targetSdk = 36
         versionCode = appVersionCode

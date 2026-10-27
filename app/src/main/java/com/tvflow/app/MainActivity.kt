@@ -40,8 +40,11 @@ class MainActivity : FragmentActivity() {
         val activityStart = SystemClock.uptimeMillis()
         super.onCreate(savedInstanceState)
         Log.i("TVFlowStartup", "Activity super.onCreate ${SystemClock.uptimeMillis() - activityStart}ms")
+        if (!isTelevisionUi()) {
+            requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+        }
         enableEdgeToEdge()
-        applyImmersiveMode()
+        if (isTelevisionUi()) applyImmersiveMode()
         requestNotificationPermissionIfNeeded()
 
         val bootLiveTarget = intent
@@ -84,7 +87,7 @@ class MainActivity : FragmentActivity() {
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
-        if (hasFocus) applyImmersiveMode()
+        if (hasFocus && isTelevisionUi()) applyImmersiveMode()
     }
 
     private fun requestNotificationPermissionIfNeeded() {
