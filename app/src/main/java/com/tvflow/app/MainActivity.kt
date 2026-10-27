@@ -41,7 +41,7 @@ class MainActivity : FragmentActivity() {
         super.onCreate(savedInstanceState)
         Log.i("TVFlowStartup", "Activity super.onCreate ${SystemClock.uptimeMillis() - activityStart}ms")
         if (!isTelevisionUi()) {
-            requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+            requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
         }
         enableEdgeToEdge()
         if (isTelevisionUi()) applyImmersiveMode()
