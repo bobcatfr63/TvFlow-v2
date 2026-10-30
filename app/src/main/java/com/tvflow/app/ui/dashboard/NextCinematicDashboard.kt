@@ -141,7 +141,7 @@ internal fun NextCinematicDashboard(
                 Text("  ⌕    ◉", color = nextWhite, fontSize = 19.sp)
             }
             Spacer(Modifier.height(9.dp))
-            Row(Modifier.fillMaxWidth().height(178.dp)) {
+            Row(Modifier.fillMaxWidth().height(194.dp)) {
                 Column(Modifier.width(140.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
                     listOf("♥   Mes favoris" to onFavorites,
                         "◷   Derniers ajoutés" to onVod,
@@ -182,9 +182,9 @@ internal fun NextCinematicDashboard(
                     }
                 }
             }
-            Spacer(Modifier.height(9.dp))
+            Spacer(Modifier.height(4.dp))
             Text("Applications favorites", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(4.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf(
                     Triple("Direct TV", Color(0xFF003D84), onLive),
@@ -212,7 +212,7 @@ internal fun NextCinematicDashboard(
             Spacer(Modifier.height(6.dp))
             NextMediaRow("Recommandés pour vous",
                 state.recommendedVod.ifEmpty { state.recentVodReleases }, onVodItem)
-            Spacer(Modifier.height(9.dp))
+            Spacer(Modifier.height(4.dp))
             NextMediaRow("Nouveautés films", state.recentVodReleases, onVodItem)
         }
     }
@@ -222,7 +222,7 @@ internal fun NextCinematicDashboard(
 private fun NextMediaRow(title: String, entries: List<VodItem>, onClick: (VodItem) -> Unit) {
     Column {
         Text(title, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
-        Spacer(Modifier.height(7.dp))
+        Spacer(Modifier.height(4.dp))
         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             items(entries.asSequence()
                 .filter { isNextCatalogCard(it.name, it.posterUrl) }
@@ -230,7 +230,7 @@ private fun NextMediaRow(title: String, entries: List<VodItem>, onClick: (VodIte
                 .distinctBy { nextCatalogTitleKey(it.name) }
                 .distinctBy { it.posterUrl.orEmpty().substringBefore('?').lowercase(java.util.Locale.ROOT) }
                 .take(60).toList(), key = { it.streamId }) { vod ->
-                NextFocusSurface(modifier = Modifier.width(130.dp).height(93.dp), onClick = { onClick(vod) },
+                NextFocusSurface(modifier = Modifier.width(130.dp).height(77.dp), onClick = { onClick(vod) },
                     base = Color(0xFF132232)) {
                     Box {
                         AsyncImage(vod.posterUrl, contentDescription = vod.name,
@@ -250,7 +250,7 @@ private fun NextMediaRow(title: String, entries: List<VodItem>, onClick: (VodIte
 @Composable
 private fun NextAction(label: String, color: Color, onClick: () -> Unit) {
     NextFocusSurface(onClick = onClick, base = color) {
-        Text(label, Modifier.padding(horizontal = 15.dp, vertical = 10.dp),
+        Text(label, Modifier.padding(horizontal = 13.dp, vertical = 7.dp),
             color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
     }
 }
