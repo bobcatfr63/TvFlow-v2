@@ -205,7 +205,10 @@ class TmdbMetadataClient @Inject constructor(
     ): ExternalMediaMetadata? = withContext(Dispatchers.IO) {
         val credential = settingsStore.currentTmdbToken()?.let(::normalizeCredential)?.takeIf { it.isNotBlank() }
         val cloudToken = AiGatewayConfig(context).token().takeIf { it.isNotBlank() }
-        if (credential == null && cloudToken == null) return@withContext null
+        if (credential == null && cloudToken == null) {
+            Log.d("TVFlowTmdb", "metadata unavailable: no configured TMDB or cloud session")
+            return@withContext null
+        }
         if (credential != null && credential == rejectedCredential) return@withContext null
         val inferredYear = knownYear ?: extractYear(rawTitle)
         val query = TmdbTitleCleaner.clean(rawTitle)
@@ -306,6 +309,7 @@ class TmdbMetadataClient @Inject constructor(
             val parsed = parseDate(date)
             val posterPath = string(best, "poster_path")
             val backdropPath = string(best, "backdrop_path")
+            Log.d("TVFlowTmdb", "type=$type match=true backdrop=" + if (backdropPath.isNullOrBlank()) "missing" else "present")
             ExternalMediaMetadata(
                 genreIds = best.getAsJsonArray("genre_ids")?.mapNotNull { id -> runCatching { id.asInt }.getOrNull() }?.distinct()?.joinToString(",")?.takeIf { it.isNotBlank() },
                 synopsis = string(best, "overview")?.takeIf { it.isNotBlank() },
