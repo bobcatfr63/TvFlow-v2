@@ -121,10 +121,6 @@ Box(Modifier.fillMaxWidth().height(252.dp)) {
                 }
             }
         }
-        Text("À la découverte", Modifier.padding(start = 16.dp, top = 18.dp, bottom = 3.dp),
-            color = blue, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-        Text("Votre cinéma, vos envies", Modifier.padding(start = 16.dp, bottom = 6.dp),
-            color = white.copy(alpha = 0.82f), fontSize = 14.sp)
         MobilePosterRail("Tendances sur TMDB", state.recommendedVod.ifEmpty { state.recentVodReleases }, onVodItem)
         MobilePosterRail("Nouveautés films", state.recentVodReleases, onVodItem)
         MobileSeriesRail("Séries à découvrir", state.recommendedSeries.ifEmpty { state.recentSeriesReleases }, onSeriesItem)
