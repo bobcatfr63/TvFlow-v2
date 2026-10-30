@@ -44,7 +44,7 @@ class MainActivity : FragmentActivity() {
             requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
         }
         enableEdgeToEdge()
-        if (isTelevisionUi()) applyImmersiveMode()
+        if (isTelevisionUi() || BuildConfig.APPLICATION_ID.endsWith(".next")) applyImmersiveMode()
         requestNotificationPermissionIfNeeded()
 
         val bootLiveTarget = intent
@@ -87,7 +87,7 @@ class MainActivity : FragmentActivity() {
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
-        if (hasFocus && isTelevisionUi()) applyImmersiveMode()
+        if (hasFocus && (isTelevisionUi() || BuildConfig.APPLICATION_ID.endsWith(".next"))) applyImmersiveMode()
     }
 
     private fun requestNotificationPermissionIfNeeded() {
