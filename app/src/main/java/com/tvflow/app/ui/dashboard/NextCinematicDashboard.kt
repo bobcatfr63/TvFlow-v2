@@ -108,10 +108,10 @@ internal fun NextCinematicDashboard(
             )
         }
         Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(
-            listOf(nextBg, nextBg.copy(alpha = 0.92f), nextBg.copy(alpha = 0.40f))
+            listOf(nextBg, nextBg.copy(alpha = 0.82f), nextBg.copy(alpha = 0.12f))
         )))
         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(
-            listOf(Color.Transparent, nextBg.copy(alpha = 0.32f), nextBg), startY = 100f
+            listOf(Color.Transparent, nextBg.copy(alpha = 0.18f), nextBg), startY = 140f
         )))
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 22.dp, vertical = 9.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
