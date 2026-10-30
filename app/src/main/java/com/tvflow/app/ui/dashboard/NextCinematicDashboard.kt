@@ -102,7 +102,7 @@ internal fun NextCinematicDashboard(
         Triple("⚙  Réglages", false, onSettings)
     )
     Box(Modifier.fillMaxSize().background(nextBg)) {
-        Box(Modifier.fillMaxWidth().height(300.dp).align(Alignment.TopCenter).clipToBounds()) {
+        Box(Modifier.fillMaxWidth().fillMaxHeight(0.48f).align(Alignment.TopCenter).clipToBounds()) {
             if (!image.isNullOrBlank()) {
                 // A catalog poster must not masquerade as a widescreen TMDB backdrop.
                 // Blurred ambient layer preserves a cinematic look when cloud metadata is unavailable.
