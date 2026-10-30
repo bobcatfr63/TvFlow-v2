@@ -18,6 +18,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.Brush
@@ -87,11 +88,23 @@ internal fun NextCinematicDashboard(
     )
     Box(Modifier.fillMaxSize().background(nextBg)) {
         if (!image.isNullOrBlank()) {
+            // A catalog poster must not masquerade as a widescreen TMDB backdrop.
+            // Blurred ambient layer preserves a cinematic look when cloud metadata is unavailable.
+            if (state.featuredBackdropUrl == null) {
+                AsyncImage(
+                    model = image,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxWidth(0.84f).fillMaxHeight(0.59f)
+                        .align(Alignment.TopEnd).blur(36.dp)
+                )
+            }
             AsyncImage(
                 model = image,
                 contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxWidth(0.82f).fillMaxHeight(0.58f).align(Alignment.TopEnd)
+                contentScale = if (state.featuredBackdropUrl == null) ContentScale.Fit else ContentScale.Crop,
+                modifier = Modifier.fillMaxWidth(if (state.featuredBackdropUrl == null) 0.46f else 0.82f)
+                    .fillMaxHeight(0.58f).align(Alignment.TopEnd)
             )
         }
         Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(
