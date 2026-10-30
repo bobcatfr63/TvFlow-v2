@@ -254,10 +254,10 @@ private fun NextMediaRow(title: String, entries: List<VodItem>, onClick: (VodIte
                         AsyncImage(vod.posterUrl, contentDescription = vod.name,
                             contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
                         Box(Modifier.fillMaxWidth().height(32.dp).align(Alignment.BottomCenter)
-                            .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = .85f)))))
+                            .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = .92f)))))
                         Text(cleanNextHeroName(vod.name), color = Color.White, fontSize = 10.sp,
                             fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.align(Alignment.BottomStart).padding(5.dp))
+                            modifier = Modifier.align(Alignment.BottomStart).padding(horizontal = 7.dp, vertical = 6.dp))
                     }
                 }
             }
