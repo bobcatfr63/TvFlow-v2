@@ -53,8 +53,8 @@ internal fun NextMobileDashboard(
     val white = Color(0xFFF3F6FF)
     val blue = Color(0xFF078AFF)
     Box(Modifier.fillMaxSize().background(Color(0xFF040910))) {
-    Column(Modifier.fillMaxSize().padding(bottom = 68.dp).verticalScroll(rememberScrollState())) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text("TVFlow", color = white, fontSize = 28.sp, fontWeight = FontWeight.ExtraBold)
                 Text("TVFlow-v2 Next", color = blue, fontSize = 12.sp)
@@ -62,17 +62,7 @@ internal fun NextMobileDashboard(
             Text("⌕", Modifier.clickable(onClick = onSearch).padding(10.dp), color = white, fontSize = 24.sp)
             Text("⚙", Modifier.clickable(onClick = onSettings).padding(10.dp), color = white, fontSize = 23.sp)
         }
-        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-            listOf("Accueil" to {}, "Direct" to onLive, "Guide TV" to onGuide, "Films" to onVod, "Séries" to onSeries, "Favoris" to onFavorites).forEachIndexed { i, entry ->
-                Box(Modifier.clip(RoundedCornerShape(18.dp)).background(if (i == 0) blue else Color(0xFF172536))
-                    .clickable(onClick = entry.second).padding(horizontal = 15.dp, vertical = 10.dp)) {
-                    Text(entry.first, color = white, fontSize = 13.sp)
-                }
-            }
-        }
-        Spacer(Modifier.height(13.dp))
-        Box(Modifier.fillMaxWidth().height(252.dp)) {
+Box(Modifier.fillMaxWidth().height(252.dp)) {
             if (!image.isNullOrBlank()) {
                 AsyncImage(model = image, contentDescription = title, contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxHeight().fillMaxWidth(0.76f).align(Alignment.CenterEnd))
@@ -142,24 +132,6 @@ internal fun NextMobileDashboard(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 18.dp))
         }
         Spacer(Modifier.height(24.dp))
-    }
-    Row(
-        modifier = Modifier.fillMaxWidth().height(68.dp).align(Alignment.BottomCenter)
-            .background(Color(0xFF0A1320)),
-        horizontalArrangement = Arrangement.SpaceEvenly,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        listOf(
-            "⌂ Accueil" to {},
-            "▣ Direct" to onLive,
-            "▦ Guide TV" to onGuide,
-            "⌕ Recherche" to onSearch,
-            "⚙ Plus" to onSettings
-        ).forEachIndexed { index, action ->
-            Text(action.first, modifier = Modifier.clickable(onClick = action.second)
-                    .padding(horizontal = 5.dp, vertical = 14.dp),
-                fontSize = 11.sp, color = if (index == 0) blue else white.copy(alpha = 0.78f))
-        }
     }
     }
 }
