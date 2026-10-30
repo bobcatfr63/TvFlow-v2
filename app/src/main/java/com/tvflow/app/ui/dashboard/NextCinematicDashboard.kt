@@ -223,7 +223,7 @@ internal fun NextCinematicDashboard(
                     Triple("Séries", Color(0xFF003C49), onSeries),
                     Triple("Favoris", Color(0xFF451A25), onFavorites),
                     Triple("Recherche IA", Color(0xFF171B58), onSearch),
-                    Triple("TMDB", Color(0xFF062C67), onVod),
+                    Triple("TMDB", Color(0xFF062C67), onSettings),
                     Triple("Réglages", Color(0xFF1E2834), onSettings)                ).forEachIndexed { index, tile ->
                     NextFocusSurface(
                         modifier = Modifier.weight(1f).height(57.dp),
