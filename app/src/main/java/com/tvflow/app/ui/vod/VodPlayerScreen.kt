@@ -229,6 +229,14 @@ fun VodPlayerScreen(
         onPlayEpisode(next, currentSeriesId)
     }
 
+    LaunchedEffect(infoVisible) {
+        if (infoVisible) {
+            delay(6_000L)
+            infoVisible = false
+            episodeNavigationVisible = false
+        }
+    }
+
     LaunchedEffect(episodeNavigationVisible, state.nextEpisode?.id, state.previousEpisode?.id) {
         if (!episodeNavigationVisible) return@LaunchedEffect
         delay(120L)
