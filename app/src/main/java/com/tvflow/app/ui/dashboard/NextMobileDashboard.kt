@@ -42,6 +42,7 @@ internal fun NextMobileDashboard(
     val film = state.recommendedVod.firstOrNull() ?: state.recentVodReleases.firstOrNull()
     val title = series?.name ?: film?.name ?: "Bienvenue sur TVFlow"
     val image = series?.coverUrl ?: film?.posterUrl
+    val hasFeaturedMedia = series != null || film != null
     val white = Color(0xFFF3F6FF)
     val blue = Color(0xFF078AFF)
     Column(Modifier.fillMaxSize().background(Color(0xFF040910)).verticalScroll(rememberScrollState())) {
@@ -71,14 +72,14 @@ internal fun NextMobileDashboard(
             Box(Modifier.fillMaxSize().background(Brush.verticalGradient(
                 listOf(Color(0x66040910), Color(0x55040910), Color(0xFF040910)))))
             Column(Modifier.align(Alignment.BottomStart).padding(18.dp)) {
-                Text(if (series != null) "SÉRIE À LA UNE" else "FILM À LA UNE", color = blue,
+                Text(if (!hasFeaturedMedia) "DÉCOUVRIR TVFLOW" else if (series != null) "SÉRIE À LA UNE" else "FILM À LA UNE", color = blue,
                     fontWeight = FontWeight.Bold, fontSize = 12.sp)
                 Text(title, color = white, fontWeight = FontWeight.ExtraBold, fontSize = 29.sp,
                     maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Spacer(Modifier.height(9.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("▶  Voir maintenant", Modifier.clip(RoundedCornerShape(10.dp)).background(blue)
-                        .clickable { if (series != null) onSeriesItem(series) else if (film != null) onVodItem(film) }
+                    Text(if (hasFeaturedMedia) "▶  Voir maintenant" else "▶  Explorer les films", Modifier.clip(RoundedCornerShape(10.dp)).background(blue)
+                        .clickable { if (series != null) onSeriesItem(series) else if (film != null) onVodItem(film) else onVod() }
                         .padding(horizontal = 14.dp, vertical = 12.dp), color = white, fontSize = 13.sp)
                     Text("＋ Ma liste", Modifier.clip(RoundedCornerShape(10.dp)).background(Color(0xFF1A2A3B))
                         .clickable(onClick = onFavorites).padding(horizontal = 14.dp, vertical = 12.dp),
@@ -111,6 +112,10 @@ internal fun NextMobileDashboard(
                 }
             }
         }
+        Text("À la découverte", Modifier.padding(start = 16.dp, top = 18.dp, bottom = 3.dp),
+            color = blue, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+        Text("Votre cinéma, vos envies", Modifier.padding(start = 16.dp, bottom = 6.dp),
+            color = white.copy(alpha = 0.82f), fontSize = 14.sp)
         MobilePosterRail("Tendances sur TMDB", state.recommendedVod.ifEmpty { state.recentVodReleases }, onVodItem)
         MobilePosterRail("Nouveautés films", state.recentVodReleases, onVodItem)
         MobileSeriesRail("Séries à découvrir", state.recommendedSeries.ifEmpty { state.recentSeriesReleases }, onSeriesItem)
