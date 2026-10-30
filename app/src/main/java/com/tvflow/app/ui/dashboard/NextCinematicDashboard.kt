@@ -185,23 +185,24 @@ internal fun NextCinematicDashboard(
             Spacer(Modifier.height(8.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf(
-                    Triple("▣\nDirect TV", Color(0xFF003D84), onLive),
-                    Triple("▦\nGuide TV", Color(0xFF05274F), onGuide),
-                    Triple("▣\nFilms", Color(0xFF2F1048), onVod),
-                    Triple("▣\nSéries", Color(0xFF003C49), onSeries),
-                    Triple("♥\nMes favoris", Color(0xFF451A25), onFavorites),
-                    Triple("⌕\nRecherche IA", Color(0xFF171B58), onSearch),
-                    Triple("◉\nTMDB", Color(0xFF062C67), onVod),
-                    Triple("⚙\nRéglages", Color(0xFF1E2834), onSettings)
-                ).forEachIndexed { index, tile ->
+                    Triple("Direct TV", Color(0xFF003D84), onLive),
+                    Triple("Guide TV", Color(0xFF05274F), onGuide),
+                    Triple("Films", Color(0xFF2F1048), onVod),
+                    Triple("Séries", Color(0xFF003C49), onSeries),
+                    Triple("Favoris", Color(0xFF451A25), onFavorites),
+                    Triple("Recherche IA", Color(0xFF171B58), onSearch),
+                    Triple("TMDB", Color(0xFF062C67), onVod),
+                    Triple("Réglages", Color(0xFF1E2834), onSettings)                ).forEachIndexed { index, tile ->
                     NextFocusSurface(
                         modifier = Modifier.weight(1f).height(57.dp),
                         onClick = tile.third, base = tile.second,
                         selected = index == 0
                     ) {
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text(tile.first, color = nextWhite, fontSize = 12.sp,
-                                fontWeight = FontWeight.Medium, lineHeight = 20.sp)
+                            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                NextShortcutIcon(tile.first, nextWhite)
+                                Text(tile.first, color = nextWhite, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                            }
                         }
                     }
                 }

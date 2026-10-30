@@ -212,7 +212,7 @@ private fun isReadableNextSynopsis(raw: String): Boolean =
     raw.isNotBlank() && raw.none { it in '\u0600'..'\u06FF' || it in '\u0900'..'\u097F' }
 
 @Composable
-private fun NextShortcutIcon(label: String, tint: Color) {
+internal fun NextShortcutIcon(label: String, tint: Color) {
     Canvas(Modifier.size(27.dp)) {
         val w = size.width
         val h = size.height
