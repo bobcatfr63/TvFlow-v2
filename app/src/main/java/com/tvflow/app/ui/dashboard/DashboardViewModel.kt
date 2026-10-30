@@ -58,6 +58,7 @@ data class DashboardUiState(
     val recommendedVod: List<VodItem> = emptyList(),
     val recommendedSeries: List<SeriesItem> = emptyList(),
     val featuredBackdropUrl: String? = null,
+    val featuredBackdropSelectionKey: String? = null,
     val backgroundVideoUrl: String? = null,
     val backgroundVideoTitle: String? = null,
     val mobileHomePreviewMode: String = "WIFI",
@@ -92,7 +93,7 @@ class DashboardViewModel @Inject constructor(
     private val backgroundPreview = MutableStateFlow<DashboardBackdrop?>(null)
     private val installedReleaseNotes = MutableStateFlow<InstalledReleaseNotesState?>(null)
 
-    private val featuredBackdrop = MutableStateFlow<String?>(null)
+    private val featuredBackdrop = MutableStateFlow<Pair<String, String>?>(null)
     private val favorites = repository.observeFavorites()
     private val recents = repository.observeRecentChannels(16)
     private val allChannels = repository.observeAllChannels()
@@ -289,7 +290,7 @@ class DashboardViewModel @Inject constructor(
                             Log.w("TVFlowNextBackdrop", "lookup failed", error)
                             null
                         }
-                        featuredBackdrop.value = backdrop
+                        featuredBackdrop.value = backdrop?.let { nextFeaturedKey(type, name, year) to it }
                         Log.d("TVFlowNextBackdrop", "type=$type result=" + if (backdrop == null) "fallback" else "tmdb")
                     }
                 }
@@ -314,7 +315,8 @@ class DashboardViewModel @Inject constructor(
             recentSeriesReleases = supplemental.recentSeries,
             recommendedVod = suggested.first,
             recommendedSeries = suggested.second,
-            featuredBackdropUrl = suggested.third,
+            featuredBackdropUrl = suggested.third?.second,
+            featuredBackdropSelectionKey = suggested.third?.first,
             backgroundVideoUrl = supplemental.backdrop?.url,
             backgroundVideoTitle = supplemental.backdrop?.title,
             mobileHomePreviewMode = playerPreferences.mobileHomePreviewMode,
@@ -425,3 +427,4 @@ private fun buildTonightPrograms(
         .take(24)
         .toList()
 }
+internal fun nextFeaturedKey(type: MediaType, name: String, year: Int?): String = type.name + "|" + name.trim().lowercase(java.util.Locale.ROOT) + "|" + year

@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.tvflow.app.domain.SeriesItem
 import com.tvflow.app.domain.VodItem
+import com.tvflow.app.domain.MediaType
 
 private val nextBlue = Color(0xFF078AFF)
 private val nextWhite = Color(0xFFE9F0FF)
@@ -83,7 +84,13 @@ internal fun NextCinematicDashboard(
     val title = cleanNextHeroName(series?.name ?: film?.name ?: "Bienvenue sur TVFlow")
     val description = (series?.plot ?: film?.synopsis).orEmpty().takeIf { isNextHeroDescriptionReadable(it) }
         ?: "Découvrez cette sélection dans votre catalogue TVFlow."
-    val image = state.featuredBackdropUrl ?: series?.coverUrl ?: film?.posterUrl
+    val selectedName = series?.name ?: film?.name
+    val selectedYear = series?.releaseYear ?: film?.releaseYear
+    val selectedType = if (series != null) MediaType.SERIES else MediaType.VOD
+    val verifiedBackdrop = state.featuredBackdropUrl.takeIf {
+        selectedName != null && state.featuredBackdropSelectionKey == nextFeaturedKey(selectedType, selectedName, selectedYear)
+    }
+    val image = verifiedBackdrop ?: series?.coverUrl ?: film?.posterUrl
     val actions = listOf(
         Triple("⌂  Accueil", true, {}),
         Triple("▣  Direct", false, onLive),
@@ -97,7 +104,7 @@ internal fun NextCinematicDashboard(
         if (!image.isNullOrBlank()) {
             // A catalog poster must not masquerade as a widescreen TMDB backdrop.
             // Blurred ambient layer preserves a cinematic look when cloud metadata is unavailable.
-            if (state.featuredBackdropUrl == null) {
+            if (verifiedBackdrop == null) {
                 AsyncImage(
                     model = image,
                     contentDescription = null,
@@ -110,7 +117,7 @@ internal fun NextCinematicDashboard(
                 model = image,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxWidth(if (state.featuredBackdropUrl == null) 0.26f else 0.82f)
+                modifier = Modifier.fillMaxWidth(if (verifiedBackdrop == null) 0.26f else 0.82f)
                     .fillMaxHeight(0.58f).align(Alignment.TopEnd)
             )
         }
