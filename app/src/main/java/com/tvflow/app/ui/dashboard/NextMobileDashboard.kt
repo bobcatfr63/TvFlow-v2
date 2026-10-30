@@ -65,7 +65,7 @@ internal fun NextMobileDashboard(
             }
         }
         Spacer(Modifier.height(13.dp))
-        Box(Modifier.fillMaxWidth().height(300.dp)) {
+        Box(Modifier.fillMaxWidth().height(252.dp)) {
             if (!image.isNullOrBlank()) {
                 AsyncImage(model = image, contentDescription = title, contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize())
@@ -75,7 +75,7 @@ internal fun NextMobileDashboard(
             Column(Modifier.align(Alignment.BottomStart).padding(18.dp)) {
                 Text(if (!hasFeaturedMedia) "DÉCOUVRIR TVFLOW" else if (series != null) "SÉRIE À LA UNE" else "FILM À LA UNE", color = blue,
                     fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                Text(title, color = white, fontWeight = FontWeight.ExtraBold, fontSize = 29.sp,
+                Text(title, color = white, fontWeight = FontWeight.ExtraBold, fontSize = 25.sp,
                     maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Spacer(Modifier.height(9.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -88,7 +88,7 @@ internal fun NextMobileDashboard(
                 }
             }
         }
-        Text("Applications favorites", Modifier.padding(start = 16.dp, top = 12.dp, bottom = 10.dp),
+        Text("Applications favorites", Modifier.padding(start = 16.dp, top = 8.dp, bottom = 8.dp),
             fontSize = 19.sp, color = white, fontWeight = FontWeight.Bold)
         val shortcuts = listOf(
             Triple("▣ Direct TV", Color(0xFF034B90), onLive),
@@ -99,17 +99,16 @@ internal fun NextMobileDashboard(
             Triple("⌕ Recherche IA", Color(0xFF242568), onSearch),
             Triple("⚙ Réglages", Color(0xFF27364B), onSettings)
         )
-        Column(Modifier.padding(horizontal = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            shortcuts.chunked(3).forEach { group ->
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    group.forEach { shortcut ->
-                        Box(Modifier.weight(1f).height(70.dp).clip(RoundedCornerShape(13.dp))
-                            .background(shortcut.second).clickable(onClick = shortcut.third),
-                            contentAlignment = Alignment.Center) {
-                            Text(shortcut.first, color = white, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                        }
-                    }
-                    repeat(3 - group.size) { Spacer(Modifier.weight(1f)) }
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            items(shortcuts) { shortcut ->
+                Box(Modifier.width(118.dp).height(76.dp).clip(RoundedCornerShape(13.dp))
+                    .background(shortcut.second).clickable(onClick = shortcut.third),
+                    contentAlignment = Alignment.Center) {
+                    Text(shortcut.first, color = white, fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold, maxLines = 2)
                 }
             }
         }
