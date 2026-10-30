@@ -98,26 +98,35 @@ Box(Modifier.fillMaxWidth().height(252.dp)) {
         Text("Applications favorites", Modifier.padding(start = 16.dp, top = 8.dp, bottom = 8.dp),
             fontSize = 19.sp, color = white, fontWeight = FontWeight.Bold)
         val shortcuts = listOf(
-            Triple("▣ Direct TV", Color(0xFF034B90), onLive),
-            Triple("▦ Guide TV", Color(0xFF11355B), onGuide),
-            Triple("▣ Films", Color(0xFF351455), onVod),
-            Triple("▣ Séries", Color(0xFF065057), onSeries),
-            Triple("♥ Favoris", Color(0xFF5A2336), onFavorites),
-            Triple("⌕ Recherche IA", Color(0xFF242568), onSearch),
-            Triple("⚙ Réglages", Color(0xFF27364B), onSettings)
+            Triple("Direct TV", Color(0xFF034B90), onLive),
+            Triple("Guide TV", Color(0xFF11355B), onGuide),
+            Triple("Films", Color(0xFF351455), onVod),
+            Triple("Séries", Color(0xFF065057), onSeries),
+            Triple("Favoris", Color(0xFF5A2336), onFavorites),
+            Triple("Recherche IA", Color(0xFF242568), onSearch),
+            Triple("Réglages", Color(0xFF27364B), onSettings)
         )
-        LazyRow(
-            contentPadding = PaddingValues(horizontal = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
+        LazyRow(contentPadding = PaddingValues(horizontal = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             items(shortcuts) { shortcut ->
                 Box(Modifier.width(103.dp).height(82.dp).clip(RoundedCornerShape(12.dp))
                     .background(Brush.verticalGradient(listOf(shortcut.second.copy(alpha = 0.67f), shortcut.second)))
-                    .border(1.dp, if (shortcut.first.contains("Direct TV")) blue else white.copy(alpha = 0.15f), RoundedCornerShape(12.dp))
-                    .clickable(onClick = shortcut.third),
-                    contentAlignment = Alignment.Center) {
-                    Text(shortcut.first, color = white, fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold, maxLines = 2)
+                    .border(1.dp, if (shortcut.first == "Direct TV") blue else white.copy(alpha = 0.15f), RoundedCornerShape(12.dp))
+                    .clickable(onClick = shortcut.third), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                        Text(when(shortcut.first) {
+                            "Direct TV" -> "▣"
+                            "Guide TV" -> "▦"
+                            "Films" -> "▶"
+                            "Séries" -> "▤"
+                            "Favoris" -> "♥"
+                            "Recherche IA" -> "⌕"
+                            else -> "⚙"
+                        }, color = white, fontSize = 24.sp)
+                        Text(shortcut.first, color = white, fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold, maxLines = 1)
+                    }
                 }
             }
         }
