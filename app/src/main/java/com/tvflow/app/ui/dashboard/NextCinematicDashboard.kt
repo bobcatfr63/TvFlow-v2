@@ -75,7 +75,7 @@ internal fun NextCinematicDashboard(
     val title = cleanNextHeroName(series?.name ?: film?.name ?: "Bienvenue sur TVFlow")
     val description = (series?.plot ?: film?.synopsis).orEmpty().takeIf { isNextHeroDescriptionReadable(it) }
         ?: "Découvrez cette sélection dans votre catalogue TVFlow."
-    val image = series?.coverUrl ?: film?.posterUrl
+    val image = state.featuredBackdropUrl ?: series?.coverUrl ?: film?.posterUrl
     val actions = listOf(
         Triple("⌂  Accueil", true, {}),
         Triple("▣  Direct", false, onLive),

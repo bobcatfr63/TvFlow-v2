@@ -11,6 +11,7 @@ import com.tvflow.app.data.AppUpdateManager
 import com.tvflow.app.data.InstalledReleaseNotes
 import com.tvflow.app.data.UpdateDownloadState
 import com.tvflow.app.data.local.SettingsStore
+import com.tvflow.app.data.metadata.TmdbMetadataClient
 import com.tvflow.app.data.repository.XtreamRepository
 import com.tvflow.app.domain.EpgProgram
 import com.tvflow.app.domain.LiveChannel
@@ -56,6 +57,7 @@ data class DashboardUiState(
     val recentSeriesReleases: List<SeriesItem> = emptyList(),
     val recommendedVod: List<VodItem> = emptyList(),
     val recommendedSeries: List<SeriesItem> = emptyList(),
+    val featuredBackdropUrl: String? = null,
     val backgroundVideoUrl: String? = null,
     val backgroundVideoTitle: String? = null,
     val mobileHomePreviewMode: String = "WIFI",
@@ -73,7 +75,8 @@ class DashboardViewModel @Inject constructor(
     private val repository: XtreamRepository,
     private val updateChecker: AppUpdateChecker,
     private val updateManager: AppUpdateManager,
-    private val settingsStore: SettingsStore
+    private val settingsStore: SettingsStore,
+    private val tmdbMetadataClient: TmdbMetadataClient
 ) : ViewModel() {
     suspend fun vignettePreviewUrl(vod: VodItem?, series: SeriesItem?): String? = runCatching {
         when {
@@ -89,6 +92,7 @@ class DashboardViewModel @Inject constructor(
     private val backgroundPreview = MutableStateFlow<DashboardBackdrop?>(null)
     private val installedReleaseNotes = MutableStateFlow<InstalledReleaseNotesState?>(null)
 
+    private val featuredBackdrop = MutableStateFlow<String?>(null)
     private val favorites = repository.observeFavorites()
     private val recents = repository.observeRecentChannels(16)
     private val allChannels = repository.observeAllChannels()
@@ -257,7 +261,21 @@ class DashboardViewModel @Inject constructor(
         content.copy(tonight = tonight)
     }
 
-    private val recommendations = combine(recommendedVod, recommendedSeries) { vod, series -> vod to series }
+    private val recommendations = combine(recommendedVod, recommendedSeries, featuredBackdrop) { vod, series, backdrop -> Triple(vod, series, backdrop) }
+
+    init {
+        if (BuildConfig.APPLICATION_ID.endsWith(".next")) viewModelScope.launch(Dispatchers.IO) {
+            recommendedSeries.collectLatest { list ->
+                val candidate = list.firstOrNull { it.coverUrl?.startsWith("http") == true && !it.name.startsWith("AR -", true) && !it.name.startsWith("AF -", true) }
+                featuredBackdrop.value = null
+                if (candidate != null) {
+                    featuredBackdrop.value = runCatching {
+                        tmdbMetadataClient.search(MediaType.SERIES, candidate.name, candidate.releaseYear)?.backdropUrl
+                    }.getOrNull()
+                }
+            }
+        }
+    }
 
     val state: StateFlow<DashboardUiState> = combine(
         contentState,
@@ -277,6 +295,7 @@ class DashboardViewModel @Inject constructor(
             recentSeriesReleases = supplemental.recentSeries,
             recommendedVod = suggested.first,
             recommendedSeries = suggested.second,
+            featuredBackdropUrl = suggested.third,
             backgroundVideoUrl = supplemental.backdrop?.url,
             backgroundVideoTitle = supplemental.backdrop?.title,
             mobileHomePreviewMode = playerPreferences.mobileHomePreviewMode,
