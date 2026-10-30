@@ -17,6 +17,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -115,15 +120,7 @@ Box(Modifier.fillMaxWidth().height(252.dp)) {
                     .clickable(onClick = shortcut.third), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                        Text(when(shortcut.first) {
-                            "Direct TV" -> "▣"
-                            "Guide TV" -> "▦"
-                            "Films" -> "▶"
-                            "Séries" -> "▤"
-                            "Favoris" -> "♥"
-                            "Recherche IA" -> "⌕"
-                            else -> "⚙"
-                        }, color = white, fontSize = 24.sp)
+                        NextShortcutIcon(shortcut.first, white)
                         Text(shortcut.first, color = white, fontSize = 11.sp,
                             fontWeight = FontWeight.SemiBold, maxLines = 1)
                     }
@@ -213,3 +210,67 @@ private fun cleanNextDisplayTitle(raw: String): String = raw.trim()
 
 private fun isReadableNextSynopsis(raw: String): Boolean =
     raw.isNotBlank() && raw.none { it in '\u0600'..'\u06FF' || it in '\u0900'..'\u097F' }
+
+@Composable
+private fun NextShortcutIcon(label: String, tint: Color) {
+    Canvas(Modifier.size(27.dp)) {
+        val w = size.width
+        val h = size.height
+        val stroke = Stroke(width = 2.7.dp.toPx())
+        when (label) {
+            "Direct TV" -> {
+                drawRoundRect(tint, topLeft = Offset(w * .12f, h * .20f),
+                    size = Size(w * .76f, h * .56f),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(3.dp.toPx()), style = stroke)
+                drawLine(tint, Offset(w * .35f, h * .84f), Offset(w * .65f, h * .84f), stroke.width)
+            }
+            "Guide TV" -> {
+                drawRoundRect(tint, topLeft = Offset(w * .12f, h * .13f),
+                    size = Size(w * .76f, h * .74f),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(2.dp.toPx()), style = stroke)
+                for (i in 1..2) {
+                    val y = h * (.13f + .74f * i / 3f)
+                    drawLine(tint, Offset(w * .12f, y), Offset(w * .88f, y), stroke.width)
+                }
+                drawLine(tint, Offset(w * .49f, h * .13f), Offset(w * .49f, h * .87f), stroke.width)
+            }
+            "Films" -> {
+                val path = Path().apply {
+                    moveTo(w * .29f, h * .13f); lineTo(w * .80f, h * .50f)
+                    lineTo(w * .29f, h * .87f); close()
+                }
+                drawPath(path, tint)
+            }
+            "Favoris" -> {
+                val path = Path().apply {
+                    moveTo(w * .5f, h * .85f)
+                    cubicTo(-w * .25f, h * .40f, w * .05f, -h * .08f, w * .5f, h * .24f)
+                    cubicTo(w * .95f, -h * .08f, w * 1.25f, h * .40f, w * .5f, h * .85f)
+                }
+                drawPath(path, tint, style = stroke)
+            }
+            "Recherche IA" -> {
+                drawCircle(tint, radius = w * .27f, center = Offset(w * .43f, h * .40f), style = stroke)
+                drawLine(tint, Offset(w * .63f, h * .62f), Offset(w * .88f, h * .88f), stroke.width)
+            }
+            "Réglages" -> {
+                drawCircle(tint, radius = w * .33f, style = stroke)
+                drawCircle(tint, radius = w * .11f)
+                for (i in 0..7) {
+                    val angle = Math.PI * i / 4
+                    val dx = kotlin.math.cos(angle).toFloat()
+                    val dy = kotlin.math.sin(angle).toFloat()
+                    drawLine(tint, Offset(w * .5f + dx * w * .34f, h * .5f + dy * h * .34f),
+                        Offset(w * .5f + dx * w * .47f, h * .5f + dy * h * .47f), stroke.width)
+                }
+            }
+            else -> {
+                drawRoundRect(tint, topLeft = Offset(w * .22f, h * .12f),
+                    size = Size(w * .56f, h * .76f),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(2.dp.toPx()), style = stroke)
+                for (i in 1..3) drawLine(tint, Offset(w * .30f, h * (.15f + i * .16f)),
+                    Offset(w * .7f, h * (.15f + i * .16f)), stroke.width)
+            }
+        }
+    }
+}
