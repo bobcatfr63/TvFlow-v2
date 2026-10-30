@@ -143,7 +143,7 @@ private fun MobilePosterRail(title: String, items: List<VodItem>, onClick: (VodI
             fontSize = 18.sp, fontWeight = FontWeight.Bold)
         LazyRow(contentPadding = PaddingValues(horizontal = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-            items(items, key = { it.streamId }) { film ->
+            items(items.filter { !it.posterUrl.isNullOrBlank() }.distinctBy { it.streamId }, key = { it.streamId }) { film ->
                 Column(Modifier.width(90.dp).clickable { onClick(film) }) {
                     AsyncImage(model = film.posterUrl, contentDescription = film.name,
                         contentScale = ContentScale.Crop, modifier = Modifier.fillMaxWidth()
@@ -164,7 +164,7 @@ private fun MobileSeriesRail(title: String, entries: List<SeriesItem>, onClick: 
             color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
         LazyRow(contentPadding = PaddingValues(horizontal = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-            items(entries, key = { it.seriesId }) { entry ->
+            items(entries.filter { !it.coverUrl.isNullOrBlank() }.distinctBy { it.seriesId }, key = { it.seriesId }) { entry ->
                 Column(Modifier.width(90.dp).clickable { onClick(entry) }) {
                     AsyncImage(model = entry.coverUrl, contentDescription = entry.name,
                         contentScale = ContentScale.Crop,
