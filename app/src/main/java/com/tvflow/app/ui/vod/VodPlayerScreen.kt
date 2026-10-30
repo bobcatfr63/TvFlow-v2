@@ -397,7 +397,14 @@ fun VodPlayerScreen(
         }
 
         if (useVlcFallback && vlcStarting && state.streamUrl != null) {
-            CircularProgressIndicator(modifier = Modifier.align(Alignment.Center), color = MaterialTheme.colorScheme.primary)
+            Column(
+                modifier = Modifier.align(Alignment.Center),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                Text("Chargement de la vidéo…", color = MaterialTheme.colorScheme.onBackground)
+            }
         }
 
         if (playbackControlsVisible) {
