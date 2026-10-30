@@ -40,6 +40,7 @@ data class ExternalMediaMetadata(
     val releaseDate: String? = null,
     val imageUrl: String?,
     val rating: String?,
+    val backdropUrl: String? = null,
     val genreIds: String? = null
 )
 
@@ -304,6 +305,7 @@ class TmdbMetadataClient @Inject constructor(
             val date = string(best, if (type == MediaType.VOD) "release_date" else "first_air_date")
             val parsed = parseDate(date)
             val posterPath = string(best, "poster_path")
+            val backdropPath = string(best, "backdrop_path")
             ExternalMediaMetadata(
                 genreIds = best.getAsJsonArray("genre_ids")?.mapNotNull { id -> runCatching { id.asInt }.getOrNull() }?.distinct()?.joinToString(",")?.takeIf { it.isNotBlank() },
                 synopsis = string(best, "overview")?.takeIf { it.isNotBlank() },
@@ -311,6 +313,7 @@ class TmdbMetadataClient @Inject constructor(
                 releaseMonth = parsed.second,
                 releaseDate = date?.takeIf { Regex("\\d{4}-\\d{2}-\\d{2}").matches(it) },
                 imageUrl = posterPath?.takeIf { it.isNotBlank() }?.let { "https://image.tmdb.org/t/p/w500" + it },
+                backdropUrl = backdropPath?.takeIf { it.startsWith("/") }?.let { "https://image.tmdb.org/t/p/w1280" + it },
                 rating = best.get("vote_average")?.takeIf { !it.isJsonNull }?.asDouble
                     ?.takeIf { it > 0.0 }
                     ?.let { String.format(java.util.Locale.US, "%.1f", it) }
