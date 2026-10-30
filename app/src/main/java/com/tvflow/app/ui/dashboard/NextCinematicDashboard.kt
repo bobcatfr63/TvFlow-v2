@@ -102,8 +102,8 @@ internal fun NextCinematicDashboard(
             AsyncImage(
                 model = image,
                 contentDescription = null,
-                contentScale = if (state.featuredBackdropUrl == null) ContentScale.Fit else ContentScale.Crop,
-                modifier = Modifier.fillMaxWidth(if (state.featuredBackdropUrl == null) 0.38f else 0.82f)
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxWidth(if (state.featuredBackdropUrl == null) 0.26f else 0.82f)
                     .fillMaxHeight(0.58f).align(Alignment.TopEnd)
             )
         }
