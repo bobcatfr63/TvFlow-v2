@@ -11,6 +11,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -22,8 +23,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
-import coil3.compose.SubcomposeAsyncImage
-import coil3.compose.SubcomposeAsyncImageContent
 import com.tvflow.app.domain.VodItem
 import com.tvflow.app.domain.SeriesItem
 import androidx.compose.foundation.verticalScroll
@@ -188,29 +187,16 @@ private fun isGoodFeaturedTitle(name: String): Boolean {
 
 @Composable
 private fun NextPosterImage(url: String?, title: String) {
-    SubcomposeAsyncImage(
-        model = url,
-        contentDescription = title,
-        contentScale = ContentScale.Crop,
-        modifier = Modifier.fillMaxWidth().height(124.dp)
-            .clip(RoundedCornerShape(9.dp))
-            .background(Color(0xFF162335))
-    ) {
-        when (painter.state.value) {
-            is coil3.compose.AsyncImagePainter.State.Success -> SubcomposeAsyncImageContent()
-            is coil3.compose.AsyncImagePainter.State.Loading -> Box(
-                Modifier.fillMaxSize().background(Color(0xFF17283D)),
-                contentAlignment = Alignment.Center
-            ) { Text("TVFlow", color = Color(0xFF426B91), fontSize = 12.sp) }
-            else -> Box(
-                Modifier.fillMaxSize().background(
-                    Brush.verticalGradient(listOf(Color(0xFF20334E), Color(0xFF091420)))
-                ),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(title.take(2).uppercase(), color = Color(0xFF9CCBFF),
-                    fontSize = 24.sp, fontWeight = FontWeight.Bold)
-            }
+    var failed by remember(url) { mutableStateOf(false) }
+    Box(Modifier.fillMaxWidth().height(124.dp).clip(RoundedCornerShape(9.dp))
+        .background(Color(0xFF162335)), contentAlignment = Alignment.Center) {
+        if (failed) {
+            Text(title.take(2).uppercase(), color = Color(0xFF9CCBFF),
+                fontSize = 24.sp, fontWeight = FontWeight.Bold)
+        } else {
+            AsyncImage(model = url, contentDescription = title,
+                contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize(),
+                onError = { failed = true })
         }
     }
 }
