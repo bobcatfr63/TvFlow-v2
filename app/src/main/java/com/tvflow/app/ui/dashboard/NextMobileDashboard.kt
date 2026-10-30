@@ -113,6 +113,12 @@ internal fun NextMobileDashboard(
         }
         MobilePosterRail("Tendances sur TMDB", state.recommendedVod.ifEmpty { state.recentVodReleases }, onVodItem)
         MobilePosterRail("Nouveautés films", state.recentVodReleases, onVodItem)
+        MobileSeriesRail("Séries à découvrir", state.recommendedSeries.ifEmpty { state.recentSeriesReleases }, onSeriesItem)
+        if (state.recentVodReleases.isEmpty() && state.recentSeriesReleases.isEmpty()) {
+            Text("Connectez votre service IPTV pour retrouver vos films et séries ici.",
+                color = white.copy(alpha = 0.75f), fontSize = 13.sp,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 18.dp))
+        }
         Spacer(Modifier.height(24.dp))
     }
 }
@@ -131,6 +137,29 @@ private fun MobilePosterRail(title: String, items: List<VodItem>, onClick: (VodI
                             .height(151.dp).clip(RoundedCornerShape(9.dp)).background(Color(0xFF162335)))
                     Text(film.name, color = Color.White, fontSize = 11.sp, maxLines = 1,
                         overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 5.dp))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MobileSeriesRail(title: String, entries: List<SeriesItem>, onClick: (SeriesItem) -> Unit) {
+    if (entries.isEmpty()) return
+    Column(Modifier.padding(top = 18.dp)) {
+        Text(title, Modifier.padding(start = 16.dp, bottom = 8.dp),
+            color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+        LazyRow(contentPadding = PaddingValues(horizontal = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+            items(entries, key = { it.seriesId }) { entry ->
+                Column(Modifier.width(112.dp).clickable { onClick(entry) }) {
+                    AsyncImage(model = entry.coverUrl, contentDescription = entry.name,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxWidth().height(151.dp)
+                            .clip(RoundedCornerShape(9.dp)).background(Color(0xFF162335)))
+                    Text(entry.name, color = Color.White, fontSize = 11.sp, maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(top = 5.dp))
                 }
             }
         }
