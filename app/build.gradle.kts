@@ -66,7 +66,16 @@ extensions.configure<ApplicationExtension>("android") {
     compileSdk = 36
 
     defaultConfig {
-        applicationId = if (providers.environmentVariable("TVFLOW_PHONE_BUILD").orNull == "1") "com.tvflow.app.phone" else "com.tvflow.app"
+        applicationId = when {
+            providers.environmentVariable("TVFLOW_NEXT_BUILD").orNull == "1" -> "com.tvflow.app.next"
+            providers.environmentVariable("TVFLOW_PHONE_BUILD").orNull == "1" -> "com.tvflow.app.phone"
+            else -> "com.tvflow.app"
+        }
+        if (providers.environmentVariable("TVFLOW_NEXT_BUILD").orNull == "1") {
+            manifestPlaceholders["tvflowAppLabel"] = "TVFlow-v2 Next"
+        } else {
+            manifestPlaceholders["tvflowAppLabel"] = "TVFlow"
+        }
         minSdk = 24
         targetSdk = 36
         versionCode = appVersionCode

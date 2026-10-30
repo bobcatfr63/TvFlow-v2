@@ -31,7 +31,7 @@
         android:allowBackup="false"
         android:banner="@drawable/tv_banner"
         android:icon="@drawable/ic_launcher"
-        android:label="TVFlow"
+        android:label="${tvflowAppLabel}"
         android:usesCleartextTraffic="true"
         android:theme="@style/Theme.TVFlow">
 
@@ -73,7 +73,7 @@
             android:name=".TvHomeAlias"
             android:enabled="false"
             android:exported="true"
-            android:label="TVFlow"
+            android:label="${tvflowAppLabel}"
             android:targetActivity=".MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
