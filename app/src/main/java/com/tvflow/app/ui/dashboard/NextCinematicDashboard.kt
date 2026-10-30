@@ -207,7 +207,7 @@ internal fun NextCinematicDashboard(
                 }
             }
             Spacer(Modifier.height(6.dp))
-            NextMediaRow("Tendances sur TMDB",
+            NextMediaRow("Recommandés pour vous",
                 state.recommendedVod.ifEmpty { state.recentVodReleases }, onVodItem)
             Spacer(Modifier.height(9.dp))
             NextMediaRow("Nouveautés films", state.recentVodReleases, onVodItem)
@@ -221,7 +221,11 @@ private fun NextMediaRow(title: String, entries: List<VodItem>, onClick: (VodIte
         Text(title, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(7.dp))
         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(entries.filter { isNextCatalogCard(it.name, it.posterUrl) }.distinctBy { it.streamId }, key = { it.streamId }) { vod ->
+            items(entries.asSequence()
+                .filter { isNextCatalogCard(it.name, it.posterUrl) }
+                .distinctBy { it.streamId }
+                .sortedBy { nextCatalogDisplayPriority(it.name) }
+                .take(60).toList(), key = { it.streamId }) { vod ->
                 NextFocusSurface(modifier = Modifier.width(130.dp).height(93.dp), onClick = { onClick(vod) },
                     base = Color(0xFF132232)) {
                     Box {
@@ -291,4 +295,15 @@ private fun isNextCatalogCard(name: String, poster: String?): Boolean {
         !listOf("[X]", "[XXX]", "XXX", "BRAZZERS", "JULESJORDAN", "PORNO", "PORN").any { title.contains(it, ignoreCase = true) } &&
         !listOf("AR -", "AF -", "DE -", "DK -", "IN -").any { title.startsWith(it, ignoreCase = true) } &&
         title.none { it in '\u0600'..'\u06FF' || it in '\u0900'..'\u097F' }
+}
+
+private fun nextCatalogDisplayPriority(name: String): Int {
+    val title = name.trim()
+    return when {
+        title.startsWith("FR -", ignoreCase = true) -> 0
+        title.startsWith("VF -", ignoreCase = true) -> 1
+        title.startsWith("EN -", ignoreCase = true) -> 3
+        Regex("^[A-Z]{2}\\s*[-|]").containsMatchIn(title) -> 4
+        else -> 2
+    }
 }
