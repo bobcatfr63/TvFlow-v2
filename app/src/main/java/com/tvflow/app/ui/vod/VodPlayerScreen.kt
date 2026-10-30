@@ -260,7 +260,7 @@ fun VodPlayerScreen(
                     infoVisible = !infoVisible
                     playbackControlsVisible = !playbackControlsVisible
                     if (state.seriesId != null && (state.nextEpisode != null || state.previousEpisode != null)) {
-                        episodeNavigationVisible = true
+                        episodeNavigationVisible = infoVisible
                     }
                 })
             }
