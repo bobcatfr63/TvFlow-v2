@@ -183,7 +183,7 @@ internal fun NextCinematicDashboard(
                     )
                     Spacer(Modifier.height(9.dp))
                     Text(description, color = nextWhite.copy(alpha = 0.84f), fontSize = 13.sp,
-                        maxLines = 1, overflow = TextOverflow.Ellipsis,
+                        maxLines = 2, lineHeight = 16.sp, overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.fillMaxWidth(0.64f))
                     Spacer(Modifier.height(5.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
