@@ -125,8 +125,9 @@ fun DashboardScreen(
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.checkUpdates() }
     val context = LocalContext.current
     val isTv = context.isTelevisionUi()
-    if (isTv) {
+    if (isTv || BuildConfig.APPLICATION_ID.endsWith(".next")) {
         NextCinematicDashboard(
+            mobile = !isTv,
             state = state,
             onLive = onLive,
             onGuide = onGuide,

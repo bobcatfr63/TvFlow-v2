@@ -35,6 +35,7 @@ private val nextBg = Color(0xFF030910)
 
 @Composable
 internal fun NextCinematicDashboard(
+    mobile: Boolean = false,
     state: DashboardUiState,
     onLive: () -> Unit,
     onGuide: () -> Unit,
@@ -46,6 +47,10 @@ internal fun NextCinematicDashboard(
     onVodItem: (VodItem) -> Unit,
     onSeriesItem: (SeriesItem) -> Unit
 ) {
+    if (mobile) {
+        NextMobileDashboard(state, onLive, onGuide, onVod, onSeries, onSearch, onSettings, onFavorites, onVodItem, onSeriesItem)
+        return
+    }
     val series = state.recommendedSeries.firstOrNull() ?: state.recentSeriesReleases.firstOrNull()
     val film = state.recommendedVod.firstOrNull() ?: state.recentVodReleases.firstOrNull()
     val title = series?.name ?: film?.name ?: "Bienvenue sur TVFlow"
