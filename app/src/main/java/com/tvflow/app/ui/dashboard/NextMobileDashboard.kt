@@ -53,7 +53,7 @@ internal fun NextMobileDashboard(
     val white = Color(0xFFF3F6FF)
     val blue = Color(0xFF078AFF)
     Box(Modifier.fillMaxSize().background(Color(0xFF040910))) {
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+    Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().verticalScroll(rememberScrollState())) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text("TVFlow", color = white, fontSize = 28.sp, fontWeight = FontWeight.ExtraBold)
