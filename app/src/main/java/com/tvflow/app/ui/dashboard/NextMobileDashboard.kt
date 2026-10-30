@@ -48,7 +48,7 @@ internal fun NextMobileDashboard(
         .firstOrNull { it.posterUrl?.startsWith("http") == true && isGoodFeaturedTitle(it.name) }
     val series = featuredSeries
     val film = if (series == null) featuredFilm else null
-    val title = series?.name ?: film?.name ?: "Bienvenue sur TVFlow"
+    val title = cleanNextDisplayTitle(series?.name ?: film?.name ?: "Bienvenue sur TVFlow")
     val image = series?.coverUrl ?: film?.posterUrl
     val hasFeaturedMedia = series != null || film != null
     val white = Color(0xFFF3F6FF)
@@ -80,7 +80,8 @@ Box(Modifier.fillMaxWidth().height(252.dp)) {
                 Text(listOfNotNull(series?.releaseYear ?: film?.releaseYear).joinToString() +
                     if (series != null) "  •  Série  •  HD" else "  •  Film  •  HD",
                     color = Color(0xFF43D5B1), fontSize = 11.sp)
-                Text(series?.plot ?: film?.synopsis ?: "", color = white.copy(alpha = 0.78f),
+                Text((series?.plot ?: film?.synopsis).orEmpty().takeIf { isReadableNextSynopsis(it) }
+                    ?: "Découvrez ce programme dans votre catalogue TVFlow.", color = white.copy(alpha = 0.78f),
                     fontSize = 11.sp, maxLines = 2, overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.fillMaxWidth(0.85f))
                 Spacer(Modifier.height(7.dp))
@@ -200,3 +201,10 @@ private fun NextPosterImage(url: String?, title: String) {
         }
     }
 }
+private fun cleanNextDisplayTitle(raw: String): String = raw.trim()
+    .replace(Regex("^(?:FR|EN|VF|VOSTFR|MULTI)\\s*[-:|]\\s*", RegexOption.IGNORE_CASE), "")
+    .replace(Regex("\\s*\\((?:19|20)\\d{2}\\)\\s*$"), "")
+    .trim().ifBlank { raw.trim() }
+
+private fun isReadableNextSynopsis(raw: String): Boolean =
+    raw.isNotBlank() && raw.none { it in '\u0600'..'\u06FF' || it in '\u0900'..'\u097F' }
