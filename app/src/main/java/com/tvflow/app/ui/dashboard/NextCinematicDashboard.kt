@@ -71,10 +71,15 @@ internal fun NextCinematicDashboard(
         }
         return
     }
-    val (series, film) = selectNextFeaturedMedia(
-        state.recommendedSeries + state.recentSeriesReleases,
-        state.recommendedVod + state.recentVodReleases
-    )
+    val (series, film) = remember(
+        state.recommendedSeries, state.recentSeriesReleases,
+        state.recommendedVod, state.recentVodReleases
+    ) {
+        selectNextFeaturedMedia(
+            state.recommendedSeries + state.recentSeriesReleases,
+            state.recommendedVod + state.recentVodReleases
+        )
+    }
     val title = cleanNextHeroName(series?.name ?: film?.name ?: "Bienvenue sur TVFlow")
     val description = (series?.plot ?: film?.synopsis).orEmpty().takeIf { isNextHeroDescriptionReadable(it) }
         ?: "Découvrez cette sélection dans votre catalogue TVFlow."
@@ -220,16 +225,19 @@ internal fun NextCinematicDashboard(
 
 @Composable
 private fun NextMediaRow(title: String, entries: List<VodItem>, onClick: (VodItem) -> Unit) {
+    val visibleEntries = remember(entries) {
+        entries.asSequence()
+            .filter { isNextCatalogCard(it.name, it.posterUrl) }
+            .sortedBy { nextCatalogDisplayPriority(it.name) }
+            .distinctBy { nextCatalogTitleKey(it.name) }
+            .distinctBy { it.posterUrl.orEmpty().substringBefore('?').lowercase(java.util.Locale.ROOT) }
+            .take(60).toList()
+    }
     Column {
         Text(title, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(4.dp))
         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(entries.asSequence()
-                .filter { isNextCatalogCard(it.name, it.posterUrl) }
-                .sortedBy { nextCatalogDisplayPriority(it.name) }
-                .distinctBy { nextCatalogTitleKey(it.name) }
-                .distinctBy { it.posterUrl.orEmpty().substringBefore('?').lowercase(java.util.Locale.ROOT) }
-                .take(60).toList(), key = { it.streamId }) { vod ->
+            items(visibleEntries, key = { it.streamId }) { vod ->
                 NextFocusSurface(modifier = Modifier.width(130.dp).height(77.dp), onClick = { onClick(vod) },
                     base = Color(0xFF132232)) {
                     Box {
