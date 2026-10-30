@@ -226,6 +226,7 @@ private fun NextMediaRow(title: String, entries: List<VodItem>, onClick: (VodIte
                 .filter { isNextCatalogCard(it.name, it.posterUrl) }
                 .sortedBy { nextCatalogDisplayPriority(it.name) }
                 .distinctBy { nextCatalogTitleKey(it.name) }
+                .distinctBy { it.posterUrl.orEmpty().substringBefore('?').lowercase(java.util.Locale.ROOT) }
                 .take(60).toList(), key = { it.streamId }) { vod ->
                 NextFocusSurface(modifier = Modifier.width(130.dp).height(93.dp), onClick = { onClick(vod) },
                     base = Color(0xFF132232)) {
