@@ -68,10 +68,10 @@ internal fun NextMobileDashboard(
             Text("⌕", Modifier.clickable(onClick = onSearch).padding(10.dp), color = white, fontSize = 24.sp)
             Text("⚙", Modifier.clickable(onClick = onSettings).padding(10.dp), color = white, fontSize = 23.sp)
         }
-Box(Modifier.fillMaxWidth().height(252.dp)) {
+Box(Modifier.fillMaxWidth().height(278.dp)) {
             if (!image.isNullOrBlank()) {
                 AsyncImage(model = image, contentDescription = title, contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxHeight().fillMaxWidth(0.76f).align(Alignment.CenterEnd))
+                    modifier = Modifier.fillMaxHeight().fillMaxWidth(0.88f).align(Alignment.CenterEnd))
             }
             Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(
                 listOf(Color(0xF9040910), Color(0xB8040910), Color(0x22040910)))))
