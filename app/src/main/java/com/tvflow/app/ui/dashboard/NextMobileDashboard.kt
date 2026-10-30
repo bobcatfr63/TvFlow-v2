@@ -22,6 +22,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
+import coil3.compose.SubcomposeAsyncImage
+import coil3.compose.SubcomposeAsyncImageContent
 import com.tvflow.app.domain.VodItem
 import com.tvflow.app.domain.SeriesItem
 import androidx.compose.foundation.verticalScroll
@@ -145,9 +147,7 @@ private fun MobilePosterRail(title: String, items: List<VodItem>, onClick: (VodI
             horizontalArrangement = Arrangement.spacedBy(7.dp)) {
             items(items.filter { !it.posterUrl.isNullOrBlank() }.distinctBy { it.streamId }, key = { it.streamId }) { film ->
                 Column(Modifier.width(90.dp).clickable { onClick(film) }) {
-                    AsyncImage(model = film.posterUrl, contentDescription = film.name,
-                        contentScale = ContentScale.Crop, modifier = Modifier.fillMaxWidth()
-                            .height(124.dp).clip(RoundedCornerShape(9.dp)).background(Color(0xFF162335)))
+                    NextPosterImage(film.posterUrl, film.name)
                     Text(film.name, color = Color.White, fontSize = 11.sp, maxLines = 1,
                         overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 5.dp))
                 }
@@ -166,10 +166,7 @@ private fun MobileSeriesRail(title: String, entries: List<SeriesItem>, onClick: 
             horizontalArrangement = Arrangement.spacedBy(7.dp)) {
             items(entries.filter { !it.coverUrl.isNullOrBlank() }.distinctBy { it.seriesId }, key = { it.seriesId }) { entry ->
                 Column(Modifier.width(90.dp).clickable { onClick(entry) }) {
-                    AsyncImage(model = entry.coverUrl, contentDescription = entry.name,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxWidth().height(124.dp)
-                            .clip(RoundedCornerShape(9.dp)).background(Color(0xFF162335)))
+                    NextPosterImage(entry.coverUrl, entry.name)
                     Text(entry.name, color = Color.White, fontSize = 11.sp, maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.padding(top = 5.dp))
@@ -187,4 +184,33 @@ private fun isGoodFeaturedTitle(name: String): Boolean {
         value.startsWith("DE -", true) || value.startsWith("ES -", true)) return false
     if (value.contains("http", true) || value.contains("XXX", true)) return false
     return value.any { it.isLetter() }
+}
+
+@Composable
+private fun NextPosterImage(url: String?, title: String) {
+    SubcomposeAsyncImage(
+        model = url,
+        contentDescription = title,
+        contentScale = ContentScale.Crop,
+        modifier = Modifier.fillMaxWidth().height(124.dp)
+            .clip(RoundedCornerShape(9.dp))
+            .background(Color(0xFF162335))
+    ) {
+        when (painter.state.value) {
+            is coil3.compose.AsyncImagePainter.State.Success -> SubcomposeAsyncImageContent()
+            is coil3.compose.AsyncImagePainter.State.Loading -> Box(
+                Modifier.fillMaxSize().background(Color(0xFF17283D)),
+                contentAlignment = Alignment.Center
+            ) { Text("TVFlow", color = Color(0xFF426B91), fontSize = 12.sp) }
+            else -> Box(
+                Modifier.fillMaxSize().background(
+                    Brush.verticalGradient(listOf(Color(0xFF20334E), Color(0xFF091420)))
+                ),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(title.take(2).uppercase(), color = Color(0xFF9CCBFF),
+                    fontSize = 24.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+    }
 }
