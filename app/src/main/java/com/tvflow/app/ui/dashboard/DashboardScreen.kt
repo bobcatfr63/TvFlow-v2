@@ -140,7 +140,7 @@ fun DashboardScreen(
             onSeriesItem = onSeriesItem
         )
         val releaseVersion = state.installedReleaseNotesVersion
-        if (state.updateInfo == null && releaseVersion != null && state.installedReleaseNotes.isNotEmpty()) {
+        if (!BuildConfig.APPLICATION_ID.endsWith(".next") && state.updateInfo == null && releaseVersion != null && state.installedReleaseNotes.isNotEmpty()) {
             InstalledReleaseNotesPopup(
                 versionName = releaseVersion,
                 notes = state.installedReleaseNotes,
