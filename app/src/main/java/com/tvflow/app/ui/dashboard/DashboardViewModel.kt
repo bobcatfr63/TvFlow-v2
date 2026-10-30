@@ -265,23 +265,30 @@ class DashboardViewModel @Inject constructor(
 
     init {
         if (BuildConfig.APPLICATION_ID.endsWith(".next")) viewModelScope.launch(Dispatchers.IO) {
-            combine(recommendedSeries, recommendedVod) { series, films -> series to films }
+            combine(
+                recommendedSeries, recommendedVod,
+                repository.observeRecentFrenchSeriesReleases(12),
+                repository.observeRecentFrenchVodReleases(12),
+                settingsStore.tmdbToken
+            ) { series, films, recentSeries, recentFilms, credential ->
+                selectNextFeaturedMedia(series + recentSeries, films + recentFilms) to credential
+            }
                 .distinctUntilChanged()
-                .collectLatest { (series, films) ->
-                    val selectedSeries = series.firstOrNull {
-                        it.coverUrl?.startsWith("http") == true && isNextHeroName(it.name)
-                    }
-                    val selectedFilm = if (selectedSeries == null) films.firstOrNull {
-                        it.posterUrl?.startsWith("http") == true && isNextHeroName(it.name)
-                    } else null
+                .collectLatest { (selected, _) ->
+                    val (selectedSeries, selectedFilm) = selected
                     featuredBackdrop.value = null
                     val type = if (selectedSeries != null) MediaType.SERIES else MediaType.VOD
                     val name = selectedSeries?.name ?: selectedFilm?.name
                     val year = selectedSeries?.releaseYear ?: selectedFilm?.releaseYear
                     if (name != null) {
-                        val backdrop = runCatching {
+                        val backdrop = try {
                             tmdbMetadataClient.search(type, name, year)?.backdropUrl
-                        }.onFailure { Log.w("TVFlowNextBackdrop", "lookup failed", it) }.getOrNull()
+                        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                            throw cancelled
+                        } catch (error: Exception) {
+                            Log.w("TVFlowNextBackdrop", "lookup failed", error)
+                            null
+                        }
                         featuredBackdrop.value = backdrop
                         Log.d("TVFlowNextBackdrop", "type=$type result=" + if (backdrop == null) "fallback" else "tmdb")
                     }
@@ -417,11 +424,4 @@ private fun buildTonightPrograms(
         )
         .take(24)
         .toList()
-}
-
-private fun isNextHeroName(name: String): Boolean {
-    val text = name.trim()
-    return text.length in 4..56 &&
-        !listOf("AR -", "AF -", "DE -", "ES -").any { text.startsWith(it, ignoreCase = true) } &&
-        text.none { it in '\u0600'..'\u06FF' || it in '\u0900'..'\u097F' }
 }

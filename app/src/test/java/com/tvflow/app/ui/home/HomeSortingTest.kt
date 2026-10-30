@@ -61,7 +61,8 @@ class HomeSortingTest {
             channel(6, "FR - TF1 4K", false, null)
         )
         val result = com.tvflow.app.data.repository.selectTntChannels(channels)
-        assertEquals(listOf(2, 3), result.map { it.streamId })
+        // Quality preference was added in 83bac49: at equal health, 4K wins over HD with EPG.
+        assertEquals(listOf(6, 3), result.map { it.streamId })
     }
 
     @Test

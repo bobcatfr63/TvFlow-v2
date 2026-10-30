@@ -71,12 +71,10 @@ internal fun NextCinematicDashboard(
         }
         return
     }
-    val series = (state.recommendedSeries + state.recentSeriesReleases).asSequence()
-        .filter { isNextHeroCandidate(it.name) && !it.coverUrl.isNullOrBlank() }
-        .sortedBy { nextCatalogDisplayPriority(it.name) }.firstOrNull()
-    val film = if (series == null) (state.recommendedVod + state.recentVodReleases).asSequence()
-        .filter { isNextHeroCandidate(it.name) && !it.posterUrl.isNullOrBlank() }
-        .sortedBy { nextCatalogDisplayPriority(it.name) }.firstOrNull() else null
+    val (series, film) = selectNextFeaturedMedia(
+        state.recommendedSeries + state.recentSeriesReleases,
+        state.recommendedVod + state.recentVodReleases
+    )
     val title = cleanNextHeroName(series?.name ?: film?.name ?: "Bienvenue sur TVFlow")
     val description = (series?.plot ?: film?.synopsis).orEmpty().takeIf { isNextHeroDescriptionReadable(it) }
         ?: "Découvrez cette sélection dans votre catalogue TVFlow."
@@ -278,7 +276,7 @@ private fun NextFocusSurface(
     ) { content() }
 }
 
-private fun isNextHeroCandidate(name: String): Boolean {
+internal fun isNextHeroCandidate(name: String): Boolean {
     val value = name.trim()
     if (value.length !in 4..56) return false
     if (value.startsWith("AR -", true) || value.startsWith("AF -", true) ||
@@ -303,7 +301,7 @@ private fun isNextCatalogCard(name: String, poster: String?): Boolean {
         title.none { it in '\u0600'..'\u06FF' || it in '\u0900'..'\u097F' }
 }
 
-private fun nextCatalogDisplayPriority(name: String): Int {
+internal fun nextCatalogDisplayPriority(name: String): Int {
     val title = name.trim()
     return when {
         title.startsWith("FR -", ignoreCase = true) -> 0

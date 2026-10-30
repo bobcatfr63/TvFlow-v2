@@ -21,8 +21,11 @@ data class AppUpdateInfo(
     val signatureFingerprint: String?
 )
 
-internal const val TVFLOW_RELEASE_MANIFEST_URL =
-    "https://github.com/bobcatfr63/tvflowV2_release/releases/download/tvflow-latest/release.json"
+internal val TVFLOW_RELEASE_MANIFEST_URL =
+    if (BuildConfig.APPLICATION_ID == "com.tvflow.app.next")
+        "https://github.com/bobcatfr63/tvflowV2_release/releases/download/tvflow-next-latest/release.json"
+    else
+        "https://github.com/bobcatfr63/tvflowV2_release/releases/download/tvflow-latest/release.json"
 
 @Singleton
 class AppUpdateChecker @Inject constructor(

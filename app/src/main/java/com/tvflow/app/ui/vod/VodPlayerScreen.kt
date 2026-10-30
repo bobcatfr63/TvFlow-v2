@@ -71,6 +71,7 @@ import kotlinx.coroutines.delay
 
 private const val VOD_PLAYER_TAG = "TVFlowVodPlayer"
 
+@androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 @Composable
 fun VodPlayerScreen(
     onPlayEpisode: (Episode, Int) -> Unit = { _, _ -> },
