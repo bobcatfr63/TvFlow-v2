@@ -98,6 +98,7 @@ fun VodPlayerScreen(
     var gestureLabel by remember { mutableStateOf<String?>(null) }
     val phoneVlcFirst = remember(context) { !context.isTelevisionUi() }
     var vlcFailedForStream by remember { mutableStateOf(false) }
+    var vlcStarting by remember { mutableStateOf(true) }
     var useVlcFallback by remember { mutableStateOf(phoneVlcFirst) }
     var vlcHandoffPositionMs by remember { mutableStateOf(0L) }
     var lastVlcProgressSaveMs by remember { mutableStateOf(0L) }
@@ -181,6 +182,7 @@ fun VodPlayerScreen(
 
     LaunchedEffect(state.streamUrl) {
         vlcFailedForStream = false
+        vlcStarting = true
         useVlcFallback = phoneVlcFirst
         vlcHandoffPositionMs = 0L
         lastVlcProgressSaveMs = 0L
@@ -320,6 +322,7 @@ fun VodPlayerScreen(
                 startPositionMs = vlcHandoffPositionMs.coerceAtLeast(state.resumePositionMs),
                 bufferPreset = playerPrefs.bufferPreset,
                 onPlaybackEnded = { viewModel.onPlaybackEnded() },
+                onReady = { vlcStarting = false },
                 onProgress = { position, duration ->
                     viewModel.updatePlaybackProgress(position, duration)
                     // Save roughly every 15 seconds, including after backward seeks.
@@ -391,6 +394,10 @@ fun VodPlayerScreen(
                 },
                 modifier = Modifier.fillMaxSize()
             )
+        }
+
+        if (useVlcFallback && vlcStarting && state.streamUrl != null) {
+            CircularProgressIndicator(modifier = Modifier.align(Alignment.Center), color = MaterialTheme.colorScheme.primary)
         }
 
         if (playbackControlsVisible) {
