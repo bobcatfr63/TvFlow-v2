@@ -1,6 +1,7 @@
 package com.tvflow.app.ui.dashboard
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
@@ -71,11 +72,11 @@ internal fun NextMobileDashboard(
                     modifier = Modifier.fillMaxSize())
             }
             Box(Modifier.fillMaxSize().background(Brush.verticalGradient(
-                listOf(Color(0x66040910), Color(0x55040910), Color(0xFF040910)))))
+                listOf(Color(0x22040910), Color(0x99040910), Color(0xFF040910)))))
             Column(Modifier.align(Alignment.BottomStart).padding(18.dp)) {
                 Text(if (!hasFeaturedMedia) "DÉCOUVRIR TVFLOW" else if (series != null) "SÉRIE À LA UNE" else "FILM À LA UNE", color = blue,
                     fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                Text(title, color = white, fontWeight = FontWeight.ExtraBold, fontSize = 25.sp,
+                Text(title, color = white, fontWeight = FontWeight.ExtraBold, fontSize = 28.sp,
                     maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Spacer(Modifier.height(9.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -104,8 +105,10 @@ internal fun NextMobileDashboard(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             items(shortcuts) { shortcut ->
-                Box(Modifier.width(118.dp).height(76.dp).clip(RoundedCornerShape(13.dp))
-                    .background(shortcut.second).clickable(onClick = shortcut.third),
+                Box(Modifier.width(103.dp).height(82.dp).clip(RoundedCornerShape(12.dp))
+                    .background(Brush.verticalGradient(listOf(shortcut.second.copy(alpha = 0.67f), shortcut.second)))
+                    .border(1.dp, if (shortcut.first.contains("Direct TV")) blue else white.copy(alpha = 0.15f), RoundedCornerShape(12.dp))
+                    .clickable(onClick = shortcut.third),
                     contentAlignment = Alignment.Center) {
                     Text(shortcut.first, color = white, fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold, maxLines = 2)
