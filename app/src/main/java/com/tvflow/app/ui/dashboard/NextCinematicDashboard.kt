@@ -221,7 +221,7 @@ private fun NextMediaRow(title: String, entries: List<VodItem>, onClick: (VodIte
         Text(title, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(7.dp))
         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(entries, key = { it.streamId }) { vod ->
+            items(entries.filter { isNextCatalogCard(it.name, it.posterUrl) }.distinctBy { it.streamId }, key = { it.streamId }) { vod ->
                 NextFocusSurface(modifier = Modifier.width(130.dp).height(93.dp), onClick = { onClick(vod) },
                     base = Color(0xFF132232)) {
                     Box {
@@ -229,7 +229,7 @@ private fun NextMediaRow(title: String, entries: List<VodItem>, onClick: (VodIte
                             contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
                         Box(Modifier.fillMaxWidth().height(32.dp).align(Alignment.BottomCenter)
                             .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = .85f)))))
-                        Text(vod.name, color = Color.White, fontSize = 10.sp,
+                        Text(cleanNextHeroName(vod.name), color = Color.White, fontSize = 10.sp,
                             fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.align(Alignment.BottomStart).padding(5.dp))
                     }
@@ -283,3 +283,12 @@ private fun cleanNextHeroName(name: String): String =
 
 private fun isNextHeroDescriptionReadable(text: String): Boolean =
     text.isNotBlank() && text.none { it in '\u0600'..'\u06FF' || it in '\u0900'..'\u097F' }
+
+private fun isNextCatalogCard(name: String, poster: String?): Boolean {
+    val title = name.trim()
+    return poster?.startsWith("http", ignoreCase = true) == true &&
+        title.length in 3..85 &&
+        !listOf("[X]", "[XXX]", "XXX", "BRAZZERS", "JULESJORDAN", "PORNO", "PORN").any { title.contains(it, ignoreCase = true) } &&
+        !listOf("AR -", "AF -", "DE -", "DK -", "IN -").any { title.startsWith(it, ignoreCase = true) } &&
+        title.none { it in '\u0600'..'\u06FF' || it in '\u0900'..'\u097F' }
+}
