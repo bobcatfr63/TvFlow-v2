@@ -166,16 +166,16 @@ internal fun NextMobileDashboard(
 
 @Composable
 private fun MobilePosterRail(title: String, items: List<VodItem>, onClick: (VodItem) -> Unit) {
-    Column(Modifier.padding(top = 18.dp)) {
+    Column(Modifier.padding(top = 12.dp)) {
         Text(title, Modifier.padding(start = 16.dp, bottom = 8.dp), color = Color.White,
             fontSize = 18.sp, fontWeight = FontWeight.Bold)
         LazyRow(contentPadding = PaddingValues(horizontal = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+            horizontalArrangement = Arrangement.spacedBy(7.dp)) {
             items(items, key = { it.streamId }) { film ->
-                Column(Modifier.width(112.dp).clickable { onClick(film) }) {
+                Column(Modifier.width(90.dp).clickable { onClick(film) }) {
                     AsyncImage(model = film.posterUrl, contentDescription = film.name,
                         contentScale = ContentScale.Crop, modifier = Modifier.fillMaxWidth()
-                            .height(151.dp).clip(RoundedCornerShape(9.dp)).background(Color(0xFF162335)))
+                            .height(124.dp).clip(RoundedCornerShape(9.dp)).background(Color(0xFF162335)))
                     Text(film.name, color = Color.White, fontSize = 11.sp, maxLines = 1,
                         overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 5.dp))
                 }
@@ -187,16 +187,16 @@ private fun MobilePosterRail(title: String, items: List<VodItem>, onClick: (VodI
 @Composable
 private fun MobileSeriesRail(title: String, entries: List<SeriesItem>, onClick: (SeriesItem) -> Unit) {
     if (entries.isEmpty()) return
-    Column(Modifier.padding(top = 18.dp)) {
+    Column(Modifier.padding(top = 12.dp)) {
         Text(title, Modifier.padding(start = 16.dp, bottom = 8.dp),
             color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
         LazyRow(contentPadding = PaddingValues(horizontal = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+            horizontalArrangement = Arrangement.spacedBy(7.dp)) {
             items(entries, key = { it.seriesId }) { entry ->
-                Column(Modifier.width(112.dp).clickable { onClick(entry) }) {
+                Column(Modifier.width(90.dp).clickable { onClick(entry) }) {
                     AsyncImage(model = entry.coverUrl, contentDescription = entry.name,
                         contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxWidth().height(151.dp)
+                        modifier = Modifier.fillMaxWidth().height(124.dp)
                             .clip(RoundedCornerShape(9.dp)).background(Color(0xFF162335)))
                     Text(entry.name, color = Color.White, fontSize = 11.sp, maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
