@@ -73,7 +73,7 @@ extensions.configure<ApplicationExtension>("android") {
         }
         if (providers.environmentVariable("TVFLOW_NEXT_BUILD").orNull == "1") {
             manifestPlaceholders["tvflowAppLabel"] = "TVFlow-v2 Next"
-            manifestPlaceholders["tvflowOrientation"] = "unspecified"
+            manifestPlaceholders["tvflowOrientation"] = "sensorLandscape"
         } else {
             manifestPlaceholders["tvflowAppLabel"] = "TVFlow"
             manifestPlaceholders["tvflowOrientation"] = "sensorLandscape"

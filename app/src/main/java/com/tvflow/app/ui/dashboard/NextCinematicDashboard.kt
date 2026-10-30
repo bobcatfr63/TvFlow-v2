@@ -18,6 +18,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -48,11 +50,28 @@ internal fun NextCinematicDashboard(
     onSeriesItem: (SeriesItem) -> Unit
 ) {
     if (mobile) {
-        NextMobileDashboard(state, onLive, onGuide, onVod, onSeries, onSearch, onSettings, onFavorites, onVodItem, onSeriesItem)
+        BoxWithConstraints(Modifier.fillMaxSize().background(nextBg).statusBarsPadding().navigationBarsPadding()) {
+            val factor = minOf(maxWidth.value / 1400f, maxHeight.value / 620f)
+            Box(
+                Modifier.wrapContentSize(unbounded = true, align = Alignment.TopStart).requiredSize(1400.dp, 620.dp)
+                    .graphicsLayer {
+                        scaleX = factor
+                        scaleY = factor
+                        transformOrigin = TransformOrigin(0f, 0f)
+                    }
+            ) {
+                NextCinematicDashboard(
+                    mobile = false, state = state, onLive = onLive, onGuide = onGuide,
+                    onVod = onVod, onSeries = onSeries, onSearch = onSearch,
+                    onSettings = onSettings, onFavorites = onFavorites,
+                    onVodItem = onVodItem, onSeriesItem = onSeriesItem
+                )
+            }
+        }
         return
     }
-    val series = state.recommendedSeries.firstOrNull() ?: state.recentSeriesReleases.firstOrNull()
-    val film = state.recommendedVod.firstOrNull() ?: state.recentVodReleases.firstOrNull()
+    val series = (state.recommendedSeries + state.recentSeriesReleases).firstOrNull { isNextHeroCandidate(it.name) && !it.coverUrl.isNullOrBlank() }
+    val film = if (series == null) (state.recommendedVod + state.recentVodReleases).firstOrNull { isNextHeroCandidate(it.name) && !it.posterUrl.isNullOrBlank() } else null
     val title = series?.name ?: film?.name ?: "Bienvenue sur TVFlow"
     val description = series?.plot ?: film?.synopsis ?: "Retrouvez vos chaînes, films et séries préférés."
     val image = series?.coverUrl ?: film?.posterUrl
@@ -80,7 +99,7 @@ internal fun NextCinematicDashboard(
         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(
             listOf(Color.Transparent, nextBg.copy(alpha = 0.32f), nextBg), startY = 100f
         )))
-        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 22.dp, vertical = 14.dp)) {
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 22.dp, vertical = 9.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.width(136.dp)) {
                     Text("TVFlow", color = nextWhite, fontSize = 28.sp, fontWeight = FontWeight.ExtraBold)
@@ -105,8 +124,8 @@ internal fun NextCinematicDashboard(
                 }
                 Text("  ⌕    ◉", color = nextWhite, fontSize = 19.sp)
             }
-            Spacer(Modifier.height(20.dp))
-            Row(Modifier.fillMaxWidth().height(222.dp)) {
+            Spacer(Modifier.height(9.dp))
+            Row(Modifier.fillMaxWidth().height(178.dp)) {
                 Column(Modifier.width(140.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
                     listOf("♥   Mes favoris" to onFavorites,
                         "◷   Derniers ajoutés" to onVod,
@@ -124,7 +143,7 @@ internal fun NextCinematicDashboard(
                         color = nextWhite, fontSize = 10.sp,
                         modifier = Modifier.background(Color(0xCC172333), RoundedCornerShape(3.dp)).padding(4.dp))
                     Spacer(Modifier.height(5.dp))
-                    Text(title.uppercase(), color = Color.White, fontSize = 37.sp,
+                    Text(title.substringBeforeLast(" (20").removePrefix("EN - ").removePrefix("FR - ").uppercase(), color = Color.White, fontSize = 31.sp,
                         fontWeight = FontWeight.Black, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Text(
                         listOfNotNull((series?.releaseYear ?: film?.releaseYear)?.toString(),
@@ -133,9 +152,9 @@ internal fun NextCinematicDashboard(
                     )
                     Spacer(Modifier.height(9.dp))
                     Text(description, color = nextWhite.copy(alpha = 0.84f), fontSize = 13.sp,
-                        maxLines = 3, overflow = TextOverflow.Ellipsis,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.fillMaxWidth(0.64f))
-                    Spacer(Modifier.height(12.dp))
+                    Spacer(Modifier.height(5.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         NextAction("▶  Voir maintenant", nextBlue) {
                             if (series != null) onSeriesItem(series) else if (film != null) onVodItem(film)
@@ -162,7 +181,7 @@ internal fun NextCinematicDashboard(
                     Triple("⚙\nRéglages", Color(0xFF1E2834), onSettings)
                 ).forEachIndexed { index, tile ->
                     NextFocusSurface(
-                        modifier = Modifier.weight(1f).height(67.dp),
+                        modifier = Modifier.weight(1f).height(57.dp),
                         onClick = tile.third, base = tile.second,
                         selected = index == 0
                     ) {
@@ -173,7 +192,7 @@ internal fun NextCinematicDashboard(
                     }
                 }
             }
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(6.dp))
             NextMediaRow("Tendances sur TMDB",
                 state.recommendedVod.ifEmpty { state.recentVodReleases }, onVodItem)
             Spacer(Modifier.height(9.dp))
@@ -233,4 +252,12 @@ private fun NextFocusSurface(
             .focusable(interactionSource = interaction),
         contentAlignment = Alignment.CenterStart
     ) { content() }
+}
+
+private fun isNextHeroCandidate(name: String): Boolean {
+    val value = name.trim()
+    if (value.length !in 4..56) return false
+    if (value.startsWith("AR -", true) || value.startsWith("AF -", true) ||
+        value.startsWith("DE -", true) || value.startsWith("ES -", true)) return false
+    return value.none { it in '\u0600'..'\u06FF' || it in '\u0900'..'\u097F' }
 }
