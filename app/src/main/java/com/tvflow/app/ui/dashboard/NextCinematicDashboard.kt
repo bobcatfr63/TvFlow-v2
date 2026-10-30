@@ -71,8 +71,12 @@ internal fun NextCinematicDashboard(
         }
         return
     }
-    val series = (state.recommendedSeries + state.recentSeriesReleases).firstOrNull { isNextHeroCandidate(it.name) && !it.coverUrl.isNullOrBlank() }
-    val film = if (series == null) (state.recommendedVod + state.recentVodReleases).firstOrNull { isNextHeroCandidate(it.name) && !it.posterUrl.isNullOrBlank() } else null
+    val series = (state.recommendedSeries + state.recentSeriesReleases).asSequence()
+        .filter { isNextHeroCandidate(it.name) && !it.coverUrl.isNullOrBlank() }
+        .sortedBy { nextCatalogDisplayPriority(it.name) }.firstOrNull()
+    val film = if (series == null) (state.recommendedVod + state.recentVodReleases).asSequence()
+        .filter { isNextHeroCandidate(it.name) && !it.posterUrl.isNullOrBlank() }
+        .sortedBy { nextCatalogDisplayPriority(it.name) }.firstOrNull() else null
     val title = cleanNextHeroName(series?.name ?: film?.name ?: "Bienvenue sur TVFlow")
     val description = (series?.plot ?: film?.synopsis).orEmpty().takeIf { isNextHeroDescriptionReadable(it) }
         ?: "Découvrez cette sélection dans votre catalogue TVFlow."
