@@ -94,6 +94,19 @@ class DashboardViewModel @Inject constructor(
     private val installedReleaseNotes = MutableStateFlow<InstalledReleaseNotesState?>(null)
 
     private val featuredBackdrop = MutableStateFlow<Pair<String, String>?>(null)
+    val vodFavoriteIds = repository.observeMediaFavoriteIds("vod")
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptySet<Int>())
+    val seriesFavoriteIds = repository.observeMediaFavoriteIds("series")
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptySet<Int>())
+
+    fun addFeaturedFavorite(kind: String, id: Int) {
+        if (kind != "vod" && kind != "series") return
+        viewModelScope.launch {
+            val current = repository.observeMediaFavoriteIds(kind).first()
+            if (id !in current) repository.toggleMediaFavorite(kind, id)
+        }
+    }
+
     private val favorites = repository.observeFavorites()
     private val recents = repository.observeRecentChannels(16)
     private val allChannels = repository.observeAllChannels()

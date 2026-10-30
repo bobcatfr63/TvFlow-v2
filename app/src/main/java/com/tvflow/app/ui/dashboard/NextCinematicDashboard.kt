@@ -52,7 +52,10 @@ internal fun NextCinematicDashboard(
     onSettings: () -> Unit,
     onFavorites: () -> Unit,
     onVodItem: (VodItem) -> Unit,
-    onSeriesItem: (SeriesItem) -> Unit
+    onSeriesItem: (SeriesItem) -> Unit,
+    vodFavoriteIds: Set<Int> = emptySet(),
+    seriesFavoriteIds: Set<Int> = emptySet(),
+    onAddFeaturedFavorite: (String, Int) -> Unit = { _, _ -> }
 ) {
     if (mobile) {
         BoxWithConstraints(Modifier.fillMaxSize().background(nextBg).statusBarsPadding().navigationBarsPadding()) {
@@ -69,7 +72,9 @@ internal fun NextCinematicDashboard(
                     mobile = false, state = state, onLive = onLive, onGuide = onGuide,
                     onVod = onVod, onSeries = onSeries, onSearch = onSearch,
                     onSettings = onSettings, onFavorites = onFavorites,
-                    onVodItem = onVodItem, onSeriesItem = onSeriesItem
+                    onVodItem = onVodItem, onSeriesItem = onSeriesItem,
+                    vodFavoriteIds = vodFavoriteIds, seriesFavoriteIds = seriesFavoriteIds,
+                    onAddFeaturedFavorite = onAddFeaturedFavorite
                 )
             }
         }
@@ -193,7 +198,14 @@ internal fun NextCinematicDashboard(
                         NextAction("▶  Voir maintenant", nextBlue) {
                             if (series != null) onSeriesItem(series) else if (film != null) onVodItem(film)
                         }
-                        NextAction("＋  Ma liste", Color(0xC5233144), onFavorites)
+                        val alreadySaved = if (series != null) series.seriesId in seriesFavoriteIds
+                            else film != null && film.streamId in vodFavoriteIds
+                        NextAction(if (alreadySaved) "✓  Dans ma liste" else "＋  Ma liste", Color(0xC5233144)) {
+                            if (!alreadySaved) {
+                                if (series != null) onAddFeaturedFavorite("series", series.seriesId)
+                                else if (film != null) onAddFeaturedFavorite("vod", film.streamId)
+                            }
+                        }
                         NextAction("ⓘ  Détails", Color(0xC5233144)) {
                             showFeaturedDetails = true
                         }

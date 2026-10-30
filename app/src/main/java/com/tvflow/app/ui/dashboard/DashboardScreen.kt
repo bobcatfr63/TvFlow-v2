@@ -122,6 +122,8 @@ fun DashboardScreen(
     viewModel: DashboardViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
+    val nextVodFavorites by viewModel.vodFavoriteIds.collectAsState()
+    val nextSeriesFavorites by viewModel.seriesFavoriteIds.collectAsState()
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.checkUpdates() }
     val context = LocalContext.current
     val isTv = context.isTelevisionUi()
@@ -137,7 +139,10 @@ fun DashboardScreen(
             onSettings = onSettings,
             onFavorites = onFavorites,
             onVodItem = onVodItem,
-            onSeriesItem = onSeriesItem
+            onSeriesItem = onSeriesItem,
+            vodFavoriteIds = nextVodFavorites,
+            seriesFavoriteIds = nextSeriesFavorites,
+            onAddFeaturedFavorite = viewModel::addFeaturedFavorite
         )
         val releaseVersion = state.installedReleaseNotesVersion
         if (!BuildConfig.APPLICATION_ID.endsWith(".next") && state.updateInfo == null && releaseVersion != null && state.installedReleaseNotes.isNotEmpty()) {
