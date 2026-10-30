@@ -72,8 +72,9 @@ internal fun NextCinematicDashboard(
     }
     val series = (state.recommendedSeries + state.recentSeriesReleases).firstOrNull { isNextHeroCandidate(it.name) && !it.coverUrl.isNullOrBlank() }
     val film = if (series == null) (state.recommendedVod + state.recentVodReleases).firstOrNull { isNextHeroCandidate(it.name) && !it.posterUrl.isNullOrBlank() } else null
-    val title = series?.name ?: film?.name ?: "Bienvenue sur TVFlow"
-    val description = series?.plot ?: film?.synopsis ?: "Retrouvez vos chaînes, films et séries préférés."
+    val title = cleanNextHeroName(series?.name ?: film?.name ?: "Bienvenue sur TVFlow")
+    val description = (series?.plot ?: film?.synopsis).orEmpty().takeIf { isNextHeroDescriptionReadable(it) }
+        ?: "Découvrez cette sélection dans votre catalogue TVFlow."
     val image = series?.coverUrl ?: film?.posterUrl
     val actions = listOf(
         Triple("⌂  Accueil", true, {}),
@@ -261,3 +262,11 @@ private fun isNextHeroCandidate(name: String): Boolean {
         value.startsWith("DE -", true) || value.startsWith("ES -", true)) return false
     return value.none { it in '\u0600'..'\u06FF' || it in '\u0900'..'\u097F' }
 }
+
+private fun cleanNextHeroName(name: String): String =
+    name.trim().replace(Regex("^(?:FR|EN|VF|MULTI|VOSTFR)\\s*[-:|]\\s*", RegexOption.IGNORE_CASE), "")
+        .replace(Regex("\\s*\\((?:19|20)\\d{2}\\)(?:\\s*\\([A-Z]{2}\\))?$"), "")
+        .trim()
+
+private fun isNextHeroDescriptionReadable(text: String): Boolean =
+    text.isNotBlank() && text.none { it in '\u0600'..'\u06FF' || it in '\u0900'..'\u097F' }
