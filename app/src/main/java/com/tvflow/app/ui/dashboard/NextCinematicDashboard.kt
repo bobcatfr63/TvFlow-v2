@@ -14,6 +14,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -82,6 +84,7 @@ internal fun NextCinematicDashboard(
             state.recommendedVod + state.recentVodReleases
         )
     }
+    var showFeaturedDetails by remember { mutableStateOf(false) }
     val title = cleanNextHeroName(series?.name ?: film?.name ?: "Bienvenue sur TVFlow")
     val description = (series?.plot ?: film?.synopsis).orEmpty().takeIf { isNextHeroDescriptionReadable(it) }
         ?: "Découvrez cette sélection dans votre catalogue TVFlow."
@@ -192,7 +195,7 @@ internal fun NextCinematicDashboard(
                         }
                         NextAction("＋  Ma liste", Color(0xC5233144), onFavorites)
                         NextAction("ⓘ  Détails", Color(0xC5233144)) {
-                            if (series != null) onSeriesItem(series) else if (film != null) onVodItem(film)
+                            showFeaturedDetails = true
                         }
                     }
                 }
@@ -229,6 +232,19 @@ internal fun NextCinematicDashboard(
                 state.recommendedVod.ifEmpty { state.recentVodReleases }, onVodItem)
             Spacer(Modifier.height(4.dp))
             NextMediaRow("Nouveautés films", state.recentVodReleases, onVodItem)
+        }
+        if (showFeaturedDetails) {
+            AlertDialog(
+                onDismissRequest = { showFeaturedDetails = false },
+                title = { Text(title) },
+                text = { Text(description) },
+                confirmButton = {
+                    TextButton(onClick = { showFeaturedDetails = false }) { Text("Fermer") }
+                },
+                containerColor = Color(0xFF142131),
+                titleContentColor = Color.White,
+                textContentColor = nextWhite
+            )
         }
     }
 }
