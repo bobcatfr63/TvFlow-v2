@@ -69,16 +69,24 @@ internal fun NextMobileDashboard(
         Box(Modifier.fillMaxWidth().height(252.dp)) {
             if (!image.isNullOrBlank()) {
                 AsyncImage(model = image, contentDescription = title, contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize())
+                    modifier = Modifier.fillMaxHeight().fillMaxWidth(0.76f).align(Alignment.CenterEnd))
             }
+            Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(
+                listOf(Color(0xF9040910), Color(0xB8040910), Color(0x22040910)))))
             Box(Modifier.fillMaxSize().background(Brush.verticalGradient(
-                listOf(Color(0x22040910), Color(0x99040910), Color(0xFF040910)))))
+                listOf(Color.Transparent, Color(0x70040910), Color(0xFF040910)))))
             Column(Modifier.align(Alignment.BottomStart).padding(18.dp)) {
                 Text(if (!hasFeaturedMedia) "DÉCOUVRIR TVFLOW" else if (series != null) "SÉRIE À LA UNE" else "FILM À LA UNE", color = blue,
                     fontWeight = FontWeight.Bold, fontSize = 12.sp)
                 Text(title, color = white, fontWeight = FontWeight.ExtraBold, fontSize = 28.sp,
                     maxLines = 2, overflow = TextOverflow.Ellipsis)
-                Spacer(Modifier.height(9.dp))
+                Text(listOfNotNull(series?.releaseYear ?: film?.releaseYear).joinToString() +
+                    if (series != null) "  •  Série  •  HD" else "  •  Film  •  HD",
+                    color = Color(0xFF43D5B1), fontSize = 11.sp)
+                Text(series?.plot ?: film?.synopsis ?: "", color = white.copy(alpha = 0.78f),
+                    fontSize = 11.sp, maxLines = 2, overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.fillMaxWidth(0.85f))
+                Spacer(Modifier.height(7.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(if (hasFeaturedMedia) "▶  Voir maintenant" else "▶  Explorer les films", Modifier.clip(RoundedCornerShape(10.dp)).background(blue)
                         .clickable { if (series != null) onSeriesItem(series) else if (film != null) onVodItem(film) else onVod() }
