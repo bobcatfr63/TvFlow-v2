@@ -194,6 +194,7 @@ internal fun NextCinematicDashboard(
                         maxLines = 2, lineHeight = 16.sp, overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.fillMaxWidth(0.64f))
                     Spacer(Modifier.height(5.dp))
+                    if (series != null || film != null) {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         NextAction("▶  Voir maintenant", nextBlue) {
                             if (series != null) onSeriesItem(series) else if (film != null) onVodItem(film)
@@ -209,6 +210,9 @@ internal fun NextCinematicDashboard(
                         NextAction("ⓘ  Détails", Color(0xC5233144)) {
                             showFeaturedDetails = true
                         }
+                    }
+                    } else {
+                        NextAction("▶  Direct TV", nextBlue, onLive)
                     }
                 }
             }
