@@ -339,9 +339,7 @@ fun VodPlayerScreen(
                         useController = true
                         setControllerVisibilityListener(PlayerView.ControllerVisibilityListener { visibility ->
                             playbackControlsVisible = visibility == View.VISIBLE
-                            episodeNavigationVisible = visibility == View.VISIBLE &&
-                                state.seriesId != null &&
-                                (state.nextEpisode != null || state.previousEpisode != null)
+                            if (visibility != View.VISIBLE) episodeNavigationVisible = false
                         })
                         keepScreenOn = true
                         isFocusable = true
