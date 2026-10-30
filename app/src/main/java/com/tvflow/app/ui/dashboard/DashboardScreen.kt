@@ -125,6 +125,29 @@ fun DashboardScreen(
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.checkUpdates() }
     val context = LocalContext.current
     val isTv = context.isTelevisionUi()
+    if (isTv) {
+        NextCinematicDashboard(
+            state = state,
+            onLive = onLive,
+            onGuide = onGuide,
+            onVod = onVod,
+            onSeries = onSeries,
+            onSearch = onSearch,
+            onSettings = onSettings,
+            onFavorites = onFavorites,
+            onVodItem = onVodItem,
+            onSeriesItem = onSeriesItem
+        )
+        val releaseVersion = state.installedReleaseNotesVersion
+        if (state.updateInfo == null && releaseVersion != null && state.installedReleaseNotes.isNotEmpty()) {
+            InstalledReleaseNotesPopup(
+                versionName = releaseVersion,
+                notes = state.installedReleaseNotes,
+                onDismiss = viewModel::dismissInstalledReleaseNotes
+            )
+        }
+        return
+    }
     val listState = rememberLazyListState()
     var appsMode by remember { mutableStateOf(false) }
     var selectedPreviewVod by remember { mutableStateOf<VodItem?>(null) }
