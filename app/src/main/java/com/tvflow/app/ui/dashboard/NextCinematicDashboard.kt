@@ -19,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.Brush
@@ -101,32 +102,34 @@ internal fun NextCinematicDashboard(
         Triple("⚙  Réglages", false, onSettings)
     )
     Box(Modifier.fillMaxSize().background(nextBg)) {
-        if (!image.isNullOrBlank()) {
-            // A catalog poster must not masquerade as a widescreen TMDB backdrop.
-            // Blurred ambient layer preserves a cinematic look when cloud metadata is unavailable.
-            if (verifiedBackdrop == null) {
+        Box(Modifier.fillMaxWidth().height(300.dp).align(Alignment.TopCenter).clipToBounds()) {
+            if (!image.isNullOrBlank()) {
+                // A catalog poster must not masquerade as a widescreen TMDB backdrop.
+                // Blurred ambient layer preserves a cinematic look when cloud metadata is unavailable.
+                if (verifiedBackdrop == null) {
+                    AsyncImage(
+                        model = image,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxWidth(0.84f).fillMaxHeight()
+                            .align(Alignment.TopEnd).blur(36.dp)
+                    )
+                }
                 AsyncImage(
                     model = image,
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxWidth(0.84f).fillMaxHeight(0.59f)
-                        .align(Alignment.TopEnd).blur(36.dp)
+                    modifier = Modifier.fillMaxWidth(if (verifiedBackdrop == null) 0.26f else 0.82f)
+                        .fillMaxHeight().align(Alignment.TopEnd)
                 )
             }
-            AsyncImage(
-                model = image,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxWidth(if (verifiedBackdrop == null) 0.26f else 0.82f)
-                    .fillMaxHeight(0.58f).align(Alignment.TopEnd)
-            )
-        }
-        Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(
-            listOf(nextBg, nextBg.copy(alpha = 0.70f), nextBg.copy(alpha = 0.03f))
-        )))
-        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(
-            listOf(Color.Transparent, nextBg.copy(alpha = 0.18f), nextBg), startY = 140f
-        )))
+            Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(
+                listOf(nextBg, nextBg.copy(alpha = 0.70f), nextBg.copy(alpha = 0.03f))
+            )))
+            Box(Modifier.fillMaxSize().background(Brush.verticalGradient(
+                listOf(Color.Transparent, nextBg.copy(alpha = 0.18f), nextBg), startY = 140f
+            )))
+            }
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 22.dp, vertical = 9.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.width(136.dp)) {
