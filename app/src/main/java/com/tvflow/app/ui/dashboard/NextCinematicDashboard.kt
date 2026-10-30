@@ -145,7 +145,7 @@ internal fun NextCinematicDashboard(
                         NextFocusSurface(
                             onClick = callback,
                             modifier = Modifier.padding(2.dp),
-                            base = if (active) Color(0xFF005DCF) else Color.Transparent,
+                            base = if (active) Color(0xFF005DCF) else Color(0xC5121C2A),
                             shape = RoundedCornerShape(20.dp)
                         ) {
                             Text(label, Modifier.padding(horizontal = 13.dp, vertical = 10.dp),
