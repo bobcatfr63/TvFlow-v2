@@ -39,8 +39,14 @@ internal fun NextMobileDashboard(
     onVodItem: (VodItem) -> Unit,
     onSeriesItem: (SeriesItem) -> Unit
 ) {
-    val series = state.recommendedSeries.firstOrNull() ?: state.recentSeriesReleases.firstOrNull()
-    val film = state.recommendedVod.firstOrNull() ?: state.recentVodReleases.firstOrNull()
+    val featuredSeries = (state.recommendedSeries + state.recentSeriesReleases)
+        .distinctBy { it.seriesId }
+        .firstOrNull { it.coverUrl?.startsWith("http") == true && isGoodFeaturedTitle(it.name) }
+    val featuredFilm = (state.recommendedVod + state.recentVodReleases)
+        .distinctBy { it.streamId }
+        .firstOrNull { it.posterUrl?.startsWith("http") == true && isGoodFeaturedTitle(it.name) }
+    val series = featuredSeries
+    val film = if (series == null) featuredFilm else null
     val title = series?.name ?: film?.name ?: "Bienvenue sur TVFlow"
     val image = series?.coverUrl ?: film?.posterUrl
     val hasFeaturedMedia = series != null || film != null
@@ -199,4 +205,14 @@ private fun MobileSeriesRail(title: String, entries: List<SeriesItem>, onClick: 
             }
         }
     }
+}
+
+private fun isGoodFeaturedTitle(name: String): Boolean {
+    val value = name.trim()
+    if (value.length !in 3..52) return false
+    if (value.any { it in '\u0600'..'\u06FF' || it in '\u0900'..'\u097F' }) return false
+    if (value.startsWith("AR -", true) || value.startsWith("AF -", true) ||
+        value.startsWith("DE -", true) || value.startsWith("ES -", true)) return false
+    if (value.contains("http", true) || value.contains("XXX", true)) return false
+    return value.any { it.isLetter() }
 }
