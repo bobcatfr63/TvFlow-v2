@@ -224,8 +224,8 @@ private fun NextMediaRow(title: String, entries: List<VodItem>, onClick: (VodIte
         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             items(entries.asSequence()
                 .filter { isNextCatalogCard(it.name, it.posterUrl) }
-                .distinctBy { it.streamId }
                 .sortedBy { nextCatalogDisplayPriority(it.name) }
+                .distinctBy { nextCatalogTitleKey(it.name) }
                 .take(60).toList(), key = { it.streamId }) { vod ->
                 NextFocusSurface(modifier = Modifier.width(130.dp).height(93.dp), onClick = { onClick(vod) },
                     base = Color(0xFF132232)) {
@@ -308,3 +308,10 @@ private fun nextCatalogDisplayPriority(name: String): Int {
         else -> 2
     }
 }
+
+private fun nextCatalogTitleKey(name: String): String =
+    name.trim()
+        .replace(Regex("^(?:[A-Z]{2,4})\\s*[-|:]\\s*", RegexOption.IGNORE_CASE), "")
+        .replace(Regex("\\s*\\((?:19|20)\\d{2}\\)\\s*$"), "")
+        .replace(Regex("[^\\p{L}\\p{N}]+"), "")
+        .lowercase(java.util.Locale.ROOT)
