@@ -288,12 +288,12 @@ class DashboardViewModel @Inject constructor(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DashboardUiState())
 
     fun checkUpdates() {
-        if (BuildConfig.IS_PLAY_STORE || updateDismissed || updateInfo.value != null) return
+        if (BuildConfig.IS_PLAY_STORE || BuildConfig.APPLICATION_ID.endsWith(".next") || updateDismissed || updateInfo.value != null) return
         viewModelScope.launch { updateChecker.check()?.let { updateInfo.value = it } }
     }
 
     fun downloadUpdate() {
-        if (BuildConfig.IS_PLAY_STORE) return
+        if (BuildConfig.IS_PLAY_STORE || BuildConfig.APPLICATION_ID.endsWith(".next")) return
         val info = updateInfo.value ?: return
         if (updateDownloadState.value is UpdateDownloadState.Downloading) return
         viewModelScope.launch {
