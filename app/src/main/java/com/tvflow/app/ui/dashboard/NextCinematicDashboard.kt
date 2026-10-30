@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -74,7 +75,7 @@ internal fun NextCinematicDashboard(
         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(
             listOf(Color.Transparent, nextBg.copy(alpha = 0.32f), nextBg), startY = 100f
         )))
-        Column(Modifier.fillMaxSize().padding(horizontal = 22.dp, vertical = 14.dp)) {
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 22.dp, vertical = 14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.width(136.dp)) {
                     Text("TVFlow", color = nextWhite, fontSize = 28.sp, fontWeight = FontWeight.ExtraBold)
