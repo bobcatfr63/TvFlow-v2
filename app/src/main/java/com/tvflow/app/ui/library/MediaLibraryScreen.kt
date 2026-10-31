@@ -112,6 +112,17 @@ fun MediaLibraryScreen(
             result
         }
     }
+    // Keep a cinematic header populated even before DPAD focuses a poster.
+    // Only read the first Paging item: never materialize the full IPTV catalog.
+    val featuredPreview = if (viewModel.type == MediaType.VOD) {
+        if (vod.itemCount > 0) vod[0]?.let {
+            MediaPreview(it.name, it.posterUrl, it.rating, it.releaseYear, it.releaseMonth, it.synopsis)
+        } else null
+    } else {
+        if (series.itemCount > 0) series[0]?.let {
+            MediaPreview(it.name, it.coverUrl, it.rating, it.releaseYear, it.releaseMonth, it.plot)
+        } else null
+    }
     val compactMobile = !isTv
     val powerManager = remember(context) { context.getSystemService(PowerManager::class.java) }
     val reduceMotion = powerManager?.isPowerSaveMode == true
@@ -187,9 +198,9 @@ fun MediaLibraryScreen(
                 vertical = titleVerticalPadding
             )
         )
-        if (!compactMobile && selectedPreview != null) {
+        if (!compactMobile && (selectedPreview != null || featuredPreview != null)) {
             MediaPreviewPanel(
-                preview = selectedPreview,
+                preview = selectedPreview ?: featuredPreview,
                 trailerKey = trailerKey,
                 isSeries = viewModel.type == MediaType.SERIES,
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp)
