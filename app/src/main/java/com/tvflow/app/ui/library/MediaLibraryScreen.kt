@@ -123,6 +123,22 @@ fun MediaLibraryScreen(
             MediaPreview(it.name, it.coverUrl, it.rating, it.releaseYear, it.releaseMonth, it.plot)
         } else null
     }
+    val activeFeature = selectedPreview ?: featuredPreview
+    var featureBackdrop by remember(viewModel.type) { mutableStateOf<String?>(null) }
+    val backdropCache = remember(viewModel.type) { LinkedHashMap<String, String?>() }
+    LaunchedEffect(activeFeature?.title, activeFeature?.releaseYear, isTv) {
+        featureBackdrop = null
+        val feature = activeFeature ?: return@LaunchedEffect
+        if (!isTv) return@LaunchedEffect
+        delay(2_000L)
+        val key = "${viewModel.type}:${feature.title}:${feature.releaseYear}"
+        featureBackdrop = if (backdropCache.containsKey(key)) backdropCache[key] else {
+            val result = runCatching { viewModel.resolveBackdrop(feature.title, feature.releaseYear) }.getOrNull()
+            if (backdropCache.size >= 32) backdropCache.remove(backdropCache.keys.first())
+            backdropCache[key] = result
+            result
+        }
+    }
     val compactMobile = !isTv
     val powerManager = remember(context) { context.getSystemService(PowerManager::class.java) }
     val reduceMotion = powerManager?.isPowerSaveMode == true
@@ -200,7 +216,8 @@ fun MediaLibraryScreen(
         )
         if (!compactMobile && (selectedPreview != null || featuredPreview != null)) {
             MediaPreviewPanel(
-                preview = selectedPreview ?: featuredPreview,
+                preview = activeFeature,
+                backdropUrl = featureBackdrop,
                 trailerKey = trailerKey,
                 isSeries = viewModel.type == MediaType.SERIES,
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp)
@@ -411,6 +428,7 @@ private fun MediaPreviewPanel(
     preview: MediaPreview?,
     trailerKey: String?,
     isSeries: Boolean,
+    backdropUrl: String? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -439,6 +457,11 @@ private fun MediaPreviewPanel(
                 )
             }
         } else {
+            androidx.compose.foundation.layout.Box(Modifier.fillMaxSize()) {
+                if (!backdropUrl.isNullOrBlank()) {
+                    AsyncImage(model = backdropUrl, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                    androidx.compose.foundation.layout.Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(listOf(Color(0xF2081727), Color(0xC5081727), Color(0x99081727)))))
+                }
             Row(
                 modifier = Modifier.fillMaxSize().padding(10.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -494,6 +517,7 @@ private fun MediaPreviewPanel(
                         runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
                     }) { Text(if (trailerKey != null) "▶ Lire la bande-annonce avec son" else "▶ Chercher une bande-annonce", color = Color.White) }
                 }
+            }
             }
         }
     }

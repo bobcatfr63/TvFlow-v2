@@ -153,6 +153,9 @@ class MediaLibraryViewModel @Inject constructor(
         selectedMonthState.value = month
     }
 
+    suspend fun resolveBackdrop(title: String, year: Int?): String? =
+        tmdbMetadataClient.search(type, title, year)?.backdropUrl
+
     suspend fun resolveTrailer(title: String, year: Int?): String? =
         tmdbMetadataClient.trailerYoutubeKey(type, title, year)
 
