@@ -128,7 +128,7 @@ class MediaLibraryViewModel @Inject constructor(
         }
         viewModelScope.launch {
             categories.collect { visible ->
-                if (selectedCategory.value != null && visible.none { it.id == selectedCategory.value }) {
+                if (visible.isNotEmpty() && selectedCategory.value !in visible.map { it.id }) {
                     selectedCategory.value = visible.firstOrNull()?.id
                     selectedYearState.value = null
                     selectedMonthState.value = null
