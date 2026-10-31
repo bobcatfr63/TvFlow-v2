@@ -416,7 +416,7 @@ private fun MediaPreviewPanel(
     val context = LocalContext.current
     val safeWebPreview = android.os.Build.VERSION.SDK_INT >= 29
     Card(
-        modifier = modifier.height(if (preview == null) 76.dp else if (trailerKey != null) 225.dp else 190.dp),
+        modifier = modifier.height(if (preview == null) 76.dp else if (trailerKey != null) 225.dp else 176.dp),
         colors = CardDefaults.cardColors(containerColor = Color(0xFF0B2033)),
         border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))
     ) {
@@ -457,7 +457,7 @@ private fun MediaPreviewPanel(
                 ) {
                     Text(
                         preview.title,
-                        style = MaterialTheme.typography.titleSmall,
+                        style = MaterialTheme.typography.headlineMedium,
                         color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis
