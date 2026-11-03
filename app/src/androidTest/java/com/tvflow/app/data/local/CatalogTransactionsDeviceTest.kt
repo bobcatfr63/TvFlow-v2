@@ -17,7 +17,8 @@ class CatalogTransactionsDeviceTest {
         try {
             val dao = database.dao()
             dao.upsertVod(listOf(VodItemEntity("test", 1, "Film ancien", "a", null, null, null,
-                synopsis = "Synopsis local", containerExtension = "mp4", tmdbGenreIds = "18")))
+                synopsis = "Synopsis local", containerExtension = "mp4", tmdbGenreIds = "18",
+                releaseDateIso = "2020-02-03", releaseDateSource = "TMDB")))
             dao.upsertSeries(listOf(SeriesItemEntity("test", 2, "Série conservée", "s", null, null, "Intrigue")))
             dao.replaceVodCatalog(
                 "test",
@@ -29,6 +30,8 @@ class CatalogTransactionsDeviceTest {
             assertEquals("Film actualisé", film.name)
             assertEquals("Synopsis local", film.synopsis)
             assertEquals("18", film.tmdbGenreIds)
+            assertEquals("2020-02-03", film.releaseDateIso)
+            assertEquals("TMDB", film.releaseDateSource)
             assertEquals("Série conservée", dao.getAllSeries("test").single().name)
         } finally {
             database.close()
@@ -43,7 +46,7 @@ class CatalogTransactionsDeviceTest {
             dao.upsertVod(listOf(VodItemEntity("test", 1, "Film conservé", "a", null, null, null,
                 containerExtension = "mkv")))
             dao.upsertSeries(listOf(SeriesItemEntity("test", 2, "Ancienne série", "s", null, null,
-                "Intrigue locale", tmdbGenreIds = "35")))
+                "Intrigue locale", tmdbGenreIds = "35", releaseDateIso = "2021-05-06", releaseDateSource = "TMDB")))
             dao.replaceSeriesCatalog(
                 "test",
                 listOf(MediaCategoryEntity("test", "s", "Séries", "SERIES", 0)),
@@ -53,6 +56,8 @@ class CatalogTransactionsDeviceTest {
             assertEquals("Série actualisée", series.name)
             assertEquals("Intrigue locale", series.plot)
             assertEquals("35", series.tmdbGenreIds)
+            assertEquals("2021-05-06", series.releaseDateIso)
+            assertEquals("TMDB", series.releaseDateSource)
             assertEquals("Film conservé", dao.getAllVod("test").single().name)
         } finally {
             database.close()

@@ -101,6 +101,10 @@ fun GuideScreen(
     onSettings: () -> Unit,
     viewModel: GuideViewModel = hiltViewModel()
 ) {
+    androidx.compose.runtime.DisposableEffect(viewModel) {
+        onDispose { viewModel.clearPreview() }
+    }
+    androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_STOP) { viewModel.clearPreview() }
     val state by viewModel.state.collectAsState()
 
     state.pinRequiredCategory?.let { category ->
@@ -112,6 +116,7 @@ fun GuideScreen(
         )
     }
 
+    val portrait = com.tvflow.app.ui.common.isNextPortraitLayout()
     Row(
         Modifier
             .fillMaxSize()
@@ -128,20 +133,25 @@ fun GuideScreen(
                 }
             }
     ) {
-        IconRail(
+        if (!com.tvflow.app.BuildConfig.APPLICATION_ID.endsWith(".next")) IconRail(
             onDashboard = onDashboard,
             onSearch = onSearch,
             onVod = onVod,
             onSeries = onSeries,
             onSettings = onSettings
         )
-        CategoryPanel(
-            categories = state.categories,
-            selectedId = state.selectedCategoryId,
-            onSelect = viewModel::selectCategory
-        )
-        BoxWithConstraints(Modifier.weight(1f).fillMaxHeight()) {
-            val compactGuide = maxHeight < 500.dp
+        com.tvflow.app.ui.common.NextAdaptivePane(
+            compact = portrait, sidebarWidth = CategoryWidth,
+            categoryLabel = state.categories.firstOrNull { it.id == state.selectedCategoryId }?.name
+                ?: if (state.selectedCategoryId == GUIDE_TNT) "TNT" else "Guide TV",
+            modifier = Modifier.weight(1f).fillMaxHeight(),
+            sidebar = { sideModifier, closeSidebar ->
+                CategoryPanel(categories = state.categories, selectedId = state.selectedCategoryId,
+                    onSelect = { viewModel.selectCategory(it); closeSidebar() }, modifier = sideModifier)
+            }
+        ) {
+        BoxWithConstraints(Modifier.fillMaxSize()) {
+            val compactGuide = portrait || maxHeight < 500.dp
             Column(Modifier.fillMaxSize()) {
                 ProgramHero(
                     previewChannel = state.previewChannel,
@@ -203,11 +213,12 @@ fun GuideScreen(
                     .fillMaxWidth()
             ) {
                 val channelWidth = when {
+                    portrait -> 150.dp
                     maxWidth < 560.dp -> ChannelWidthCompact
                     maxWidth < 760.dp -> 220.dp
                     else -> ChannelWidthWide
                 }
-                val timelineWidth = (maxWidth - channelWidth - 12.dp).coerceAtLeast(220.dp)
+                val timelineWidth = (maxWidth - channelWidth - 12.dp).coerceAtLeast(if (portrait) 100.dp else 220.dp)
                 Column(Modifier.fillMaxSize()) {
                     TimelineHeader(
                         windowStart = state.windowStart,
@@ -251,6 +262,7 @@ fun GuideScreen(
             }
         }
     }
+}
 }
 }
 
@@ -327,11 +339,11 @@ private fun RailGlyph(
 private fun CategoryPanel(
     categories: List<LiveCategory>,
     selectedId: String?,
-    onSelect: (String) -> Unit
+    onSelect: (String) -> Unit,
+    modifier: Modifier = Modifier.width(CategoryWidth)
 ) {
     Column(
-        modifier = Modifier
-            .width(CategoryWidth)
+        modifier = modifier
             .fillMaxHeight()
             .background(
                 Brush.verticalGradient(
@@ -449,7 +461,11 @@ private fun ProgramHero(
             if (!compact) Spacer(Modifier.height(5.dp))
             if (channel != null) {
                 Text(
-                    "OK : aperçu  •  OK encore : plein écran",
+                    if (com.tvflow.app.BuildConfig.APPLICATION_ID.endsWith(".next")) {
+                        if (LocalContext.current.isTelevisionUi())
+                            "2 appuis sur OK : aperçu après 2 s · OK suivant : plein écran"
+                        else "2 appuis : aperçu après 2 s · Appui suivant : plein écran"
+                    } else"OK : aperçu  •  OK encore : plein écran",
                     color = Color.White.copy(alpha = 0.68f),
                     style = MaterialTheme.typography.labelSmall
                 )

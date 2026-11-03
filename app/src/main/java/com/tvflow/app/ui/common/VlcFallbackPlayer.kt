@@ -13,6 +13,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.tvflow.app.util.isTelevisionUi
 import kotlinx.coroutines.delay
 import org.videolan.libvlc.LibVLC
 import org.videolan.libvlc.Media
@@ -29,18 +31,25 @@ internal fun shouldUseVlcFallback(httpCode: Int?, errorName: String?): Boolean {
 }
 
 @Composable
-fun VlcFallbackPlayer(
+internal fun VlcFallbackPlayer(
     url: String,
     modifier: Modifier = Modifier,
     startPositionMs: Long = 0L,
     bufferPreset: String = "FAST",
     muted: Boolean = false,
+    controller: VlcPlaybackController? = null,
     onPlaybackEnded: () -> Unit = {},
     onProgress: (Long, Long) -> Unit = { _, _ -> },
     onFinalProgress: (Long, Long) -> Unit = { _, _ -> },
     onReady: () -> Unit = {},
     onError: (String) -> Unit = {}
 ) {
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    val currentReady by androidx.compose.runtime.rememberUpdatedState(onReady)
+    val currentEnded by androidx.compose.runtime.rememberUpdatedState(onPlaybackEnded)
+    val currentError by androidx.compose.runtime.rememberUpdatedState(onError)
+    val currentFinalProgress by androidx.compose.runtime.rememberUpdatedState(onFinalProgress)
+    val currentProgress by androidx.compose.runtime.rememberUpdatedState(onProgress)
     val context = LocalContext.current
     val networkCacheMs = AdaptiveBufferPolicy.vlcCacheMs(bufferPreset)
     val libVlc = remember(networkCacheMs) {
@@ -58,19 +67,63 @@ fun VlcFallbackPlayer(
     LaunchedEffect(mediaPlayer, muted) { mediaPlayer.volume = if (muted) 0 else 100 }
     var attached by remember(mediaPlayer) { mutableStateOf(false) }
 
+    val playbackController = controller ?: remember(mediaPlayer) { VlcPlaybackController() }
+    val playbackState by playbackController.state.collectAsStateWithLifecycle()
+    val playbackPort = remember(mediaPlayer) {
+        object : VlcPlaybackPort {
+            override val positionMs get() = mediaPlayer.time
+            override val durationMs get() = mediaPlayer.length
+            override val playing get() = mediaPlayer.isPlaying
+            override val seekable get() = mediaPlayer.isSeekable
+            override val audioTracks get() = mediaPlayer.audioTracks.orEmpty().map {
+                VlcTrack(it.id, it.name.orEmpty().ifBlank { "Piste ${it.id}" })
+            }.distinctBy { it.id }
+            override val subtitleTracks get() = mediaPlayer.spuTracks.orEmpty().map {
+                VlcTrack(it.id, it.name.orEmpty().ifBlank { "Sous-titres ${it.id}" })
+            }.distinctBy { it.id }
+            override val audioTrackId get() = mediaPlayer.audioTrack
+            override val subtitleTrackId get() = mediaPlayer.spuTrack
+            override fun play() { mediaPlayer.play() }
+            override fun pause() { mediaPlayer.pause() }
+            // Accurate seek: fast=true snaps back to an earlier keyframe on some VOD files.
+            override fun seekTo(positionMs: Long) = mediaPlayer.setTime(positionMs) >= 0
+            override fun selectAudio(id: Int) = mediaPlayer.setAudioTrack(id)
+            override fun selectSubtitle(id: Int) = mediaPlayer.setSpuTrack(id)
+        }
+    }
+    DisposableEffect(lifecycleOwner, mediaPlayer, playbackController) {
+        playbackController.bind(playbackPort,
+            lifecycleOwner.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED))
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            when (event) {
+                androidx.lifecycle.Lifecycle.Event.ON_PAUSE,
+                androidx.lifecycle.Lifecycle.Event.ON_STOP -> playbackController.setForeground(false)
+                androidx.lifecycle.Lifecycle.Event.ON_RESUME -> playbackController.setForeground(true)
+                else -> Unit
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            playbackController.unbind(playbackPort)
+        }
+    }
+
     DisposableEffect(mediaPlayer) {
         mediaPlayer.setEventListener { event ->
             when (event.type) {
-                MediaPlayer.Event.Playing -> onReady()
-                MediaPlayer.Event.EndReached -> onPlaybackEnded()
-                MediaPlayer.Event.EncounteredError -> onError("Lecture libVLC impossible")
+                MediaPlayer.Event.Playing -> { playbackController.refresh(); currentReady() }
+                MediaPlayer.Event.EndReached -> currentEnded()
+                MediaPlayer.Event.EncounteredError -> currentError("Lecture libVLC impossible")
             }
         }
         onDispose {
             runCatching {
                 val position = mediaPlayer.time.coerceAtLeast(0L)
-                if (position > 0L) onFinalProgress(position, mediaPlayer.length.coerceAtLeast(0L))
+                if (position > 0L) currentFinalProgress(position, mediaPlayer.length.coerceAtLeast(0L))
             }
+            playbackController.unbind(playbackPort)
+            mediaPlayer.setEventListener(null)
             runCatching { mediaPlayer.stop() }
             runCatching { mediaPlayer.detachViews() }
             mediaPlayer.release()
@@ -82,10 +135,13 @@ fun VlcFallbackPlayer(
         AndroidView(
             factory = { hostContext ->
                 VLCVideoLayout(hostContext).also { layout ->
-                    mediaPlayer.attachViews(layout, null, false, false)
+                    // TextureView keeps mobile Compose controls in the same composition plane.
+                    // TV retains SurfaceView for hardware overlay efficiency.
+                    mediaPlayer.attachViews(layout, null, true, !hostContext.isTelevisionUi())
                     attached = true
                 }
             },
+            update = { it.keepScreenOn = playbackState.playing },
             modifier = modifier.fillMaxSize()
         )
     }
@@ -99,21 +155,20 @@ fun VlcFallbackPlayer(
         }
         mediaPlayer.media = media
         media.release()
-        mediaPlayer.play()
-        if (startPositionMs > 0L) {
-            delay(400L)
-            runCatching { mediaPlayer.setTime(startPositionMs, true) }
-        }
+        playbackController.onMediaLoaded(startPositionMs)
     }
 
     LaunchedEffect(mediaPlayer, url, attached) {
         if (!attached) return@LaunchedEffect
+        var ticks = 0
         while (true) {
-            delay(5_000L)
-            onProgress(
-                mediaPlayer.time.coerceAtLeast(0L),
-                mediaPlayer.length.coerceAtLeast(0L)
-            )
+            delay(500L)
+            playbackController.refresh()
+            val snapshot = playbackController.state.value
+            currentProgress(snapshot.positionMs, snapshot.durationMs)
+            if (++ticks % 10 == 0 && com.tvflow.app.BuildConfig.DEBUG) {
+                android.util.Log.i("TVFlowVlc", "playing=${snapshot.playing} requested=${snapshot.playRequested} positionMs=${snapshot.positionMs} durationMs=${snapshot.durationMs} seekable=${snapshot.canSeek}")
+            }
         }
     }
 }

@@ -53,14 +53,22 @@ class HomeViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     private val previewId = MutableStateFlow<Int?>(null)
-    val previewChannel = combine(previewId, repository.savedCredentials, repository.observeAllChannels()) { id, credentials, channels ->
+    val previewChannel = if (com.tvflow.app.BuildConfig.APPLICATION_ID.endsWith(".next")) {
+        previewId.flatMapLatest { id ->
+            if (id == null) flowOf(null) else combine(repository.savedCredentials, repository.observeChannel(id)) { credentials, channel ->
+                if (credentials == null || channel == null) null else channel to repository.streamUrl(credentials, channel)
+            }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+    } else combine(previewId, repository.savedCredentials, repository.observeAllChannels()) { id, credentials, channels ->
         if (id == null || credentials == null) null else channels.firstOrNull { it.streamId == id }?.let { channel ->
             channel to repository.streamUrl(credentials, channel)
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
-    fun previewChannel(id: Int) { previewId.value = id }
-    fun clearPreview() { previewId.value = null }
+    private val previewGate = com.tvflow.app.ui.common.ExplicitLivePreview(viewModelScope) { previewId.value = it }
+    fun focusChannel(id: Int) = previewGate.focus(id)
+    fun activateChannel(id: Int): Boolean = previewGate.press(id)
+    fun clearPreview() = previewGate.cancel()
 
     private val source = MutableStateFlow<ChannelSource?>(null)
     val selectedSource: StateFlow<ChannelSource?> = source
@@ -111,6 +119,7 @@ class HomeViewModel @Inject constructor(
     }
 
     fun selectCategory(id: String) {
+        clearPreview()
         val category = categories.value.firstOrNull { it.id == id }
         if (category?.isLocked == true) {
             _pinRequiredCategory.value = category
@@ -136,21 +145,25 @@ class HomeViewModel @Inject constructor(
     fun dismissParentalPin() { _pinRequiredCategory.value = null; _pinError.value = null }
 
     fun selectTnt() {
+        clearPreview()
         subFilterId.value = null
         source.value = ChannelSource.Tnt
     }
 
     fun selectFavorites() {
+        clearPreview()
         subFilterId.value = null
         source.value = ChannelSource.Favorites
     }
 
     fun selectRecent() {
+        clearPreview()
         subFilterId.value = null
         source.value = ChannelSource.Recent
     }
 
     fun selectSubFilter(id: String?) {
+        clearPreview()
         subFilterId.value = id
     }
 

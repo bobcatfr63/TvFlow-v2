@@ -1,6 +1,10 @@
 package com.tvflow.app.ui.navigation
 
 import android.net.Uri
+import com.tvflow.app.BuildConfig
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -62,6 +66,25 @@ fun TVFlowNavHost(
     }
     val currentEntry by navController.currentBackStackEntryAsState()
     val route = currentEntry?.destination?.route.orEmpty()
+    val isNext = BuildConfig.APPLICATION_ID.endsWith(".next")
+    com.tvflow.app.ui.common.NextPlaybackOrientation(
+        playback = route.startsWith("player/") || route.startsWith("vodPlayer/"),
+        routeResolved = route.isNotBlank() && route != "startup"
+    )
+    val nextSection = nextSectionForRoute(route, currentEntry?.arguments?.getString("type"))
+
+    fun navigateNextSection(section: NextSection) {
+        if (section == nextSection) return
+        if (section == NextSection.Dashboard) {
+            navController.popBackStack("dashboard", inclusive = false)
+            return
+        }
+        // VOD and SERIES share one destination ID; restoring by ID can restore the wrong type.
+        navController.navigate(section.route) {
+            popUpTo("dashboard") { inclusive = false }
+            launchSingleTop = true
+        }
+    }
     LaunchedEffect(route) {
         onPlaybackRouteChanged(route.isBlank() || route == "startup" || route.startsWith("player/") || route.startsWith("vodPlayer/"))
     }
@@ -116,7 +139,11 @@ fun TVFlowNavHost(
         TvFlowConnect.consume(transfer)
     }
 
-    NavHost(navController = navController, startDestination = "startup") {
+    Column(Modifier.fillMaxSize()) {
+        if (isNext && nextSection != null) {
+            NextSectionNavigation(nextSection, isTvDevice, ::navigateNextSection)
+        }
+    NavHost(navController = navController, startDestination = "startup", modifier = Modifier.weight(1f)) {
         composable("startup") {
             if (instantTargetResolved) StartupScreen(
                 instantTv = instantTarget != null,
@@ -153,7 +180,8 @@ fun TVFlowNavHost(
                 onGuide = { navController.navigate("guide") },
                 onVod = { navController.navigate("library/${MediaType.VOD.name}") },
                 onSeries = { navController.navigate("library/${MediaType.SERIES.name}") },
-                onSearch = { navController.navigate("tvflowAi") },
+                onSearch = { if (isNext) navigateNextSection(NextSection.Search) else navController.navigate("tvflowAi") },
+                onAiSearch = { if (isNext) navigateNextSection(NextSection.Ai) else navController.navigate("tvflowAi") },
                 onSettings = { navController.navigate("settings") },
                 onFavorites = { navController.navigate("favorites") },
                 onChannel = { channel -> openLive(channel.streamId, channel.name, channel.categoryId) },
@@ -246,6 +274,7 @@ fun TVFlowNavHost(
         }
         composable("search") {
             SearchScreen(
+                onAiSearch = if (isNext) ({ navigateNextSection(NextSection.Ai) }) else null,
                 onLive = { item -> openLive(item.streamId, item.name, item.categoryId) },
                 onVod = ::openVodDetails,
                 onSeries = ::openSeriesDetails
@@ -324,6 +353,8 @@ fun TVFlowNavHost(
                 }
             )
         }
+    }
+
     }
 
     GlobalUpdateOverlay()

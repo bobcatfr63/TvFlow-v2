@@ -33,7 +33,10 @@ class VodDetailsViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     val suggestions: StateFlow<List<VodItem>> =
-        if (categoryId.isBlank()) {
+        if (com.tvflow.app.BuildConfig.APPLICATION_ID.endsWith(".next")) {
+            repository.observeVodSuggestions(categoryId, streamId)
+                .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+        } else if (categoryId.isBlank()) {
             kotlinx.coroutines.flow.MutableStateFlow(emptyList())
         } else {
             repository.observeVod(categoryId)

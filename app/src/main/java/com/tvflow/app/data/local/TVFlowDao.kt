@@ -9,7 +9,7 @@ import androidx.paging.PagingSource
 import kotlinx.coroutines.flow.Flow
 
 /** Minimal search index row: avoid materializing posters, synopsis and EPG metadata. */
-data class MediaSearchKey(val id: Int, val name: String)
+data class MediaSearchKey(val id: Int, val name: String, val categoryId: String)
 
 data class BackupCategoryPreference(val id: String, val hidden: Boolean, val locked: Boolean, val order: Int?)
 data class BackupChannelPreference(val id: Int, val hidden: Boolean, val order: Int?)
@@ -25,23 +25,29 @@ interface TVFlowDao {
     @Query("SELECT COUNT(*) FROM series_items WHERE profileId = :profileId")
     suspend fun countSeriesItems(profileId: String): Int
 
-    @Query("SELECT streamId AS id, name FROM live_channels WHERE profileId = :profileId AND isHidden = 0")
+    @Query("SELECT streamId AS id, name, categoryId FROM live_channels WHERE profileId = :profileId")
     suspend fun getLiveSearchKeys(profileId: String): List<MediaSearchKey>
 
-    @Query("SELECT streamId AS id, name FROM vod_items WHERE profileId = :profileId")
+    @Query("SELECT streamId AS id, name, categoryId FROM vod_items WHERE profileId = :profileId")
     suspend fun getVodSearchKeys(profileId: String): List<MediaSearchKey>
 
-    @Query("SELECT seriesId AS id, name FROM series_items WHERE profileId = :profileId")
+    @Query("SELECT seriesId AS id, name, categoryId FROM series_items WHERE profileId = :profileId")
     suspend fun getSeriesSearchKeys(profileId: String): List<MediaSearchKey>
 
-    @Query("SELECT * FROM live_channels WHERE profileId = :profileId AND streamId IN (:ids) AND isHidden = 0")
+    @Query("SELECT * FROM live_channels WHERE profileId = :profileId AND streamId IN (:ids) AND isHidden = 0 AND categoryId NOT IN (SELECT id FROM live_categories WHERE profileId = :profileId AND (isHidden = 1 OR isLocked = 1))")
     suspend fun getSearchLiveItems(profileId: String, ids: List<Int>): List<LiveChannelEntity>
 
-    @Query("SELECT * FROM vod_items WHERE profileId = :profileId AND streamId IN (:ids)")
-    suspend fun getSearchVodItems(profileId: String, ids: List<Int>): List<VodItemEntity>
+    @Query("SELECT * FROM vod_items WHERE profileId = :profileId AND streamId IN (:ids) AND categoryId NOT IN (:excludedCategoryIds)")
+    suspend fun getSearchVodItems(profileId: String, ids: List<Int>, excludedCategoryIds: List<String> = emptyList()): List<VodItemEntity>
 
-    @Query("SELECT * FROM series_items WHERE profileId = :profileId AND seriesId IN (:ids)")
-    suspend fun getSearchSeriesItems(profileId: String, ids: List<Int>): List<SeriesItemEntity>
+    @Query("SELECT * FROM series_items WHERE profileId = :profileId AND seriesId IN (:ids) AND categoryId NOT IN (:excludedCategoryIds)")
+    suspend fun getSearchSeriesItems(profileId: String, ids: List<Int>, excludedCategoryIds: List<String> = emptyList()): List<SeriesItemEntity>
+
+    @Query("SELECT id FROM live_categories WHERE profileId = :profileId AND (isHidden = 1 OR isLocked = 1) ORDER BY id")
+    fun observeSearchExcludedLiveCategoryIds(profileId: String): Flow<List<String>>
+
+    @Query("SELECT streamId FROM live_channels WHERE profileId = :profileId AND isHidden = 1 ORDER BY streamId")
+    fun observeSearchHiddenLiveIds(profileId: String): Flow<List<Int>>
 
     @Query("SELECT * FROM live_categories WHERE profileId = :profileId AND isHidden = 0 ORDER BY CASE WHEN customOrder IS NULL THEN 1 ELSE 0 END, customOrder, sortOrder, name")
     fun observeCategories(profileId: String): Flow<List<LiveCategoryEntity>>
@@ -219,6 +225,10 @@ interface TVFlowDao {
     @Query("SELECT * FROM vod_items WHERE profileId = :profileId AND categoryId = :categoryId ORDER BY name")
     fun observeVod(profileId: String, categoryId: String): Flow<List<VodItemEntity>>
 
+    @Query("SELECT * FROM vod_items WHERE profileId = :profileId AND categoryId = :categoryId AND streamId != :excludeStreamId ORDER BY COALESCE(releaseYear, 0) DESC, COALESCE(releaseMonth, 0) DESC, COALESCE(added, 0) DESC, name, streamId LIMIT :limit")
+    fun observeVodSuggestions(profileId: String, categoryId: String, excludeStreamId: Int, limit: Int): Flow<List<VodItemEntity>>
+
+
     @Query("SELECT * FROM vod_items WHERE profileId = :profileId AND streamId = :streamId LIMIT 1")
     fun observeVodItem(profileId: String, streamId: Int): Flow<VodItemEntity?>
 
@@ -295,6 +305,10 @@ interface TVFlowDao {
     @Query("UPDATE vod_items SET releaseDateIso = :date, releaseDateSource = 'TMDB', releaseYear = CAST(substr(:date,1,4) AS INTEGER), releaseMonth = CAST(substr(:date,6,2) AS INTEGER) WHERE profileId = :profileId AND streamId = :streamId AND :date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'")
     suspend fun updateVodReleaseDate(profileId: String, streamId: Int, date: String)
 
+    // Bound hydration in SQLite: a details screen must never materialize a whole category.
+    @Query("SELECT * FROM series_items WHERE profileId = :profileId AND categoryId = :categoryId AND seriesId != :excludeSeriesId ORDER BY COALESCE(releaseYear, 0) DESC, COALESCE(releaseMonth, 0) DESC, name, seriesId LIMIT :limit")
+    suspend fun getSeriesSuggestions(profileId: String, categoryId: String, excludeSeriesId: Int, limit: Int): List<SeriesItemEntity>
+
     @Query("SELECT * FROM series_items WHERE profileId = :profileId AND categoryId = :categoryId ORDER BY name")
     fun observeSeries(profileId: String, categoryId: String): Flow<List<SeriesItemEntity>>
 
@@ -331,11 +345,11 @@ interface TVFlowDao {
     @Query("SELECT * FROM series_items WHERE profileId = :profileId AND categoryId = :categoryId LIMIT :limit")
     suspend fun getSeriesAiCategoryCandidates(profileId: String, categoryId: String, limit: Int): List<SeriesItemEntity>
 
-    @Query("SELECT * FROM vod_items WHERE profileId = :profileId AND name LIKE '%' || :query || '%' ORDER BY name LIMIT :limit")
-    fun searchVod(profileId: String, query: String, limit: Int = 100): Flow<List<VodItemEntity>>
+    @Query("SELECT * FROM vod_items WHERE profileId = :profileId AND categoryId NOT IN (:excludedCategoryIds) AND name LIKE '%' || :query || '%' ORDER BY name LIMIT :limit")
+    fun searchVod(profileId: String, query: String, limit: Int = 100, excludedCategoryIds: List<String> = emptyList()): Flow<List<VodItemEntity>>
 
-    @Query("SELECT * FROM series_items WHERE profileId = :profileId AND name LIKE '%' || :query || '%' ORDER BY name LIMIT :limit")
-    fun searchSeries(profileId: String, query: String, limit: Int = 100): Flow<List<SeriesItemEntity>>
+    @Query("SELECT * FROM series_items WHERE profileId = :profileId AND categoryId NOT IN (:excludedCategoryIds) AND name LIKE '%' || :query || '%' ORDER BY name LIMIT :limit")
+    fun searchSeries(profileId: String, query: String, limit: Int = 100, excludedCategoryIds: List<String> = emptyList()): Flow<List<SeriesItemEntity>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertMediaCategories(items: List<MediaCategoryEntity>)
@@ -385,6 +399,8 @@ interface TVFlowDao {
                 synopsis = incoming.synopsis ?: old?.synopsis,
                 releaseYear = incoming.releaseYear ?: old?.releaseYear,
                 releaseMonth = incoming.releaseMonth ?: old?.releaseMonth,
+                releaseDateIso = incoming.releaseDateIso ?: old?.releaseDateIso,
+                releaseDateSource = incoming.releaseDateSource ?: old?.releaseDateSource,
                 posterUrl = incoming.posterUrl ?: old?.posterUrl,
                 rating = incoming.rating ?: old?.rating,
                 detailsFetchedAt = old?.detailsFetchedAt,
@@ -406,6 +422,8 @@ interface TVFlowDao {
                 plot = incoming.plot ?: old?.plot,
                 releaseYear = incoming.releaseYear ?: old?.releaseYear,
                 releaseMonth = incoming.releaseMonth ?: old?.releaseMonth,
+                releaseDateIso = incoming.releaseDateIso ?: old?.releaseDateIso,
+                releaseDateSource = incoming.releaseDateSource ?: old?.releaseDateSource,
                 coverUrl = incoming.coverUrl ?: old?.coverUrl,
                 rating = incoming.rating ?: old?.rating,
                 tmdbGenreIds = incoming.tmdbGenreIds ?: old?.tmdbGenreIds,
@@ -438,6 +456,8 @@ interface TVFlowDao {
                 synopsis = incoming.synopsis ?: previous?.synopsis,
                 releaseYear = incoming.releaseYear ?: previous?.releaseYear,
                 releaseMonth = incoming.releaseMonth ?: previous?.releaseMonth,
+                releaseDateIso = incoming.releaseDateIso ?: previous?.releaseDateIso,
+                releaseDateSource = incoming.releaseDateSource ?: previous?.releaseDateSource,
                 posterUrl = incoming.posterUrl ?: previous?.posterUrl,
                 rating = incoming.rating ?: previous?.rating,
                 detailsFetchedAt = previous?.detailsFetchedAt,
@@ -452,6 +472,8 @@ interface TVFlowDao {
                 plot = incoming.plot ?: previous?.plot,
                 releaseYear = incoming.releaseYear ?: previous?.releaseYear,
                 releaseMonth = incoming.releaseMonth ?: previous?.releaseMonth,
+                releaseDateIso = incoming.releaseDateIso ?: previous?.releaseDateIso,
+                releaseDateSource = incoming.releaseDateSource ?: previous?.releaseDateSource,
                 coverUrl = incoming.coverUrl ?: previous?.coverUrl,
                 rating = incoming.rating ?: previous?.rating,
                 tmdbGenreIds = incoming.tmdbGenreIds ?: previous?.tmdbGenreIds,

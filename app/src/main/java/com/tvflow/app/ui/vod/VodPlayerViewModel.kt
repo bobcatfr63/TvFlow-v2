@@ -123,8 +123,18 @@ class VodPlayerViewModel @Inject constructor(
         }
     }
 
-    fun onPlaybackEnded(durationMs: Long = 0L) {
+    fun onPlaybackEnded(durationMs: Long = 0L, positionMs: Long = durationMs) {
         val current = _state.value
+        if (com.tvflow.app.BuildConfig.APPLICATION_ID.endsWith(".next") &&
+            !isCompletePlayback(positionMs, durationMs)) {
+            saveFinalProgress(positionMs, durationMs)
+            _state.value = current.copy(
+                offerNextEpisode = false,
+                autoNextCountdown = null,
+                error = "Le flux s’est interrompu avant la fin. Votre progression a été conservée."
+            )
+            return
+        }
         val key = current.mediaKey
         if (key.isNotBlank()) {
             viewModelScope.launch {

@@ -45,7 +45,7 @@ fun FavoritesScreen(
     Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             OutlinedButton(onClick = onBack) { Text("← Retour") }
-            Text("★ Mes favoris", style = MaterialTheme.typography.headlineMedium)
+            Text("★ Mes favoris", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onBackground)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             listOf("Chaînes", "Films", "Séries").forEachIndexed { index, label ->

@@ -21,6 +21,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -38,6 +39,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import coil3.compose.AsyncImage
+import com.tvflow.app.BuildConfig
 import com.tvflow.app.domain.Episode
 import com.tvflow.app.domain.SeriesItem
 import com.tvflow.app.util.isTelevisionUi
@@ -317,7 +319,10 @@ private fun SeriesSuggestionCard(
                 modifier = Modifier.padding(8.dp),
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
-                style = MaterialTheme.typography.bodyMedium
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (BuildConfig.APPLICATION_ID.endsWith(".next")) {
+                    if (focused) MaterialTheme.colorScheme.onPrimaryContainer else Color.White
+                } else LocalContentColor.current
             )
         }
     }

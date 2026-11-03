@@ -1,6 +1,8 @@
 package com.tvflow.app.ui.vod
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.background
@@ -40,6 +42,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import coil3.compose.AsyncImage
+import com.tvflow.app.BuildConfig
 import com.tvflow.app.domain.VodItem
 import com.tvflow.app.util.isTelevisionUi
 
@@ -60,6 +63,18 @@ fun VodDetailsScreen(
     val enrichedItem by viewModel.item.collectAsState()
     val isFavorite by viewModel.isFavorite.collectAsState()
     val isTv = LocalContext.current.isTelevisionUi()
+    val nextMobile = BuildConfig.APPLICATION_ID.endsWith(".next") && !isTv
+    val portrait = com.tvflow.app.ui.common.isNextPortraitLayout()
+    val detailsScroll = rememberScrollState()
+    @Composable fun Actions() {
+        com.tvflow.app.ui.common.NextWrappingRow(wrap = nextMobile, spacing = 10.dp) {
+            Button(onClick = onPlay) { Text("▶ Lecture", maxLines = 1) }
+            OutlinedButton(onClick = viewModel::toggleFavorite) {
+                Text(if (isFavorite) "★ Ma liste" else "☆ Ma liste", maxLines = 1)
+            }
+            OutlinedButton(onClick = onBack) { Text("Retour", maxLines = 1) }
+        }
+    }
     val posterWidth = if (isTv) 220.dp else 96.dp
     val posterHeight = if (isTv) 320.dp else 144.dp
     val effectiveTitle = enrichedItem?.name?.takeIf { it.isNotBlank() } ?: title
@@ -81,7 +96,9 @@ fun VodDetailsScreen(
                 listOf(Color.Black.copy(alpha = 0.83f), Color(0xFF07121E).copy(alpha = 0.95f), Color.Black)
             )))
         Column(
-            modifier = Modifier.fillMaxSize().padding(if (isTv) 32.dp else 16.dp),
+            modifier = Modifier.fillMaxSize()
+                .then(if (nextMobile) Modifier.verticalScroll(detailsScroll) else Modifier)
+                .padding(if (isTv) 32.dp else 16.dp),
             verticalArrangement = Arrangement.spacedBy(if (isTv) 20.dp else 14.dp)
         ) {
             Row(
@@ -102,9 +119,9 @@ fun VodDetailsScreen(
                     Text("FILM  •  TVFLOW CINÉMA", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
                     Text(
                         effectiveTitle,
-                        style = if (isTv) MaterialTheme.typography.headlineLarge else MaterialTheme.typography.titleLarge,
+                        style = if (isTv) MaterialTheme.typography.headlineLarge else if (nextMobile) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
-                        maxLines = if (isTv) 3 else 2,
+                        maxLines = if (nextMobile && portrait) 4 else if (isTv) 3 else 2,
                         overflow = TextOverflow.Ellipsis
                     )
 
@@ -131,15 +148,11 @@ fun VodDetailsScreen(
                     )
 
                     Spacer(Modifier.height(8.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Button(onClick = onPlay) { Text("▶ Lecture") }
-                        OutlinedButton(onClick = viewModel::toggleFavorite) {
-                            Text(if (isFavorite) "★ Favori" else "☆ Favoris")
-                        }
-                        OutlinedButton(onClick = onBack) { Text("Retour") }
-                    }
+                    if (!nextMobile || !portrait) Actions()
                 }
             }
+
+            if (nextMobile && portrait) Actions()
 
             if (suggestions.isNotEmpty()) {
                 Text(

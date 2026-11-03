@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.debounce
-import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
 
@@ -23,9 +23,13 @@ class SearchViewModel @Inject constructor(
 ) : ViewModel() {
     val query = MutableStateFlow("")
 
-    val results: StateFlow<GlobalSearchResults> = query
+    private val searchQueries = combine(query, repository.searchVisibilityChanges) { raw, _ -> raw }
+
+    internal val nextState = nextSearchStates(searchQueries) { repository.searchGlobal(it) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), NextSearchState())
+
+    val results: StateFlow<GlobalSearchResults> = searchQueries
         .debounce(180)
-        .distinctUntilChanged()
         .mapLatest { raw ->
             val q = raw.trim()
             if (q.length < 2) GlobalSearchResults()

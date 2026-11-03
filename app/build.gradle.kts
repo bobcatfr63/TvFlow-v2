@@ -73,7 +73,7 @@ extensions.configure<ApplicationExtension>("android") {
         }
         if (providers.environmentVariable("TVFLOW_NEXT_BUILD").orNull == "1") {
             manifestPlaceholders["tvflowAppLabel"] = "TVFlow-v2 Next"
-            manifestPlaceholders["tvflowOrientation"] = "sensorLandscape"
+            manifestPlaceholders["tvflowOrientation"] = "unspecified"
         } else {
             manifestPlaceholders["tvflowAppLabel"] = "TVFlow"
             manifestPlaceholders["tvflowOrientation"] = "sensorLandscape"
@@ -135,6 +135,19 @@ extensions.configure<ApplicationExtension>("android") {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            if (providers.environmentVariable("TVFLOW_NEXT_BUILD").orNull == "1") {
+                proguardFiles("proguard-next.pro")
+            }
+        }
+        // Local Next-only optimized build; debug certificate preserves the installed test profile.
+        if (providers.environmentVariable("TVFLOW_NEXT_BUILD").orNull == "1") {
+            create("perf") {
+                initWith(getByName("release"))
+                matchingFallbacks += listOf("release")
+                signingConfig = signingConfigs.getByName("debug")
+                versionNameSuffix = "-perf"
+                buildConfigField("String", "BUILD_CHANNEL", "\"Perf local\"")
+            }
         }
         create("playRelease") {
             initWith(getByName("release"))

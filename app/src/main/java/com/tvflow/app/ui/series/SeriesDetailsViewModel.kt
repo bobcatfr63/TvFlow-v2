@@ -11,7 +11,6 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
@@ -64,18 +63,7 @@ class SeriesDetailsViewModel @Inject constructor(
             runCatching {
                 val episodes = repository.getSeriesEpisodes(seriesId)
                 val suggestions = runCatching {
-                    if (categoryId.isBlank()) emptyList() else {
-                        repository.observeSeries(categoryId)
-                            .first()
-                            .asSequence()
-                            .filter { it.seriesId != seriesId }
-                            .sortedWith(
-                                compareByDescending<SeriesItem> { it.releaseYear ?: 0 }
-                                    .thenByDescending { it.releaseMonth ?: 0 }
-                            )
-                            .take(10)
-                            .toList()
-                    }
+                    repository.getSeriesSuggestions(categoryId, seriesId)
                 }.getOrElse { failure ->
                     if (failure is kotlinx.coroutines.CancellationException) throw failure
                     emptyList()

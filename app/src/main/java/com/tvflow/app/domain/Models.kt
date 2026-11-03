@@ -45,6 +45,8 @@ data class LiveCategory(
 
 enum class StreamHealth { UNKNOWN, CHECKING, ONLINE, UNSTABLE, OFFLINE, UNPLAYABLE }
 
+private val sectionMarkerPattern = Regex("^#{3,}\\s*.+?\\s*#{3,}$")
+
 data class LiveChannel(
     val streamId: Int,
     val name: String,
@@ -66,7 +68,7 @@ data class LiveChannel(
     val tvArchiveDuration: Int = 0
 ) {
     val isSectionMarker: Boolean
-        get() = name.trim().matches(Regex("^#{3,}\\s*.+?\\s*#{3,}$"))
+        get() = name.trim().matches(sectionMarkerPattern)
 
     val sectionTitle: String?
         get() = if (isSectionMarker) name.trim().trim('#').trim().ifBlank { null } else null

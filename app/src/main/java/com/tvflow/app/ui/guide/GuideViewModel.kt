@@ -13,6 +13,8 @@ import com.tvflow.app.domain.LiveCategory
 import com.tvflow.app.domain.LiveChannel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -73,7 +75,8 @@ class GuideViewModel @Inject constructor(
     private val selectedSubFilterId = MutableStateFlow<String?>(null)
     private val selectedStreamId = MutableStateFlow<Int?>(null)
     private val previewStreamId = MutableStateFlow<Int?>(null)
-    private var previewDelayJob: Job? = null
+    private val previewGate = com.tvflow.app.ui.common.ExplicitLivePreview(viewModelScope) { previewStreamId.value = it }
+    fun clearPreview() = previewGate.cancel()
     private val selectedProgramStart = MutableStateFlow<Long?>(null)
     private val visibleEpgStreamIds = MutableStateFlow<List<Int>>(emptyList())
     private val loading = MutableStateFlow(false)
@@ -83,7 +86,11 @@ class GuideViewModel @Inject constructor(
     private val sort = MutableStateFlow(GuideSort.NAME)
     private val epgOnly = MutableStateFlow(false)
 
+    private fun <T> Flow<T>.offloadNextGuide(): Flow<T> =
+        if (com.tvflow.app.BuildConfig.APPLICATION_ID.endsWith(".next")) flowOn(Dispatchers.Default) else this
+
     private val categories = repository.observeCategories()
+        .offloadNextGuide()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     private val channels = combine(selectedCategoryId, selectedSubFilterId) { id, filterId ->
@@ -92,6 +99,7 @@ class GuideViewModel @Inject constructor(
         Log.d("TVFlowGuide", "channelFlow category=$id filter=$filterId")
         channelFlow(id, filterId)
     }.onEach { Log.d("TVFlowGuide", "channels=${it.size} first=${it.firstOrNull()?.name}") }
+        .offloadNextGuide()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
 
@@ -191,7 +199,7 @@ class GuideViewModel @Inject constructor(
 
     val state: StateFlow<GuideUiState> = combine(presented, loading, pinRequiredCategory, pinError) { value, busy, locked, error ->
         value.copy(loading = busy, pinRequiredCategory = locked, pinError = error)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), GuideUiState())
+    }.offloadNextGuide().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), GuideUiState())
 
     init {
         viewModelScope.launch {
@@ -201,7 +209,7 @@ class GuideViewModel @Inject constructor(
         }
         viewModelScope.launch {
             repository.activeProfileId.drop(1).collect {
-                previewDelayJob?.cancel()
+                previewGate.cancel()
                 selectedCategoryId.value = null
                 selectedSubFilterId.value = null
                 selectedStreamId.value = null
@@ -220,7 +228,7 @@ class GuideViewModel @Inject constructor(
 
     fun selectSubFilter(id: String?) {
         if (selectedSubFilterId.value == id) return
-        previewDelayJob?.cancel()
+        previewGate.cancel()
         selectedSubFilterId.value = id
         selectedStreamId.value = null
         selectedProgramStart.value = null
@@ -260,7 +268,7 @@ class GuideViewModel @Inject constructor(
     fun dismissParentalPin() { pinRequiredCategory.value = null; pinError.value = null }
 
     private fun applyCategory(id: String) {
-        previewDelayJob?.cancel()
+        previewGate.cancel()
         previewStreamId.value = null
         selectedCategoryId.value = id
         selectedSubFilterId.value = null
@@ -287,9 +295,8 @@ class GuideViewModel @Inject constructor(
 
     fun focusChannel(streamId: Int) {
         if (channels.value.none { it.streamId == streamId && !it.isSectionMarker }) return
-        previewDelayJob?.cancel()
-        selectChannel(streamId)
-        previewStreamId.value = streamId
+        previewGate.focus(streamId)
+        if (selectedStreamId.value != streamId) selectChannel(streamId)
     }
 
     fun selectChannel(streamId: Int) {
@@ -300,15 +307,14 @@ class GuideViewModel @Inject constructor(
     }
 
     fun selectProgram(streamId: Int, startTimestamp: Long) {
+        previewGate.focus(streamId)
         selectedStreamId.value = streamId
         selectedProgramStart.value = startTimestamp
     }
 
     fun previewChannel(streamId: Int) {
-        previewDelayJob?.cancel()
-        if (channels.value.firstOrNull { it.streamId == streamId }?.isSectionMarker == true) return
-        if (previewStreamId.value == streamId) return
-        previewStreamId.value = streamId
+        if (channels.value.none { it.streamId == streamId && !it.isSectionMarker }) return
+        previewGate.press(streamId)
         if (selectedStreamId.value != streamId) selectChannel(streamId)
     }
 

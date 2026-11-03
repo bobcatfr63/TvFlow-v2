@@ -119,6 +119,7 @@ fun DashboardScreen(
     onChannel: (LiveChannel) -> Unit,
     onVodItem: (VodItem) -> Unit,
     onSeriesItem: (SeriesItem) -> Unit,
+    onAiSearch: () -> Unit = onSearch,
     viewModel: DashboardViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
@@ -130,12 +131,14 @@ fun DashboardScreen(
     if (isTv || BuildConfig.APPLICATION_ID.endsWith(".next")) {
         NextCinematicDashboard(
             mobile = !isTv,
+            unifiedNavigation = BuildConfig.APPLICATION_ID.endsWith(".next"),
             state = state,
             onLive = onLive,
             onGuide = onGuide,
             onVod = onVod,
             onSeries = onSeries,
             onSearch = onSearch,
+            onAiSearch = onAiSearch,
             onSettings = onSettings,
             onFavorites = onFavorites,
             onVodItem = onVodItem,

@@ -10,6 +10,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.compose.foundation.background
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -100,7 +101,7 @@ fun VodPlayerScreen(
     var vlcFailedForStream by remember { mutableStateOf(false) }
     var vlcStarting by remember { mutableStateOf(true) }
     var useVlcFallback by remember { mutableStateOf(phoneVlcFirst) }
-    var vlcHandoffPositionMs by remember { mutableStateOf(0L) }
+    var vlcHandoffPositionMs by remember { mutableStateOf(-1L) }
     var lastVlcProgressSaveMs by remember { mutableStateOf(0L) }
     var episodeNavigationVisible by remember { mutableStateOf(false) }
     var playbackControlsVisible by remember { mutableStateOf(false) }
@@ -108,23 +109,64 @@ fun VodPlayerScreen(
     val nextEpisodeFocusRequester = remember { FocusRequester() }
     var castActive by remember { mutableStateOf(false) }
     val vlcFallbackActive by rememberUpdatedState(useVlcFallback)
+    val vlcController = remember { com.tvflow.app.ui.common.VlcPlaybackController() }
+    val vlcKeyFocus = remember { FocusRequester() }
+    val retainVlcKeyFocus = useVlcFallback && !castActive && phoneVlcFirst &&
+        com.tvflow.app.BuildConfig.APPLICATION_ID.endsWith(".next")
+    // Hidden controls remove their focus targets. Keep media keys routed to the active engine.
+    LaunchedEffect(retainVlcKeyFocus, playbackControlsVisible) {
+        if (retainVlcKeyFocus && !playbackControlsVisible) {
+            androidx.compose.runtime.withFrameNanos { }
+            vlcKeyFocus.requestFocus()
+        }
+    }
+    fun activePositionMs(): Long = if (useVlcFallback) {
+        val snapshot = vlcController.state.value
+        if (snapshot.durationMs > 0) snapshot.positionMs else state.resumePositionMs
+    } else if (player.mediaItemCount > 0) player.currentPosition.coerceAtLeast(0L)
+        else state.resumePositionMs
+    fun pauseActivePlayer() {
+        if (useVlcFallback) vlcController.setPlaying(false) else player.pause()
+    }
+
+    // AndroidView key dispatch may bypass Compose preview handlers on older TV.
+    // Both entry points use the same active-engine command and consume key-up.
+    fun handlePlaybackKey(event: KeyEvent): Boolean {
+        if (castActive) return false
+        val code = event.keyCode
+        if (code !in listOf(KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE, KeyEvent.KEYCODE_MEDIA_PLAY,
+                KeyEvent.KEYCODE_MEDIA_PAUSE, KeyEvent.KEYCODE_MEDIA_FAST_FORWARD,
+                KeyEvent.KEYCODE_MEDIA_REWIND)) return false
+        if (event.action != KeyEvent.ACTION_DOWN || event.repeatCount > 0) return true
+        Log.i(VOD_PLAYER_TAG, "Media key=$code engine=${if (useVlcFallback) "VLC" else "Media3"} controlsVisible=$playbackControlsVisible positionMs=${activePositionMs()}")
+        when (code) {
+            KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> if (useVlcFallback) vlcController.togglePlaying()
+                else if (player.playWhenReady) player.pause() else player.play()
+            KeyEvent.KEYCODE_MEDIA_PLAY -> if (useVlcFallback) vlcController.setPlaying(true) else player.play()
+            KeyEvent.KEYCODE_MEDIA_PAUSE -> pauseActivePlayer()
+            KeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> if (useVlcFallback) vlcController.seekBy(10_000) else player.seekForward()
+            KeyEvent.KEYCODE_MEDIA_REWIND -> if (useVlcFallback) vlcController.seekBy(-10_000) else player.seekBack()
+        }
+        return true
+    }
 
     CastPlaybackEffect(
         url = state.streamUrl,
         title = state.title.ifBlank { "TVFlow" },
         subtitle = state.containerExtension?.uppercase(),
         isLive = false,
-        startPositionMs = { player.currentPosition.coerceAtLeast(state.resumePositionMs) },
+        startPositionMs = { activePositionMs() },
         onCastActiveChanged = { castActive = it }
     )
 
     LaunchedEffect(castActive, player) {
-        if (castActive) player.pause()
+        if (castActive) pauseActivePlayer()
     }
 
     DisposableEffect(activity) {
         val previousOrientation = activity?.requestedOrientation
-        activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+            ?.takeUnless { com.tvflow.app.BuildConfig.APPLICATION_ID.endsWith(".next") && !context.isTelevisionUi() }
+        if (previousOrientation != null) activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
         onDispose {
             if (previousOrientation != null) activity.requestedOrientation = previousOrientation
         }
@@ -150,12 +192,17 @@ fun VodPlayerScreen(
                     cause = cause.cause
                 }
                 if (!vlcFailedForStream && shouldUseVlcFallback(httpCode, error.errorCodeName)) {
-                    vlcHandoffPositionMs = player.currentPosition.coerceAtLeast(state.resumePositionMs)
+                    vlcHandoffPositionMs = activePositionMs()
                     player.pause()
                     useVlcFallback = true
                 } else {
                     viewModel.onPlaybackError(httpCode?.let { "HTTP $it" } ?: error.errorCodeName)
                 }
+            }
+
+            override fun onRenderedFirstFrame() {
+                val size = player.videoSize
+                Log.i(VOD_PLAYER_TAG, "Media3 firstFrame width=${size.width} height=${size.height}")
             }
 
             override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -172,7 +219,7 @@ fun VodPlayerScreen(
                 }
                 Log.i(VOD_PLAYER_TAG, "Media3 state=$stateName, positionMs=${player.currentPosition.coerceAtLeast(0L)}, durationMs=${player.duration.coerceAtLeast(0L)}")
                 if (playbackState == Player.STATE_ENDED) {
-                    viewModel.onPlaybackEnded(player.duration.coerceAtLeast(0L))
+                    viewModel.onPlaybackEnded(player.duration.coerceAtLeast(0L), player.currentPosition.coerceAtLeast(0L))
                 }
             }
         }
@@ -184,7 +231,7 @@ fun VodPlayerScreen(
         vlcFailedForStream = false
         vlcStarting = true
         useVlcFallback = phoneVlcFirst
-        vlcHandoffPositionMs = 0L
+        vlcHandoffPositionMs = -1L
         lastVlcProgressSaveMs = 0L
         val url = state.streamUrl ?: return@LaunchedEffect
         if (useVlcFallback) { player.stop(); player.clearMediaItems(); return@LaunchedEffect }
@@ -253,6 +300,7 @@ fun VodPlayerScreen(
     Box(
         Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
             .onPreviewKeyEvent { event ->
+                if (handlePlaybackKey(event.nativeKeyEvent)) return@onPreviewKeyEvent true
                 val seriesId = state.seriesId
                 if (event.nativeKeyEvent.action != KeyEvent.ACTION_DOWN || seriesId == null) {
                     false
@@ -266,6 +314,7 @@ fun VodPlayerScreen(
                     else -> false
                 }
             }
+            .then(if (retainVlcKeyFocus) Modifier.focusRequester(vlcKeyFocus).focusable() else Modifier)
             .pointerInput(state.seriesId, state.nextEpisode?.id, state.previousEpisode?.id) {
                 detectTapGestures(onTap = {
                     infoVisible = !infoVisible
@@ -314,14 +363,20 @@ fun VodPlayerScreen(
                 color = MaterialTheme.colorScheme.onBackground,
                 style = MaterialTheme.typography.headlineSmall
             )
-            state.error != null && !useVlcFallback -> Text(state.error ?: "Erreur", color = MaterialTheme.colorScheme.onBackground)
+            state.error != null -> Text(state.error ?: "Erreur", color = MaterialTheme.colorScheme.onBackground)
             state.streamUrl == null -> CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             useVlcFallback -> VlcFallbackPlayer(
                 url = state.streamUrl.orEmpty(),
                 modifier = Modifier.fillMaxSize(),
-                startPositionMs = vlcHandoffPositionMs.coerceAtLeast(state.resumePositionMs),
+                startPositionMs = if (vlcHandoffPositionMs >= 0) vlcHandoffPositionMs else state.resumePositionMs,
                 bufferPreset = playerPrefs.bufferPreset,
-                onPlaybackEnded = { viewModel.onPlaybackEnded() },
+                controller = vlcController,
+                onPlaybackEnded = {
+                    vlcController.refresh()
+                    val ended = vlcController.state.value
+                    Log.i(VOD_PLAYER_TAG, "VLC ended: positionMs=${ended.positionMs}, durationMs=${ended.durationMs}")
+                    viewModel.onPlaybackEnded(ended.durationMs, ended.positionMs)
+                },
                 onReady = { vlcStarting = false },
                 onProgress = { position, duration ->
                     viewModel.updatePlaybackProgress(position, duration)
@@ -333,9 +388,14 @@ fun VodPlayerScreen(
                 },
                 onFinalProgress = { position, duration -> viewModel.saveFinalProgress(position, duration) },
                 onError = { error ->
+                    vlcController.refresh()
+                    vlcHandoffPositionMs = activePositionMs()
                     vlcFailedForStream = true
                     useVlcFallback = false
-                    viewModel.onPlaybackError(error)
+                    // Keep the video surface mounted while the other engine recovers.
+                    // The Media3 listener reports its own terminal failure if recovery fails.
+                    if (!com.tvflow.app.BuildConfig.APPLICATION_ID.endsWith(".next")) viewModel.onPlaybackError(error)
+                    Log.w(VOD_PLAYER_TAG, "VLC failed; preparing Media3 fallback")
                     state.streamUrl?.let { url ->
                         player.setMediaItem(MediaItem.fromUri(url))
                         player.prepare()
@@ -346,7 +406,11 @@ fun VodPlayerScreen(
             )
             else -> AndroidView(
                 factory = {
-                    PlayerView(it).apply {
+                    // Match the TV Direct renderer: SurfaceView can be detached from
+                    // the Compose navigation composition on older TV devices.
+                    (if (context.isTelevisionUi())
+                        android.view.LayoutInflater.from(it).inflate(com.tvflow.app.R.layout.tvflow_texture_player, null, false) as PlayerView
+                    else PlayerView(it)).apply {
                         this.player = player
                         useController = true
                         setControllerVisibilityListener(PlayerView.ControllerVisibilityListener { visibility ->
@@ -356,6 +420,12 @@ fun VodPlayerScreen(
                         keepScreenOn = true
                         isFocusable = true
                         isFocusableInTouchMode = true
+                        if (context.isTelevisionUi()) {
+                            post {
+                                showController()
+                                if (findViewById<View>(Media3UiR.id.exo_play_pause)?.requestFocus() != true) requestFocus()
+                            }
+                        }
                         layoutParams = FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
                     }
                 },
@@ -373,6 +443,7 @@ fun VodPlayerScreen(
                         android.view.View.GONE
 
                     playerView.setOnKeyListener { view, keyCode, event ->
+                        if (handlePlaybackKey(event)) return@setOnKeyListener true
                         val seriesId = currentSeriesId ?: return@setOnKeyListener false
 
                         if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
@@ -394,6 +465,18 @@ fun VodPlayerScreen(
                 },
                 modifier = Modifier.fillMaxSize()
             )
+        }
+
+        if (useVlcFallback && !castActive) {
+            // Native TextureView consumes taps; keep a Compose touch plane above the video.
+            // Controls are composed later and consume their own button/slider gestures.
+            Box(Modifier.fillMaxSize().pointerInput(Unit) {
+                detectTapGestures(onTap = {
+                    playbackControlsVisible = !playbackControlsVisible
+                    infoVisible = false
+                    episodeNavigationVisible = false
+                })
+            })
         }
 
         if (useVlcFallback && vlcStarting && state.streamUrl != null) {
@@ -426,7 +509,7 @@ fun VodPlayerScreen(
                         title = state.title,
                         extension = state.containerExtension,
                         seriesId = state.seriesId,
-                        positionMs = player.currentPosition.coerceAtLeast(state.resumePositionMs)
+                        positionMs = activePositionMs()
                     )
                 } else null
             },
@@ -434,13 +517,27 @@ fun VodPlayerScreen(
                 .align(Alignment.TopEnd)
                 .padding(top = 16.dp, end = 80.dp)
                 .size(48.dp),
-            onSent = { player.pause() }
+            onSent = { pauseActivePlayer() }
         )
+        }
+
+        if (useVlcFallback && playbackControlsVisible && !castActive) {
+            val currentSeriesId = state.seriesId
+            val previous = state.previousEpisode
+            val next = state.nextEpisode
+            com.tvflow.app.ui.common.VlcVodControls(
+                controller = vlcController, title = state.title,
+                modifier = Modifier.align(Alignment.BottomCenter),
+                onPreviousEpisode = if (previous != null && currentSeriesId != null)
+                    ({ onPlayEpisode(previous, currentSeriesId) }) else null,
+                onNextEpisode = if (next != null && currentSeriesId != null)
+                    ({ onPlayEpisode(next, currentSeriesId) }) else null
+            )
         }
 
         val navigationSeriesId = state.seriesId
         if (
-            episodeNavigationVisible &&
+            episodeNavigationVisible && !useVlcFallback &&
             navigationSeriesId != null &&
             (state.previousEpisode != null || state.nextEpisode != null) &&
             !castActive
@@ -482,7 +579,7 @@ fun VodPlayerScreen(
             }
         }
 
-        if (infoVisible) {
+        if (infoVisible && !useVlcFallback) {
             Card(
                 modifier = Modifier.align(Alignment.BottomStart).padding(16.dp).widthIn(max = 480.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f))

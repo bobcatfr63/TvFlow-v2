@@ -40,7 +40,7 @@ class MainActivity : FragmentActivity() {
         val activityStart = SystemClock.uptimeMillis()
         super.onCreate(savedInstanceState)
         Log.i("TVFlowStartup", "Activity super.onCreate ${SystemClock.uptimeMillis() - activityStart}ms")
-        if (!isTelevisionUi() && !BuildConfig.APPLICATION_ID.endsWith(".next")) {
+        if (isTelevisionUi() || !BuildConfig.APPLICATION_ID.endsWith(".next")) {
             requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
         }
         enableEdgeToEdge()

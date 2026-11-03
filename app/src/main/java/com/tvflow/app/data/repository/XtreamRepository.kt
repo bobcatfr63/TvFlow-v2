@@ -117,9 +117,9 @@ data class GlobalSearchResults(
 )
 
 private data class SearchCache(
-    val live: List<Pair<String, Int>>,
-    val vod: List<Pair<String, Int>>,
-    val series: List<Pair<String, Int>>
+    val live: List<SearchIndexEntry>,
+    val vod: List<SearchIndexEntry>,
+    val series: List<SearchIndexEntry>
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -662,6 +662,18 @@ class XtreamRepository @Inject constructor(
             if (id == null) flowOf(emptySet()) else settingsStore.hiddenMediaCategories(id)
         }
 
+    private fun searchVisibilityFor(profileId: String): Flow<SearchVisibility> = combine(
+        settingsStore.hiddenMediaCategories(profileId),
+        dao.observeSearchExcludedLiveCategoryIds(profileId),
+        dao.observeSearchHiddenLiveIds(profileId)
+    ) { media, categories, streams -> SearchVisibility(media, categories.toSet(), streams.toSet()) }
+        .distinctUntilChanged()
+
+    internal val searchVisibilityChanges = activeProfileId.flatMapLatest { id ->
+        if (id == null) flowOf(null to SearchVisibility())
+        else searchVisibilityFor(id).map { id to it }
+    }
+
     suspend fun setMediaCategoryHidden(type: MediaType, categoryId: String, hidden: Boolean) {
         settingsStore.setMediaCategoryHidden(currentProfileId(), "${type.name}:$categoryId", hidden)
     }
@@ -901,6 +913,18 @@ class XtreamRepository @Inject constructor(
             .filter(String::isNotBlank)
     }
 
+    fun observeVodSuggestions(categoryId: String, excludeStreamId: Int): Flow<List<VodItem>> =
+        activeProfileId.flatMapLatest { profileId ->
+            if (profileId == null || categoryId.isBlank()) flowOf(emptyList())
+            else dao.observeVodSuggestions(profileId, categoryId, excludeStreamId, 10)
+        }.map { items -> items.map { it.toDomain() } }
+
+    suspend fun getSeriesSuggestions(categoryId: String, excludeSeriesId: Int): List<SeriesItem> {
+        if (categoryId.isBlank()) return emptyList()
+        return dao.getSeriesSuggestions(currentProfileId(), categoryId, excludeSeriesId, 10)
+            .map { it.toDomain() }
+    }
+
     fun observeSeries(categoryId: String): Flow<List<SeriesItem>> = activeProfileId.flatMapLatest { id -> if (id == null) flowOf(emptyList()) else dao.observeSeries(id, categoryId) }.map { list -> list.map { it.toDomain() } }
 
     fun pagedVod(categoryId: String?, year: Int? = null, month: Int? = null, sort: String = "DATE"): Flow<PagingData<VodItem>> =
@@ -1000,8 +1024,18 @@ class XtreamRepository @Inject constructor(
             }
         }
     }
-    fun searchVod(query: String): Flow<List<VodItem>> = activeProfileId.flatMapLatest { id -> if (id == null) flowOf(emptyList()) else dao.searchVod(id, query) }.map { list -> list.map { it.toDomain() } }
-    fun searchSeries(query: String): Flow<List<SeriesItem>> = activeProfileId.flatMapLatest { id -> if (id == null) flowOf(emptyList()) else dao.searchSeries(id, query) }.map { list -> list.map { it.toDomain() } }
+    fun searchVod(query: String): Flow<List<VodItem>> = activeProfileId.flatMapLatest { id ->
+        if (id == null) flowOf(emptyList()) else settingsStore.hiddenMediaCategories(id).flatMapLatest { keys ->
+            val hidden = SearchVisibility(hiddenMediaKeys = keys).hiddenCategories("VOD").toList()
+            dao.searchVod(id, query, excludedCategoryIds = hidden)
+        }
+    }.map { list -> list.map { it.toDomain() } }
+    fun searchSeries(query: String): Flow<List<SeriesItem>> = activeProfileId.flatMapLatest { id ->
+        if (id == null) flowOf(emptyList()) else settingsStore.hiddenMediaCategories(id).flatMapLatest { keys ->
+            val hidden = SearchVisibility(hiddenMediaKeys = keys).hiddenCategories("SERIES").toList()
+            dao.searchSeries(id, query, excludedCategoryIds = hidden)
+        }
+    }.map { list -> list.map { it.toDomain() } }
 
     /**
      * Read a bounded set of AI candidates from provider categories, including titles
@@ -1015,14 +1049,17 @@ class XtreamRepository @Inject constructor(
         limitPerType: Int = 80
     ): GlobalSearchResults = withContext(Dispatchers.IO) {
         val profileId = currentProfileId()
+        val visibility = searchVisibilityFor(profileId).first()
+        val visibleVodIds = vodCategoryIds.filterNot { it in visibility.hiddenCategories("VOD") }
+        val visibleSeriesIds = seriesCategoryIds.filterNot { it in visibility.hiddenCategories("SERIES") }
         val genres = genreIds.take(4)
         val perGenre = (limitPerType.coerceIn(0, 120) + genres.size.coerceAtLeast(1) - 1) / genres.size.coerceAtLeast(1)
         GlobalSearchResults(
-            vod = if (vodCategoryIds.isEmpty()) emptyList() else genres.flatMap {
-                dao.getVodAiTmdbGenreCandidates(profileId, vodCategoryIds, it, perGenre)
+            vod = if (visibleVodIds.isEmpty()) emptyList() else genres.flatMap {
+                dao.getVodAiTmdbGenreCandidates(profileId, visibleVodIds, it, perGenre)
             }.distinctBy { it.streamId }.take(limitPerType).map { it.toDomain() },
-            series = if (seriesCategoryIds.isEmpty()) emptyList() else genres.flatMap {
-                dao.getSeriesAiTmdbGenreCandidates(profileId, seriesCategoryIds, it, perGenre)
+            series = if (visibleSeriesIds.isEmpty()) emptyList() else genres.flatMap {
+                dao.getSeriesAiTmdbGenreCandidates(profileId, visibleSeriesIds, it, perGenre)
             }.distinctBy { it.seriesId }.take(limitPerType).map { it.toDomain() }
         )
     }
@@ -1034,8 +1071,9 @@ class XtreamRepository @Inject constructor(
     ): GlobalSearchResults = withContext(Dispatchers.IO) {
         val profileId = currentProfileId()
         val limit = limitPerType.coerceIn(0, 150)
-        val vodIds = vodCategoryIds.distinct().take(8)
-        val seriesIds = seriesCategoryIds.distinct().take(8)
+        val visibility = searchVisibilityFor(profileId).first()
+        val vodIds = vodCategoryIds.filterNot { it in visibility.hiddenCategories("VOD") }.distinct().take(8)
+        val seriesIds = seriesCategoryIds.filterNot { it in visibility.hiddenCategories("SERIES") }.distinct().take(8)
         // A single SQL IN + LIMIT can exhaust the quota in one category.
         // Allocate a predictable share to each relevant category instead.
         GlobalSearchResults(
@@ -1057,35 +1095,20 @@ class XtreamRepository @Inject constructor(
         val cache = searchCacheMutex.withLock {
             searchCache[profileId] ?: buildSearchCache(profileId).also { searchCache[profileId] = it }
         }
-        // Search in compact (normalized name, id) rows only, then hydrate matched items.
+        val visibility = searchVisibilityFor(profileId).first()
+        // Search in compact (normalized name, id, category) rows only, then hydrate matched items.
         // Preserve accent-insensitive matching and deterministic top-K ranking.
-        fun find(source: List<Pair<String, Int>>): List<Int> {
-            val limit = limitPerType.coerceIn(0, 150)
-            if (limit == 0) return emptyList()
-            data class Hit(val offset: Int, val position: Int, val id: Int)
-            val worstFirst = compareByDescending<Hit> { it.offset }.thenByDescending { it.position }
-            val bestFirst = compareBy<Hit> { it.offset }.thenBy { it.position }
-            val best = java.util.PriorityQueue(worstFirst)
-            source.forEachIndexed { position, (key, id) ->
-                val offset = key.indexOf(normalizedQuery)
-                if (offset < 0) return@forEachIndexed
-                val hit = Hit(offset, position, id)
-                if (best.size < limit) best.add(hit)
-                else if (bestFirst.compare(hit, best.peek()) < 0) {
-                    best.poll()
-                    best.add(hit)
-                }
-            }
-            return best.sortedWith(bestFirst).map { it.id }
-        }
-
-        val liveIds = find(cache.live)
-        val vodIds = find(cache.vod)
-        val seriesIds = find(cache.series)
+        val liveIds = findVisibleSearchIds(cache.live, normalizedQuery, limitPerType,
+            visibility.hiddenLiveCategoryIds, visibility.hiddenLiveStreamIds)
+        val vodIds = findVisibleSearchIds(cache.vod, normalizedQuery, limitPerType,
+            visibility.hiddenCategories("VOD"))
+        val seriesIds = findVisibleSearchIds(cache.series, normalizedQuery, limitPerType,
+            visibility.hiddenCategories("SERIES"))
         withContext(Dispatchers.IO) {
+            val latest = searchVisibilityFor(profileId).first()
             val liveItems = if (liveIds.isEmpty()) emptyMap() else dao.getSearchLiveItems(profileId, liveIds).associateBy { it.streamId }
-            val vodItems = if (vodIds.isEmpty()) emptyMap() else dao.getSearchVodItems(profileId, vodIds).associateBy { it.streamId }
-            val seriesItems = if (seriesIds.isEmpty()) emptyMap() else dao.getSearchSeriesItems(profileId, seriesIds).associateBy { it.seriesId }
+            val vodItems = if (vodIds.isEmpty()) emptyMap() else dao.getSearchVodItems(profileId, vodIds, latest.hiddenCategories("VOD").toList()).associateBy { it.streamId }
+            val seriesItems = if (seriesIds.isEmpty()) emptyMap() else dao.getSearchSeriesItems(profileId, seriesIds, latest.hiddenCategories("SERIES").toList()).associateBy { it.seriesId }
             GlobalSearchResults(
                 live = liveIds.mapNotNull { liveItems[it]?.toDomain() },
                 vod = vodIds.mapNotNull { vodItems[it]?.toDomain() },
@@ -1096,9 +1119,9 @@ class XtreamRepository @Inject constructor(
 
     private suspend fun buildSearchCache(profileId: String): SearchCache = withContext(Dispatchers.IO) {
         SearchCache(
-            live = dao.getLiveSearchKeys(profileId).map { normalizeSearchText(it.name) to it.id },
-            vod = dao.getVodSearchKeys(profileId).map { normalizeSearchText(it.name) to it.id },
-            series = dao.getSeriesSearchKeys(profileId).map { normalizeSearchText(it.name) to it.id }
+            live = dao.getLiveSearchKeys(profileId).map { SearchIndexEntry(normalizeSearchText(it.name), it.id, it.categoryId) },
+            vod = dao.getVodSearchKeys(profileId).map { SearchIndexEntry(normalizeSearchText(it.name), it.id, it.categoryId) },
+            series = dao.getSeriesSearchKeys(profileId).map { SearchIndexEntry(normalizeSearchText(it.name), it.id, it.categoryId) }
         )
     }
 

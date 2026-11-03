@@ -43,6 +43,10 @@ fun HomeScreen(
     onPlay: (LiveChannel, String) -> Unit,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
+    androidx.compose.runtime.DisposableEffect(viewModel) {
+        onDispose { viewModel.clearPreview() }
+    }
+    androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_STOP) { viewModel.clearPreview() }
     val categories by viewModel.categories.collectAsState()
     val channels by viewModel.channels.collectAsState()
     val preview by viewModel.previewChannel.collectAsState()
@@ -68,14 +72,21 @@ fun HomeScreen(
         }
     }
 
-    Row(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .padding(top = 24.dp)
-    ) {
+    val portrait = com.tvflow.app.ui.common.isNextPortraitLayout()
+    val categoryLabel = when (val source = selectedSource) {
+        ChannelSource.Tnt -> "TNT"
+        ChannelSource.Favorites -> "Favoris"
+        ChannelSource.Recent -> "Récents"
+        is ChannelSource.Category -> categories.firstOrNull { it.id == source.id }?.name ?: "Direct"
+        null -> "Direct"
+    }
+    com.tvflow.app.ui.common.NextAdaptivePane(
+        compact = portrait, sidebarWidth = 310.dp, categoryLabel = categoryLabel,
+        modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
+            .padding(top = if (portrait) 4.dp else 24.dp),
+        sidebar = { sideModifier, closeSidebar ->
         LazyColumn(
-            modifier = Modifier.width(310.dp).fillMaxHeight().padding(horizontal = 16.dp),
+            modifier = sideModifier.padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             item {
@@ -87,22 +98,23 @@ fun HomeScreen(
                 )
             }
             item {
-                MenuCard("★ Favoris") { viewModel.selectFavorites() }
+                MenuCard("★ Favoris") { viewModel.selectFavorites(); closeSidebar() }
             }
             item {
-                MenuCard("📺 TNT") { viewModel.selectTnt() }
+                MenuCard("📺 TNT") { viewModel.selectTnt(); closeSidebar() }
             }
             item {
-                MenuCard("↻ Récents") { viewModel.selectRecent() }
+                MenuCard("↻ Récents") { viewModel.selectRecent(); closeSidebar() }
             }
             items(categories, key = { it.id }) { category ->
-                MenuCard(category.name) { viewModel.selectCategory(category.id) }
+                MenuCard(category.name) { viewModel.selectCategory(category.id); closeSidebar() }
             }
         }
-
+        }
+    ) {
         Box(modifier = Modifier.fillMaxSize()) {
             if (channels.isEmpty()) {
-                val message = when (selectedSource) {
+                val message = if (com.tvflow.app.BuildConfig.APPLICATION_ID.endsWith(".next") && isLoading) "Chargement des chaînes…" else when (selectedSource) {
                     ChannelSource.Tnt -> "Aucune chaîne TNT reconnue dans ce catalogue"
                     ChannelSource.Favorites -> "Aucune chaîne favorite"
                     ChannelSource.Recent -> "Aucune chaîne regardée récemment"
@@ -161,11 +173,13 @@ fun HomeScreen(
                                         is ChannelSource.Category -> selectedSubFilterId ?: source.id
                                         null -> channel.categoryId
                                     }
-                                    viewModel.capturePlaybackQueue(sourceId)
-                                    onPlay(channel, sourceId)
+                                    if (viewModel.activateChannel(channel.streamId)) {
+                                        viewModel.capturePlaybackQueue(sourceId)
+                                        onPlay(channel, sourceId)
+                                    }
                                 },
                                 onToggleFavorite = { viewModel.toggleFavorite(channel.streamId) },
-                                onFocused = { viewModel.previewChannel(channel.streamId) }
+                                onFocused = { viewModel.focusChannel(channel.streamId) }
                             )
                         }
                     }

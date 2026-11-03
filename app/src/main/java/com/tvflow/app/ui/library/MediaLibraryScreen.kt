@@ -8,6 +8,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -139,7 +140,10 @@ fun MediaLibraryScreen(
             result
         }
     }
+    val portrait = com.tvflow.app.ui.common.isNextPortraitLayout()
     val compactMobile = !isTv
+    val shortLandscape = com.tvflow.app.BuildConfig.APPLICATION_ID.endsWith(".next") && compactMobile && !portrait
+    val mobileGridSize = if (shortLandscape) 88.dp else 112.dp
     val powerManager = remember(context) { context.getSystemService(PowerManager::class.java) }
     val reduceMotion = powerManager?.isPowerSaveMode == true
 
@@ -205,6 +209,22 @@ fun MediaLibraryScreen(
             )
             .padding(top = topPadding)
     ) {
+        if (shortLandscape) {
+            Row(Modifier.fillMaxWidth().padding(horizontal = screenHorizontalPadding),
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(if (viewModel.type == MediaType.VOD) "Films" else "Séries",
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    modifier = Modifier.weight(1f))
+                ReleaseFilterChip(
+                    label = if (searchMode) "Retour aux catégories" else "Rechercher",
+                    selected = searchMode,
+                    onClick = { searchMode = !searchMode; viewModel.searchQuery.value = "" },
+                    compact = true
+                )
+            }
+        } else {
         Text(
             if (viewModel.type == MediaType.VOD) "Films" else "Séries",
             style = if (compactMobile) MaterialTheme.typography.headlineMedium else MaterialTheme.typography.headlineLarge,
@@ -229,6 +249,7 @@ fun MediaLibraryScreen(
             onClick = { searchMode = !searchMode; viewModel.searchQuery.value = "" },
             compact = compactMobile
         )
+        }
         if (searchMode) {
             OutlinedTextField(
                 value = query,
@@ -238,7 +259,7 @@ fun MediaLibraryScreen(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = screenHorizontalPadding)
             )
             LazyVerticalGrid(
-                columns = GridCells.Fixed(if (compactMobile) 3 else 5),
+                columns = if (compactMobile) GridCells.Adaptive(minSize = mobileGridSize) else GridCells.Fixed(5),
                 state = searchGridState,
                 modifier = Modifier.fillMaxSize().padding(horizontal = screenHorizontalPadding),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -267,7 +288,7 @@ fun MediaLibraryScreen(
             modifier = Modifier.fillMaxWidth().padding(horizontal = screenHorizontalPadding),
             verticalArrangement = Arrangement.spacedBy(filterSpacing)
         ) {
-            Row(horizontalArrangement = Arrangement.spacedBy(filterSpacing)) {
+            com.tvflow.app.ui.common.NextWrappingRow(portrait, filterSpacing) {
                 ReleaseFilterChip(
                     label = "Sortie réelle : récent → ancien",
                     selected = sortOrder == "DATE",
@@ -282,10 +303,13 @@ fun MediaLibraryScreen(
                 )
             }
         }
-        Row(Modifier.fillMaxSize().padding(top = contentTopPadding)) {
+        com.tvflow.app.ui.common.NextAdaptivePane(
+            compact = portrait, sidebarWidth = categoryWidth,
+            categoryLabel = categories.firstOrNull { it.id == selectedId }?.name ?: "Catalogue",
+            modifier = Modifier.fillMaxSize().padding(top = contentTopPadding),
+            sidebar = { sideModifier, closeSidebar ->
             Column(
-                modifier = Modifier
-                    .width(categoryWidth)
+                modifier = sideModifier
                     .fillMaxHeight()
                     .padding(horizontal = if (compactMobile) 8.dp else 16.dp),
                 verticalArrangement = Arrangement.spacedBy(if (compactMobile) 4.dp else 8.dp)
@@ -305,7 +329,7 @@ fun MediaLibraryScreen(
                             label = "smart-motion-category"
                         )
                         Card(
-                            onClick = { viewModel.selectCategory(category.id) },
+                            onClick = { viewModel.selectCategory(category.id); closeSidebar() },
                             interactionSource = interaction,
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -344,9 +368,10 @@ fun MediaLibraryScreen(
                     }
                 }
             }
-
+            }
+        ) {
             LazyVerticalGrid(
-                columns = GridCells.Fixed(if (compactMobile) 3 else 5),
+                columns = if (compactMobile) GridCells.Adaptive(minSize = mobileGridSize) else GridCells.Fixed(5),
                 state = mediaGridState,
                 modifier = Modifier
                     .fillMaxSize()
@@ -604,7 +629,7 @@ private fun MediaPoster(
                 filterQuality = androidx.compose.ui.graphics.FilterQuality.Low,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(if (compact) 142.dp else 126.dp)
+                    .then(if (compact) Modifier.aspectRatio(2f / 3f) else Modifier.height(126.dp))
             )
             Text(
                 name.replace(mediaTitlePrefix, ""),

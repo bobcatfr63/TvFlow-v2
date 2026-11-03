@@ -27,6 +27,8 @@ import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.transformLatest
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -93,7 +95,6 @@ class DashboardViewModel @Inject constructor(
     private val backgroundPreview = MutableStateFlow<DashboardBackdrop?>(null)
     private val installedReleaseNotes = MutableStateFlow<InstalledReleaseNotesState?>(null)
 
-    private val featuredBackdrop = MutableStateFlow<Pair<String, String>?>(null)
     val vodFavoriteIds = repository.observeMediaFavoriteIds("vod")
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptySet<Int>())
     val seriesFavoriteIds = repository.observeMediaFavoriteIds("series")
@@ -107,9 +108,12 @@ class DashboardViewModel @Inject constructor(
         }
     }
 
-    private val favorites = repository.observeFavorites()
-    private val recents = repository.observeRecentChannels(16)
-    private val allChannels = repository.observeAllChannels()
+    private val isNextDashboard = BuildConfig.APPLICATION_ID.endsWith(".next")
+    // Next renders movie/series rails; the legacy live/EPG panel is not mounted there.
+    // Do not hydrate the entire live catalogue for an invisible dashboard panel.
+    private val favorites = if (isNextDashboard) flowOf(emptyList<LiveChannel>()) else repository.observeFavorites()
+    private val recents = if (isNextDashboard) flowOf(emptyList<LiveChannel>()) else repository.observeRecentChannels(16)
+    private val allChannels = if (isNextDashboard) flowOf(emptyList<LiveChannel>()) else repository.observeAllChannels()
 
     private val eveningCandidates = combine(favorites, recents, allChannels) { fav, recent, all ->
         (fav + recent + all.take(40))
@@ -129,9 +133,11 @@ class DashboardViewModel @Inject constructor(
     }
 
     init {
-        viewModelScope.launch(Dispatchers.Default) {
-            runCatching { repository.prewarmLivePresentation() }
-                .onFailure { Log.w("TVFlowHome", "Live prewarm failed", it) }
+        if (!isNextDashboard) {
+            viewModelScope.launch(Dispatchers.Default) {
+                runCatching { repository.prewarmLivePresentation() }
+                    .onFailure { Log.w("TVFlowHome", "Live prewarm failed", it) }
+            }
         }
         viewModelScope.launch {
             val lastShown = settingsStore.lastReleaseNotesVersion.first()
@@ -145,30 +151,32 @@ class DashboardViewModel @Inject constructor(
             }
         }
         // Update availability is checked once by the global navigation overlay.
-        viewModelScope.launch {
-            var currentStreamId: Int? = null
-            while (true) {
-                val preview = runCatching { repository.randomVodPreview(currentStreamId) }
-                    .onFailure { Log.w("TVFlowHome", "Background preview selection failed", it) }
-                    .getOrNull()
-                if (preview != null) {
-                    val (item, url) = preview
-                    currentStreamId = item.streamId
-                    backgroundPreview.value = DashboardBackdrop(url = url, title = item.name)
+        if (!isNextDashboard) {
+            viewModelScope.launch {
+                var currentStreamId: Int? = null
+                while (true) {
+                    val preview = runCatching { repository.randomVodPreview(currentStreamId) }
+                        .onFailure { Log.w("TVFlowHome", "Background preview selection failed", it) }
+                        .getOrNull()
+                    if (preview != null) {
+                        val (item, url) = preview
+                        currentStreamId = item.streamId
+                        backgroundPreview.value = DashboardBackdrop(url = url, title = item.name)
+                    }
+                    delay(60_000L)
                 }
-                delay(60_000L)
             }
-        }
-        viewModelScope.launch(Dispatchers.IO) {
-            eveningCandidates.collectLatest { channels ->
-                runCatching {
-                    repository.prefetchEpg(
-                        streamIds = channels.take(18).map { it.streamId },
-                        limit = 12,
-                        parallelism = 4
-                    )
-                }.onFailure {
-                    Log.d("TVFlowHome", "Préchargement EPG accueil indisponible: " + it.message)
+            viewModelScope.launch(Dispatchers.IO) {
+                eveningCandidates.collectLatest { channels ->
+                    runCatching {
+                        repository.prefetchEpg(
+                            streamIds = channels.take(18).map { it.streamId },
+                            limit = 12,
+                            parallelism = 4
+                        )
+                    }.onFailure {
+                        Log.d("TVFlowHome", "Préchargement EPG accueil indisponible: " + it.message)
+                    }
                 }
             }
         }
@@ -209,15 +217,21 @@ class DashboardViewModel @Inject constructor(
 
     // Recommendations follow the visible categories selected in Settings.
     // No Pulse onboarding, explicit taste profile, or legacy France-only filter.
-    private val recommendedVod = repository.observeRecommendedVod()
-    private val recommendedSeries = repository.observeRecommendedSeries()
+    // Rails and hero consume the same bounded Room results, not independent queries.
+    private fun <T> Flow<T>.forDashboard(): Flow<T> =
+        if (isNextDashboard) shareWhileDashboardObserved(viewModelScope) else this
+
+    private val recommendedVod = repository.observeRecommendedVod().forDashboard()
+    private val recommendedSeries = repository.observeRecommendedSeries().forDashboard()
+    private val recentVodReleases = repository.observeRecentFrenchVodReleases(12).forDashboard()
+    private val recentSeriesReleases = repository.observeRecentFrenchSeriesReleases(12).forDashboard()
 
     private val supplementalState = combine(
         updateInfo,
         updateDownloadState,
         backgroundPreview,
-        repository.observeRecentFrenchVodReleases(12),
-        repository.observeRecentFrenchSeriesReleases(12)
+        recentVodReleases,
+        recentSeriesReleases
     ) { info, download, backdrop, recentVod, recentSeries ->
         DashboardSupplemental(
             updateInfo = info,
@@ -275,40 +289,38 @@ class DashboardViewModel @Inject constructor(
         content.copy(tonight = tonight)
     }
 
-    private val recommendations = combine(recommendedVod, recommendedSeries, featuredBackdrop) { vod, series, backdrop -> Triple(vod, series, backdrop) }
-
-    init {
-        if (BuildConfig.APPLICATION_ID.endsWith(".next")) viewModelScope.launch(Dispatchers.IO) {
-            combine(
-                recommendedSeries, recommendedVod,
-                repository.observeRecentFrenchSeriesReleases(12),
-                repository.observeRecentFrenchVodReleases(12),
-                settingsStore.tmdbToken
-            ) { series, films, recentSeries, recentFilms, credential ->
-                selectNextFeaturedMedia(series + recentSeries, films + recentFilms) to credential
-            }
-                .distinctUntilChanged()
-                .collectLatest { (selected, _) ->
-                    val (selectedSeries, selectedFilm) = selected
-                    featuredBackdrop.value = null
-                    val type = if (selectedSeries != null) MediaType.SERIES else MediaType.VOD
-                    val name = selectedSeries?.name ?: selectedFilm?.name
-                    val year = selectedSeries?.releaseYear ?: selectedFilm?.releaseYear
-                    if (name != null) {
-                        val backdrop = try {
-                            tmdbMetadataClient.search(type, name, year)?.backdropUrl
-                        } catch (cancelled: kotlinx.coroutines.CancellationException) {
-                            throw cancelled
-                        } catch (error: Exception) {
-                            Log.w("TVFlowNextBackdrop", "lookup failed", error)
-                            null
-                        }
-                        featuredBackdrop.value = backdrop?.let { nextFeaturedKey(type, name, year) to it }
-                        Log.d("TVFlowNextBackdrop", "type=$type result=" + if (backdrop == null) "fallback" else "tmdb")
-                    }
-                }
+    // Cold flow: leaving state stops the lookup and its Room inputs after state's grace period.
+    private val featuredBackdrop: Flow<Pair<String, String>?> = if (isNextDashboard) {
+        combine(
+            recommendedSeries, recommendedVod, recentSeriesReleases, recentVodReleases,
+            settingsStore.tmdbToken
+        ) { series, films, recentSeries, recentFilms, credential ->
+            selectNextFeaturedMedia(series + recentSeries, films + recentFilms) to credential
         }
-    }
+            .distinctUntilChanged()
+            .transformLatest { (selected, _) ->
+                val (selectedSeries, selectedFilm) = selected
+                emit(null)
+                val type = if (selectedSeries != null) MediaType.SERIES else MediaType.VOD
+                val name = selectedSeries?.name ?: selectedFilm?.name
+                val year = selectedSeries?.releaseYear ?: selectedFilm?.releaseYear
+                if (name != null) {
+                    val backdrop = try {
+                        tmdbMetadataClient.search(type, name, year)?.backdropUrl
+                    } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                        throw cancelled
+                    } catch (error: Exception) {
+                        Log.w("TVFlowNextBackdrop", "lookup failed", error)
+                        null
+                    }
+                    emit(backdrop?.let { nextFeaturedKey(type, name, year) to it })
+                    Log.d("TVFlowNextBackdrop", "type=$type result=" + if (backdrop == null) "fallback" else "tmdb")
+                }
+            }
+            .flowOn(Dispatchers.IO)
+    } else flowOf(null)
+
+    private val recommendations = combine(recommendedVod, recommendedSeries, featuredBackdrop) { vod, series, backdrop -> Triple(vod, series, backdrop) }
 
     val state: StateFlow<DashboardUiState> = combine(
         contentState,

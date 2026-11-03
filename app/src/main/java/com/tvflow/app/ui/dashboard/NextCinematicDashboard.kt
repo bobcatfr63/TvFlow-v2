@@ -20,10 +20,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -32,6 +29,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.FilterQuality
 import com.tvflow.app.domain.SeriesItem
 import com.tvflow.app.domain.VodItem
 import com.tvflow.app.domain.MediaType
@@ -43,6 +43,7 @@ private val nextBg = Color(0xFF030910)
 @Composable
 internal fun NextCinematicDashboard(
     mobile: Boolean = false,
+    unifiedNavigation: Boolean = false,
     state: DashboardUiState,
     onLive: () -> Unit,
     onGuide: () -> Unit,
@@ -55,31 +56,9 @@ internal fun NextCinematicDashboard(
     onSeriesItem: (SeriesItem) -> Unit,
     vodFavoriteIds: Set<Int> = emptySet(),
     seriesFavoriteIds: Set<Int> = emptySet(),
-    onAddFeaturedFavorite: (String, Int) -> Unit = { _, _ -> }
+    onAddFeaturedFavorite: (String, Int) -> Unit = { _, _ -> },
+    onAiSearch: () -> Unit = onSearch
 ) {
-    if (mobile) {
-        BoxWithConstraints(Modifier.fillMaxSize().background(nextBg).statusBarsPadding().navigationBarsPadding()) {
-            val factor = minOf(maxWidth.value / 1400f, maxHeight.value / 620f)
-            Box(
-                Modifier.wrapContentSize(unbounded = true, align = Alignment.TopStart).requiredSize(1400.dp, 620.dp)
-                    .graphicsLayer {
-                        scaleX = factor
-                        scaleY = factor
-                        transformOrigin = TransformOrigin(0f, 0f)
-                    }
-            ) {
-                NextCinematicDashboard(
-                    mobile = false, state = state, onLive = onLive, onGuide = onGuide,
-                    onVod = onVod, onSeries = onSeries, onSearch = onSearch,
-                    onSettings = onSettings, onFavorites = onFavorites,
-                    onVodItem = onVodItem, onSeriesItem = onSeriesItem,
-                    vodFavoriteIds = vodFavoriteIds, seriesFavoriteIds = seriesFavoriteIds,
-                    onAddFeaturedFavorite = onAddFeaturedFavorite
-                )
-            }
-        }
-        return
-    }
     val (series, film) = remember(
         state.recommendedSeries, state.recentSeriesReleases,
         state.recommendedVod, state.recentVodReleases
@@ -100,6 +79,17 @@ internal fun NextCinematicDashboard(
         selectedName != null && state.featuredBackdropSelectionKey == nextFeaturedKey(selectedType, selectedName, selectedYear)
     }
     val image = verifiedBackdrop ?: series?.coverUrl ?: film?.posterUrl
+    val context = LocalContext.current
+    // Bound the fallback ambient decode instead of blurring a full-size render layer.
+    val ambientImage = remember(context, image) {
+        ImageRequest.Builder(context).data(image).size(48, 48).build()
+    }
+    val heroHorizontal = remember {
+        Brush.horizontalGradient(listOf(nextBg, nextBg.copy(alpha = 0.70f), nextBg.copy(alpha = 0.03f)))
+    }
+    val heroVertical = remember {
+        Brush.verticalGradient(listOf(Color.Transparent, nextBg.copy(alpha = 0.18f), nextBg), startY = 140f)
+    }
     val actions = listOf(
         Triple("⌂  Accueil", true, {}),
         Triple("▣  Direct", false, onLive),
@@ -109,18 +99,22 @@ internal fun NextCinematicDashboard(
         Triple("⌕  Recherche", false, onSearch),
         Triple("⚙  Réglages", false, onSettings)
     )
-    Box(Modifier.fillMaxSize().background(nextBg)) {
-        Box(Modifier.fillMaxWidth().fillMaxHeight(0.48f).align(Alignment.TopCenter).clipToBounds()) {
+    Box(Modifier.fillMaxSize().background(nextBg).then(if (mobile) {
+        if (unifiedNavigation) Modifier.navigationBarsPadding()
+        else Modifier.statusBarsPadding().navigationBarsPadding()
+    } else Modifier)) {
+        Box(Modifier.fillMaxWidth().fillMaxHeight(if (mobile) 0.72f else 0.48f).align(Alignment.TopCenter).clipToBounds()) {
             if (!image.isNullOrBlank()) {
                 // A catalog poster must not masquerade as a widescreen TMDB backdrop.
                 // Blurred ambient layer preserves a cinematic look when cloud metadata is unavailable.
                 if (verifiedBackdrop == null) {
                     AsyncImage(
-                        model = image,
+                        model = ambientImage,
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
+                        filterQuality = FilterQuality.Low,
                         modifier = Modifier.fillMaxWidth(0.84f).fillMaxHeight()
-                            .align(Alignment.TopEnd).blur(36.dp)
+                            .align(Alignment.TopEnd)
                     )
                 }
                 AsyncImage(
@@ -131,16 +125,13 @@ internal fun NextCinematicDashboard(
                         .fillMaxHeight().align(Alignment.TopEnd)
                 )
             }
-            Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(
-                listOf(nextBg, nextBg.copy(alpha = 0.70f), nextBg.copy(alpha = 0.03f))
-            )))
-            Box(Modifier.fillMaxSize().background(Brush.verticalGradient(
-                listOf(Color.Transparent, nextBg.copy(alpha = 0.18f), nextBg), startY = 140f
-            )))
+            Box(Modifier.fillMaxSize().background(heroHorizontal))
+            Box(Modifier.fillMaxSize().background(heroVertical))
             }
-        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 22.dp, vertical = 9.dp)) {
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = if (mobile) 12.dp else 22.dp, vertical = 9.dp)) {
+            if (!unifiedNavigation) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.width(136.dp)) {
+                Column(Modifier.width(if (mobile) 108.dp else 136.dp)) {
                     Text("TVFlow", color = nextWhite, fontSize = 28.sp, fontWeight = FontWeight.ExtraBold)
                     Text("TVFlow-v2 Next", color = nextWhite.copy(alpha = 0.75f), fontSize = 12.sp)
                 }
@@ -156,16 +147,18 @@ internal fun NextCinematicDashboard(
                             base = if (active) Color(0xFF005DCF) else Color(0xC5121C2A),
                             shape = RoundedCornerShape(20.dp)
                         ) {
-                            Text(label, Modifier.padding(horizontal = 13.dp, vertical = 10.dp),
+                            Text(label, Modifier.padding(horizontal = 13.dp, vertical = if (mobile) 14.dp else 10.dp),
                                 color = Color.White, fontSize = 13.sp, maxLines = 1)
                         }
                     }
                 }
                 Text("  ⌕    ◉", color = nextWhite, fontSize = 19.sp)
             }
+            }
             Spacer(Modifier.height(9.dp))
-            Row(Modifier.fillMaxWidth().height(194.dp)) {
-                Column(Modifier.width(140.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
+            Row(Modifier.fillMaxWidth().then(if (mobile && unifiedNavigation) Modifier.heightIn(min = 224.dp) else Modifier.height(if (mobile) 224.dp else 194.dp))) {
+                if (!unifiedNavigation) {
+                Column(Modifier.width(if (mobile) 124.dp else 140.dp), verticalArrangement = Arrangement.spacedBy(if (mobile) 4.dp else 20.dp)) {
                     listOf("♥   Mes favoris" to onFavorites,
                         "◷   Derniers ajoutés" to onVod,
                         "♨   Tendances" to onVod,
@@ -173,17 +166,18 @@ internal fun NextCinematicDashboard(
                     ).forEach { (label, callback) ->
                         NextFocusSurface(onClick = callback, base = Color.Transparent) {
                             Text(label, color = nextWhite.copy(alpha = 0.88f), fontSize = 12.sp,
-                                modifier = Modifier.padding(vertical = 5.dp))
+                                modifier = Modifier.padding(vertical = if (mobile) 10.dp else 5.dp))
                         }
                     }
+                }
                 }
                 Column(Modifier.weight(1f)) {
                     Text(if (series != null) "★  SÉRIE" else "★  FILM",
                         color = nextWhite, fontSize = 10.sp,
                         modifier = Modifier.background(Color(0xCC172333), RoundedCornerShape(3.dp)).padding(4.dp))
                     Spacer(Modifier.height(5.dp))
-                    Text(title.substringBeforeLast(" (20").removePrefix("EN - ").removePrefix("FR - ").uppercase(), color = Color.White, fontSize = 31.sp,
-                        fontWeight = FontWeight.Black, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(title.substringBeforeLast(" (20").removePrefix("EN - ").removePrefix("FR - ").uppercase(), color = Color.White, fontSize = if (mobile) 24.sp else 31.sp,
+                        fontWeight = FontWeight.Black, maxLines = if (mobile) 2 else 1, overflow = TextOverflow.Ellipsis)
                     Text(
                         listOfNotNull((series?.releaseYear ?: film?.releaseYear)?.toString(),
                             if (series != null) "Série" else "Film", "HD", "TVFlow").joinToString("   "),
@@ -192,10 +186,10 @@ internal fun NextCinematicDashboard(
                     Spacer(Modifier.height(9.dp))
                     Text(description, color = nextWhite.copy(alpha = 0.84f), fontSize = 13.sp,
                         maxLines = 2, lineHeight = 16.sp, overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.fillMaxWidth(0.64f))
+                        modifier = Modifier.fillMaxWidth(if (mobile) 0.95f else 0.64f))
                     Spacer(Modifier.height(5.dp))
                     if (series != null || film != null) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    com.tvflow.app.ui.common.NextWrappingRow(com.tvflow.app.ui.common.isNextPortraitLayout()) {
                         NextAction("▶  Voir maintenant", nextBlue) {
                             if (series != null) onSeriesItem(series) else if (film != null) onVodItem(film)
                         }
@@ -211,26 +205,27 @@ internal fun NextCinematicDashboard(
                             showFeaturedDetails = true
                         }
                     }
-                    } else {
+                    } else if (!unifiedNavigation) {
                         NextAction("▶  Direct TV", nextBlue, onLive)
                     }
                 }
             }
             Spacer(Modifier.height(4.dp))
+            if (!unifiedNavigation) {
             Text("Applications favorites", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
             Spacer(Modifier.height(4.dp))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(Modifier.fillMaxWidth().then(if (mobile) Modifier.horizontalScroll(rememberScrollState()) else Modifier), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf(
                     Triple("Direct TV", Color(0xFF003D84), onLive),
                     Triple("Guide TV", Color(0xFF05274F), onGuide),
                     Triple("Films", Color(0xFF2F1048), onVod),
                     Triple("Séries", Color(0xFF003C49), onSeries),
                     Triple("Favoris", Color(0xFF451A25), onFavorites),
-                    Triple("Recherche IA", Color(0xFF171B58), onSearch),
+                    Triple("Recherche IA", Color(0xFF171B58), onAiSearch),
                     Triple("TMDB", Color(0xFF062C67), onSettings),
                     Triple("Réglages", Color(0xFF1E2834), onSettings)                ).forEachIndexed { index, tile ->
                     NextFocusSurface(
-                        modifier = Modifier.weight(1f).height(57.dp),
+                        modifier = if (mobile) Modifier.width(112.dp).height(64.dp) else Modifier.weight(1f).height(57.dp),
                         onClick = tile.third, base = tile.second,
                         selected = index == 0
                     ) {
@@ -244,6 +239,7 @@ internal fun NextCinematicDashboard(
                 }
             }
             Spacer(Modifier.height(6.dp))
+            }
             NextMediaRow("Recommandés pour vous",
                 state.recommendedVod.ifEmpty { state.recentVodReleases }, onVodItem)
             Spacer(Modifier.height(4.dp))

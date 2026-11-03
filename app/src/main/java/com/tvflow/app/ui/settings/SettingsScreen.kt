@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -539,23 +540,15 @@ fun SettingsScreen(
                 Modifier.weight(1f).fillMaxHeight(),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    SectionTitle("Organisation des films et séries")
-                    SettingsButton(onClick = { showMediaOrganization = false }) {
-                        Text("← Réglages")
-                    }
-                }
+                OrganizationHeader("Organisation des films et séries", onBack = { showMediaOrganization = false })
                 if (isTv) Text("Appuie sur une catégorie pour l'afficher ou la masquer. Les modifications sont enregistrées automatiquement.")
                 CategoryVisibilityFilterButtons(mediaVisibilityFilter) { mediaVisibilityFilter = it }
                 SettingsButton(onClick = { showMediaBulk = !showMediaBulk }) {
                     Text(if (showMediaBulk) "Masquer les actions de groupe" else "Sélection multiple", maxLines = 1)
                 }
                 if (showMediaBulk) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                com.tvflow.app.ui.common.NextWrappingRow(
+                    wrap = BuildConfig.APPLICATION_ID.endsWith(".next") && !isTv) {
                     SettingsButton(
                         onClick = {
                             selectedMediaIds = if (shownMedia.isNotEmpty() && shownMedia.all { mediaKey(it) in selectedMediaIds }) {
@@ -598,14 +591,7 @@ fun SettingsScreen(
 
         if (showChannelOrganization) {
             Column(Modifier.weight(1f).fillMaxHeight()) {
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    SectionTitle("Catégories de chaînes")
-                    SettingsButton(onClick = { showChannelOrganization = false }) { Text("← Réglages") }
-                }
+                OrganizationHeader("Catégories de chaînes", onBack = { showChannelOrganization = false })
                 Text("Choisis les catégories à afficher ou masquer. Les chaînes à l'intérieur ne sont pas modifiées.")
                 CategoryVisibilityFilterButtons(channelVisibilityFilter) { channelVisibilityFilter = it }
                 val displayedCategories = state.categories.filter { channelVisibilityFilter.accepts(it.isHidden) }
@@ -659,6 +645,32 @@ private enum class CategoryVisibilityFilter(val label: String) {
         VISIBLE -> !hidden
         HIDDEN -> hidden
         ALL -> true
+    }
+}
+
+@Composable
+private fun OrganizationHeader(title: String, onBack: () -> Unit) {
+    val nextMobile = BuildConfig.APPLICATION_ID.endsWith(".next") && !LocalContext.current.isTelevisionUi()
+    if (nextMobile) {
+        Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceVariant,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = .22f))) {
+            Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("VOTRE CATALOGUE", style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary)
+                    Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold,
+                        maxLines = 3, overflow = TextOverflow.Ellipsis)
+                }
+                SettingsButton(onClick = onBack) { Text("Retour", maxLines = 1) }
+            }
+        }
+    } else {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically) {
+            SectionTitle(title)
+            SettingsButton(onClick = onBack) { Text("← Réglages") }
+        }
     }
 }
 
